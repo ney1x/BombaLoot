@@ -2,6 +2,7 @@ import Link from "next/link";
 import styles from "./page.module.css";
 import { GameShowcase } from "@/components/GameShowcase";
 import { HeroRotator } from "@/components/HeroRotator";
+import { HowItWorks } from "@/components/HowItWorks";
 import { ProductTile } from "@/components/ProductTile";
 import { TrustStrip } from "@/components/TrustStrip";
 import { toStoreProduct } from "@/lib/catalog-mapper";
@@ -50,29 +51,7 @@ export default async function Home() {
         <div className={styles.sectionHead}>
           <h2>Cómo funciona</h2>
         </div>
-        <div className={styles.steps}>
-          <div className={styles.step}>
-            <span className={styles.stepNum}>1</span>
-            <div>
-              <h3>Elegís y pagás</h3>
-              <p>Seleccioná la denominación exacta y pagá con Nequi/Wompi o PayPal, con o sin cuenta.</p>
-            </div>
-          </div>
-          <div className={styles.step}>
-            <span className={styles.stepNum}>2</span>
-            <div>
-              <h3>Confirmamos con el proveedor</h3>
-              <p>El pago se valida directamente con el proveedor antes de asignarte un código.</p>
-            </div>
-          </div>
-          <div className={styles.step}>
-            <span className={styles.stepNum}>3</span>
-            <div>
-              <h3>Recibís tu código</h3>
-              <p>Aparece en tu pedido al instante — y por email como respaldo.</p>
-            </div>
-          </div>
-        </div>
+        <HowItWorks />
       </section>
     </main>
   );

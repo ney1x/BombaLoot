@@ -1,0 +1,162 @@
+.steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/*
+ * La mecha — conecta el centro del paso 1 al centro del paso 3. En una
+ * grilla de 3 columnas iguales esos centros caen en 1/6, 3/6 y 5/6 del
+ * ancho, así que la línea corre de 1/6 a 5/6 sin medir nada por JS.
+ */
+.fuseLine {
+  position: absolute;
+  top: 20px;
+  left: 16.6667%;
+  right: 16.6667%;
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border) 0,
+    var(--border) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Se prende junto con los nodos — la mecha pasa de gris a encendida. */
+.fuseLine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  opacity: 0;
+  transition: opacity 0.9s ease-out 0.15s;
+}
+
+.ignited .fuseLine::after {
+  opacity: 1;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.stepNum {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color 0.4s ease-out,
+    box-shadow 0.4s ease-out;
+}
+
+.step h3 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.step p {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  max-width: 28ch;
+}
+
+/*
+ * Encendido: cuando la sección entra en viewport, cada nodo "prende" en
+ * secuencia — mismo overshoot elástico que la mecha del logo (Header), no
+ * un efecto nuevo. `transition-delay` inline por paso hace la secuencia;
+ * acá solo el keyframe del pop.
+ */
+.ignited .stepNum {
+  animation: ignite-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+@keyframes ignite-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(1.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ignited .stepNum {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .steps {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .fuseLine {
+    top: 40px;
+    bottom: 40px;
+    left: 19px;
+    right: auto;
+    width: 2px;
+    height: auto;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--border) 0,
+      var(--border) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  .fuseLine::after {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--accent) 0,
+      var(--accent) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  .step {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+  }
+
+  .step p {
+    max-width: none;
+  }
+}

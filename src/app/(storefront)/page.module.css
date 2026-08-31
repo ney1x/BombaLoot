@@ -41,55 +41,9 @@
   gap: 16px;
 }
 
-/* How it works */
-
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.step {
-  display: flex;
-  gap: 14px;
-}
-
-.stepNum {
-  flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.step h3 {
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.step p {
-  font-size: 13.5px;
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
-
 @media (max-width: 900px) {
   .productGrid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .steps {
-    grid-template-columns: 1fr;
-    gap: 22px;
   }
 }
 

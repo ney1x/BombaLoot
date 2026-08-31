@@ -17,30 +17,59 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   padding: 24px 26px;
   position: relative;
+  transition: background 0.2s ease-out;
+}
+
+.item:hover {
+  background: var(--surface-2);
 }
 
 .item + .item {
   border-left: 1px dashed var(--border);
 }
 
+/* Chispa en el punto medio del divisor — el mismo motivo del logo, en
+   miniatura, marcando el límite entre los tres pilares de confianza. */
+.item + .item::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  transform: translateY(-50%) rotate(45deg);
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
 .iconWrap {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: var(--accent-soft);
+  width: 40px;
+  height: 40px;
   color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(155deg, var(--accent-soft), var(--surface-2));
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.item:hover .iconWrap {
+  transform: scale(1.12) rotate(90deg);
 }
 
 .iconWrap svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.item:hover .iconWrap svg {
+  transform: rotate(-90deg);
 }
 
 .copy h3 {
@@ -64,6 +93,12 @@
   .item + .item {
     border-left: none;
     border-top: 1px dashed var(--border);
+  }
+
+  .item + .item::before {
+    top: -3.5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
   }
 }
 

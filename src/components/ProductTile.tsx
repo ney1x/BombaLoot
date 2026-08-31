@@ -1,7 +1,7 @@
 import Link from "next/link";
 import styles from "./ProductTile.module.css";
 import { StockBadge } from "./StockBadge";
-import { GAME_MARKS } from "./icons";
+import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAME_COLORS, formatCop, type Product } from "@/lib/products";
 
 export function ProductTile({ product }: { product: Product }) {
@@ -24,7 +24,12 @@ export function ProductTile({ product }: { product: Product }) {
         <span className={styles.unit}>{product.unit}</span>
       </div>
       <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
-      {!isOut && <span className={styles.cta}>Ver producto →</span>}
+      {!isOut && (
+        <span className={styles.cta}>
+          Ver producto
+          <ChevronRightIcon className={styles.ctaIcon} />
+        </span>
+      )}
     </>
   );
 
