@@ -10,11 +10,11 @@ import { writeAudit } from "./audit";
 
 /**
  * Imágenes de producto. Sin binarios en Postgres — solo `image_url`,
- * apuntando a un CDN/object storage externo. No hay endpoint de subida de
- * archivo en esta fase: no hay credenciales de storage configuradas
- * todavía (ver comentario de cabecera en 0007_product_images.sql), así
- * que el admin pega la URL de una imagen ya alojada, igual que se pediría
- * si hubiera un botón de "subir" que hoy no existe de verdad.
+ * apuntando a un CDN/object storage externo (Vercel Blob vía
+ * /api/admin/upload cuando BLOB_READ_WRITE_TOKEN está configurada; ver ese
+ * route handler). El admin también puede pegar a mano la URL de una imagen
+ * ya alojada en otro lado — ambos caminos terminan acá guardando solo la
+ * URL, nunca el binario.
  *
  * A lo sumo una imagen principal activa por producto — lo garantiza
  * `product_images_one_primary_idx` (índice único parcial) en la base, no
@@ -23,10 +23,9 @@ import { writeAudit } from "./audit";
  */
 
 /**
- * Acepta una URL absoluta o una ruta local que arranca en `/` (sirve del
- * propio `/public` de Next) — no hay CDN real configurado todavía (ver
- * comentario de cabecera de la migración 0007), así que una ruta local es
- * el reemplazo honesto de "ya alojada en un CDN" mientras tanto.
+ * Acepta una URL absoluta (el CDN de Blob, o cualquier imagen ya alojada
+ * pegada a mano) o una ruta local que arranca en `/` (sirve del propio
+ * `/public` de Next, útil en dev sin storage configurado).
  */
 export const imageUrlSchema = z
   .string()

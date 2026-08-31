@@ -1,16 +1,21 @@
 import styles from "./TrustStrip.module.css";
-import { HistoryCheckIcon, PackageCheckIcon, ShieldCheckIcon } from "./icons";
+import { HistoryCheckIcon, LightningIcon, PackageCheckIcon, ShieldCheckIcon } from "./icons";
 
 const items = [
   {
+    icon: LightningIcon,
+    title: "Entrega inmediata",
+    body: "Tu código queda en el pedido apenas se confirma el pago.",
+  },
+  {
     icon: ShieldCheckIcon,
-    title: "Pago verificado en servidor",
+    title: "Compra protegida",
     body: "Confirmamos con el proveedor antes de asignar un código.",
   },
   {
     icon: PackageCheckIcon,
-    title: "Entrega automática",
-    body: "Tu código queda en el pedido apenas se confirma el pago.",
+    title: "Sin cuenta obligatoria",
+    body: "Comprá como invitado, sin registrarte.",
   },
   {
     icon: HistoryCheckIcon,

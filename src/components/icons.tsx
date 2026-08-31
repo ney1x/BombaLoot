@@ -8,6 +8,14 @@ const base = {
   strokeLinejoin: "round" as const,
 };
 
+export function LightningIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>
+      <path d="M12.5 3 5 13.2h5.3L10.8 21 19 10.3h-5.4L12.5 3Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ShieldCheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>

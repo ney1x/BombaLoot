@@ -4,8 +4,15 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import styles from "./HeroRotator.module.css";
 import { GameImageSlot } from "./GameImageSlot";
+import { LightningIcon, ShieldCheckIcon, UserIcon } from "./icons";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { formatCop, type Product } from "@/lib/products";
+
+const BENEFITS = [
+  { icon: LightningIcon, title: "Entrega instantánea", body: "Recibí tu código al instante" },
+  { icon: ShieldCheckIcon, title: "Pagos seguros", body: "Protegemos tu compra" },
+  { icon: UserIcon, title: "Sin cuenta obligatoria", body: "Comprá sin registrarte" },
+];
 
 const ROTATE_MS = 4500;
 
@@ -40,28 +47,44 @@ export function HeroRotator({
   }
 
   return (
-    <>
+    <div className={styles.hero}>
       {/*
        * El titular va antes del carrusel a propósito: un visitante nuevo
        * necesita saber qué es este sitio antes de ver un producto puntual
-       * rotando — lo general antes de lo específico. Antes estaba después
-       * del banner, así que primero veías "VALORANT 575 VP" sin contexto.
+       * rotando — lo general antes de lo específico.
        */}
       <div className={styles.intro}>
-        <h1>Tu código digital, al instante.</h1>
-        <p>
+        <p className={styles.eyebrow}>Códigos digitales · Entrega instantánea</p>
+        <h1>
+          <span className={styles.headLine}>Tu código digital,</span>
+          <span className={`${styles.headLine} ${styles.headAccent}`}>al instante.</span>
+        </h1>
+        <p className={styles.lede}>
           Elegí la denominación exacta que necesitás, pagá de forma segura y
           recibí el código en tu pedido apenas confirmamos el pago con el
           proveedor — sin cuenta obligatoria.
         </p>
         <div className={styles.actions}>
-          <Link href="/catalogo" className="btn btnPrimary">
+          <Link href="/catalogo" className={`btn ${styles.ctaPrimary}`}>
             Ver catálogo completo
+            <ChevronRight />
           </Link>
-          <a href="#como-funciona" className="btn btnQuiet">
+          <a href="#como-funciona" className={`btn ${styles.ctaSecondary}`}>
+            <PlayCircle />
             Cómo funciona
           </a>
         </div>
+        <ul className={styles.benefits}>
+          {BENEFITS.map((benefit) => (
+            <li key={benefit.title}>
+              <benefit.icon className={styles.benefitIcon} />
+              <div>
+                <p className={styles.benefitTitle}>{benefit.title}</p>
+                <p className={styles.benefitBody}>{benefit.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <section
@@ -78,7 +101,7 @@ export function HeroRotator({
             gameId={product.gameId}
             label={product.gameLabel}
             sizeHint="1600×670"
-            sizes="100vw"
+            sizes="(max-width: 900px) 100vw, 44vw"
             priority
             imageUrl={gameImages[product.gameId]}
           />
@@ -95,6 +118,7 @@ export function HeroRotator({
             <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
             <Link href={`/catalogo/${product.gameId}?select=${product.id}`} className={styles.cta}>
               Comprar ahora
+              <ChevronRight />
             </Link>
           </div>
 
@@ -115,6 +139,23 @@ export function HeroRotator({
           </div>
         </div>
       </section>
-    </>
+    </div>
+  );
+}
+
+function ChevronRight() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+function PlayCircle() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m10.3 9 4.4 3-4.4 3V9Z" />
+    </svg>
   );
 }

@@ -1,8 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
+
+/**
+ * Sube el archivo a /api/admin/upload (Vercel Blob) y devuelve la URL del
+ * CDN. Separado de handleAdd para poder subir apenas se elige el archivo
+ * (feedback inmediato) sin esperar a que se aprieta "Agregar banner".
+ */
+async function uploadFile(file: File, scope: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("scope", scope);
+  const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "No se pudo subir la imagen");
+  return data.url as string;
+}
 
 export type GameVisualPlacement = "hero" | "showcase";
 
@@ -74,6 +89,24 @@ export function GameVisualsManager({
   const [placement, setPlacement] = useState<GameVisualPlacement>("hero");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadFile(file, `games/${gameId}`);
+      setImageUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo subir la imagen");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function refresh() {
     const res = await fetch(`/api/admin/games/${gameId}/visuals`);
@@ -142,14 +175,22 @@ export function GameVisualsManager({
       {error && <div className={shared.formMsg} data-tone="bad">{error}</div>}
 
       <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div className={shared.field} style={{ flex: "2 1 220px" }}>
-          <label htmlFor={`url-${gameId}`}>URL o ruta local</label>
+        <div className={shared.field} style={{ flex: "2 1 260px" }}>
+          <label htmlFor={`file-${gameId}`}>Subir imagen (PNG/JPG/WEBP, máx. 5MB)</label>
           <input
-            id={`url-${gameId}`}
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="/games/valorant-hero.jpg"
+            id={`file-${gameId}`}
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif"
+            onChange={handleFileChange}
+            disabled={uploading}
           />
+          {uploading && <span className={shared.subtitle}>Subiendo al CDN…</span>}
+          {!uploading && imageUrl && (
+            <span className={shared.mono} style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {imageUrl}
+            </span>
+          )}
         </div>
         <div className={shared.field} style={{ flex: "1 1 200px" }}>
           <label htmlFor={`placement-${gameId}`}>Lugar</label>
@@ -166,10 +207,27 @@ export function GameVisualsManager({
           <label htmlFor={`title-${gameId}`}>Título (opcional)</label>
           <input id={`title-${gameId}`} value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
-        <button type="submit" className={`${shared.btnSmall} ${shared.btnSmallPrimary}`} disabled={submitting}>
-          {submitting ? "Cargando…" : "Agregar banner"}
+        <button
+          type="submit"
+          className={`${shared.btnSmall} ${shared.btnSmallPrimary}`}
+          disabled={submitting || uploading || !imageUrl.trim()}
+        >
+          {submitting ? "Guardando…" : "Agregar banner"}
         </button>
       </form>
+      <details>
+        <summary className={shared.subtitle} style={{ cursor: "pointer" }}>
+          O pegar una URL ya alojada
+        </summary>
+        <div className={shared.field} style={{ marginTop: 8, maxWidth: 420 }}>
+          <input
+            aria-label="URL de imagen"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://…"
+          />
+        </div>
+      </details>
 
       {(["hero", "showcase"] as const).map((p) => {
         const rows = visuals.filter((v) => v.placement === p);

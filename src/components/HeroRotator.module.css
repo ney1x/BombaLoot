@@ -1,41 +1,166 @@
+/* Hero: dos columnas — copy a la izquierda, producto destacado a la
+   derecha. En mobile colapsa a una sola columna, el producto debajo. */
+.hero {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 56px;
+  padding: 44px 0 60px;
+}
+
 .intro {
-  /* El intro ahora es lo primero en el flujo — el padding-top es el aire
-     desde el header, el padding-bottom separa del banner que sigue. */
-  padding: 36px 0 28px;
-  max-width: 640px;
+  max-width: 560px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  margin-bottom: 20px;
 }
 
 .intro h1 {
-  font-size: clamp(30px, 3.6vw, 42px);
-  line-height: 1.05;
-  margin-bottom: 16px;
-  max-width: 20ch;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(36px, 4.6vw, 54px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
 }
 
-.intro p {
-  font-size: 16.5px;
-  line-height: 1.6;
+.headLine {
+  color: var(--ink);
+}
+
+.headAccent {
+  background: linear-gradient(100deg, var(--accent) 15%, var(--accent-2) 85%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.lede {
+  font-size: 17px;
+  line-height: 1.65;
   color: var(--ink-soft);
-  max-width: 54ch;
-  margin-bottom: 26px;
+  max-width: 50ch;
+  margin-bottom: 30px;
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 14px;
   flex-wrap: wrap;
+  margin-bottom: 40px;
 }
 
-/* Banner */
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 12px;
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: 0 16px 32px -14px color-mix(in srgb, var(--accent) 65%, transparent);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.ctaPrimary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ctaPrimary svg {
+  transition: transform 0.2s ease-out;
+}
+
+.ctaPrimary:hover svg {
+  transform: translateX(3px);
+}
+
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 15px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ctaSecondary:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--ink);
+}
+
+/* Beneficios */
+
+.benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 32px;
+  list-style: none;
+  margin: 0;
+  padding: 24px 0 0;
+  border-top: 1px dashed var(--border);
+}
+
+.benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 150px;
+}
+
+.benefitIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.benefitTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 1px;
+}
+
+.benefitBody {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* Banner / tarjeta de producto destacado */
 
 .banner {
   position: relative;
   isolation: isolate;
-  aspect-ratio: 2.4 / 1;
+  aspect-ratio: 5 / 6;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: var(--shadow-md), 0 0 60px -24px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .bg {
@@ -45,8 +170,8 @@
 .scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 45%, transparent 70%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0%, transparent 40%);
+  background: linear-gradient(0deg, rgba(3, 6, 14, 0.92) 0%, rgba(3, 6, 14, 0.35) 46%, rgba(3, 6, 14, 0.08) 70%),
+    linear-gradient(100deg, rgba(3, 6, 14, 0.35) 0%, transparent 45%);
 }
 
 .overlay {
@@ -55,7 +180,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 28px 32px;
+  padding: 30px 30px;
 }
 
 .info {
@@ -83,7 +208,7 @@
 .denom {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(38px, 5vw, 58px);
+  font-size: clamp(40px, 5vw, 60px);
   line-height: 0.95;
   color: #fff;
 }
@@ -98,29 +223,34 @@
   font-family: var(--font-mono);
   font-size: 16px;
   color: rgba(255, 255, 255, 0.92);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .cta {
   display: inline-flex;
-  background: #fff;
-  color: #14161b;
-  font-weight: 700;
-  font-size: 14.5px;
-  padding: 12px 20px;
-  border-radius: 9px;
-  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.4);
-  transition: filter 0.15s ease;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  height: 50px;
+  border-radius: 11px;
+  box-shadow: 0 14px 28px -12px rgba(0, 0, 0, 0.55);
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
 
 .cta:hover {
-  filter: brightness(0.96);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 16px;
 }
 
@@ -134,7 +264,7 @@
   width: 26px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.28);
   border: none;
   cursor: pointer;
   padding: 0;
@@ -144,7 +274,7 @@
 }
 
 .dot:hover {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .dotActive {
@@ -153,16 +283,18 @@
 }
 
 @media (max-width: 900px) {
-  .banner {
-    aspect-ratio: 4 / 3;
-  }
-
-  .overlay {
-    padding: 22px 24px;
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 32px 0 48px;
   }
 
   .intro {
-    padding: 28px 0 32px;
+    max-width: none;
+  }
+
+  .banner {
+    aspect-ratio: 4 / 3;
   }
 }
 
@@ -176,9 +308,17 @@
     max-width: none;
   }
 
-  .intro {
-    /* Los dos CTA envuelven a su propia fila en mobile ("Cómo funciona"
-       queda solo) — más aire acá para que no se lea pegado al banner. */
-    padding: 24px 0 36px;
+  .actions {
+    gap: 12px;
+  }
+
+  .ctaPrimary,
+  .ctaSecondary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .benefits {
+    gap: 18px 24px;
   }
 }

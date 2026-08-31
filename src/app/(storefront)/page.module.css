@@ -1,3 +1,44 @@
+/*
+ * Home es la única superficie con mundo visual propio (dark navy premium),
+ * lograda con overrides locales de los mismos tokens que ya usan
+ * GameShowcase/ProductTile/TrustStrip/HowItWorks — así heredan el tema
+ * oscuro automáticamente vía cascada de custom properties, sin duplicar
+ * estilos por componente. Catálogo/checkout/admin no entran en .shell y
+ * siguen con el tema claro tal como estaban.
+ *
+ * El fondo full-bleed vive en .shell (bloque normal, ancho 100% real) en
+ * vez del truco 100vw + translateX(-50%) en un pseudo-elemento: ese truco
+ * combinado con el header sticky dejaba el fondo sin repintar durante el
+ * scroll en algunos motores de composición (se veía la página en blanco
+ * al scrollear). Un div de bloque normal no tiene ese problema.
+ */
+.shell {
+  background:
+    radial-gradient(1100px 560px at 82% -6%, rgba(91, 124, 250, 0.16), transparent 60%),
+    linear-gradient(180deg, #07101d 0%, #050a14 46%, #070d17 100%);
+
+  --paper: #050a14;
+  --surface: #0b1422;
+  --surface-2: #131d2e;
+  --border: #1c2739;
+  --ink: #edeff3;
+  --ink-soft: #9aa4b8;
+  --ink-faint: #66708a;
+  --accent: #5b7cfa;
+  --accent-2: #8b7cff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(91, 124, 250, 0.16);
+  --confirm: #4fd68c;
+  --confirm-soft: #123328;
+  --warn: #e0ac4a;
+  --warn-soft: #332510;
+  --alert: #f0806a;
+  --alert-soft: #3a1f19;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 20px 44px -20px rgba(0, 0, 0, 0.7);
+  color: var(--ink);
+}
+
 .main {
   max-width: 1240px;
   margin: 0 auto;
@@ -7,7 +48,7 @@
 /* Sections */
 
 .section {
-  padding: 46px 0;
+  padding: 56px 0;
 }
 
 .stepsSection {
@@ -21,14 +62,27 @@
 
 .sectionHead {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 22px;
 }
 
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
 .sectionHead h2 {
-  font-size: 26px;
+  font-size: clamp(22px, 2.4vw, 28px);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
 }
 
 .sectionLink {

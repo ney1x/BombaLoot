@@ -21,38 +21,49 @@ export default async function Home() {
   const catalogPreview = products.slice(0, 4);
 
   return (
-    <main className={styles.main}>
-      <HeroRotator products={products} gameImages={Object.fromEntries(heroMap)} />
+    <div className={styles.shell}>
+      <main className={styles.main}>
+        <HeroRotator products={products} gameImages={Object.fromEntries(heroMap)} />
 
-      <section className={styles.section}>
-        <div className={styles.sectionHead}>
-          <h2>Elegí tu juego</h2>
-        </div>
-        <GameShowcase gameImages={Object.fromEntries(showcaseMap)} />
-      </section>
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <div>
+              <p className={styles.kicker}>01 · Catálogo</p>
+              <h2>Elegí tu juego</h2>
+            </div>
+          </div>
+          <GameShowcase gameImages={Object.fromEntries(showcaseMap)} />
+        </section>
 
-      <section className={styles.section}>
-        <div className={styles.sectionHead}>
-          <h2>Denominaciones disponibles</h2>
-          <Link href="/catalogo" className={styles.sectionLink}>
-            Ver catálogo completo →
-          </Link>
-        </div>
-        <div className={styles.productGrid}>
-          {catalogPreview.map((product) => (
-            <ProductTile product={product} key={product.id} />
-          ))}
-        </div>
-      </section>
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <div>
+              <p className={styles.kicker}>02 · Elegí en vivo</p>
+              <h2>Denominaciones disponibles</h2>
+            </div>
+            <Link href="/catalogo" className={styles.sectionLink}>
+              Ver catálogo completo →
+            </Link>
+          </div>
+          <div className={styles.productGrid}>
+            {catalogPreview.map((product) => (
+              <ProductTile product={product} key={product.id} />
+            ))}
+          </div>
+        </section>
 
-      <TrustStrip />
+        <TrustStrip />
 
-      <section className={`${styles.section} ${styles.stepsSection}`} id="como-funciona">
-        <div className={styles.sectionHead}>
-          <h2>Cómo funciona</h2>
-        </div>
-        <HowItWorks />
-      </section>
-    </main>
+        <section className={`${styles.section} ${styles.stepsSection}`} id="como-funciona">
+          <div className={styles.sectionHead}>
+            <div>
+              <p className={styles.kicker}>03 · Proceso</p>
+              <h2>Cómo funciona</h2>
+            </div>
+          </div>
+          <HowItWorks />
+        </section>
+      </main>
+    </div>
   );
 }

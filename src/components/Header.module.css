@@ -2,22 +2,24 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  /* Superficie elevada (--surface), no el mismo tono que el fondo de
-     página (--paper) — es lo que separa "franja plana" de "panel" sin
-     necesitar una sombra grande. */
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  /* Token de marca local al navbar — el resto del sitio sigue con
-     --accent (azul-violeta) como está; este cian solo vive acá, en el
-     logo, el foco del buscador y el punto de "sesión activa". */
-  --brand-ink: #1c2432;
-  --brand-cyan: #0aa9d1;
-}
+  /*
+   * Navbar de marca: oscuro siempre, independiente del toggle claro/oscuro
+   * del resto del sitio (mismo patrón que muchos e-commerce — la barra es
+   * chrome de marca, no contenido que siga el tema de página). Tokens
+   * locales en vez de --surface/--border/--ink, que sí cambian con el tema.
+   */
+  --nav-bg: #070d17;
+  --nav-surface-2: #101927;
+  --nav-border: #1b2536;
+  --nav-ink: #edeff3;
+  --nav-ink-soft: #8b96ac;
+  --nav-ink-faint: #5c667c;
+  --brand-ink: #f4f6fa;
+  --brand-cyan: #7c93ff;
 
-:root[data-theme="dark"] .bar {
-  --brand-ink: #eef1f6;
-  --brand-cyan: #22c3ea;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--nav-border);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 
 .inner {
@@ -63,17 +65,17 @@
   align-items: center;
   gap: 5px;
   padding-left: 16px;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--nav-border);
   font-size: 12px;
   font-weight: 600;
-  color: var(--ink-faint);
+  color: var(--nav-ink-soft);
   white-space: nowrap;
 }
 
 .trustTag svg {
   width: 14px;
   height: 14px;
-  color: var(--confirm, #1c9a5b);
+  color: #4fd68c;
 }
 
 @media (max-width: 900px) {
@@ -109,7 +111,7 @@
   left: 14px;
   width: 18px;
   height: 18px;
-  color: var(--ink-faint);
+  color: var(--nav-ink-faint);
   pointer-events: none;
   transition: color 0.15s ease;
 }
@@ -121,18 +123,18 @@
   height: 44px;
   padding: 0 14px 0 40px;
   border-radius: 10px;
-  /* Campo "recesado" contra la superficie elevada del navbar (--surface):
-     un tono más profundo (--surface-2), no una card blanca flotando
-     sobre otra blanca — así el buscador se lee integrado, no pegado. */
+  /* Campo "recesado" contra el fondo del navbar: un tono más claro
+     (--nav-surface-2), no una card blanca flotando sobre otra blanca —
+     así el buscador se lee integrado, no pegado. */
   border: 1px solid transparent;
-  background: var(--surface-2);
-  color: var(--ink);
+  background: var(--nav-surface-2);
+  color: var(--nav-ink);
   font-size: 14.5px;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .searchInput:hover {
-  border-color: var(--border);
+  border-color: var(--nav-border);
 }
 
 .gamesDropdown {
@@ -145,9 +147,9 @@
   gap: 2px;
   padding: 8px;
   border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--nav-border);
+  background: var(--nav-surface-2);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
   z-index: 40;
 }
 
@@ -156,7 +158,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--ink-faint);
+  color: var(--nav-ink-faint);
   padding: 6px 10px 4px;
 }
 
@@ -168,12 +170,12 @@
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--nav-ink);
 }
 
 .gameOption:hover,
 .gameOption:focus-visible {
-  background: var(--surface-2);
+  background: var(--nav-bg);
   outline: none;
 }
 
@@ -192,12 +194,12 @@
 }
 
 .searchInput::placeholder {
-  color: var(--ink-faint);
+  color: var(--nav-ink-faint);
 }
 
 .searchInput:focus-visible {
   outline: none;
-  background: var(--surface);
+  background: var(--nav-bg);
   border-color: var(--brand-cyan);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-cyan) 18%, transparent);
 }
@@ -242,7 +244,7 @@
    esto el toggle es el único elemento de la fila que no responde al
    pasar el mouse, y se siente aislado del sistema. */
 .themeToggleWrap:hover {
-  background: var(--surface-2);
+  background: var(--nav-surface-2);
 }
 
 .iconBtn {
@@ -254,7 +256,7 @@
   border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--ink);
+  color: var(--nav-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,8 +265,8 @@
 }
 
 .iconBtn:hover {
-  background: var(--surface-2);
-  border-color: var(--border);
+  background: var(--nav-surface-2);
+  border-color: var(--nav-border);
 }
 
 .iconBtn:active {
@@ -284,8 +286,8 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: linear-gradient(100deg, var(--brand-cyan), #a48bff);
+  color: #0d1220;
   font-family: var(--font-mono);
   font-size: 9.5px;
   line-height: 16px;
@@ -329,8 +331,8 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--confirm);
-  border: 2px solid var(--surface);
+  background: #4fd68c;
+  border: 2px solid var(--nav-bg);
 }
 
 .mobileOnly {
