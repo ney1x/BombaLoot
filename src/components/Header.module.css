@@ -11,7 +11,11 @@
   margin: 0 auto;
   padding: 16px 24px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Los dos rieles laterales comparten el espacio sobrante en partes
+     iguales — así el buscador queda centrado en la barra completa aunque
+     el logo y las acciones no pesen lo mismo (auto/1fr/auto lo centraba
+     dentro de su propia columna, no del header). */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 28px;
 }
@@ -28,6 +32,11 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  /* Columna fija — sin esto, ocultar el buscador en mobile (display:none)
+     corre el auto-placement de la grilla y `.actions` termina invadiendo
+     la columna del medio, sin límite de ancho, desbordando el viewport. */
+  grid-column: 1;
+  justify-self: start;
 }
 
 :root[data-theme="dark"] .logo {
@@ -54,6 +63,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  grid-column: 2;
 }
 
 .searchIcon {
@@ -134,8 +144,29 @@
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Ritmo deliberado: gap generoso entre "preferencia de página" (tema) y
+     "tu sesión" (carrito/cuenta/salir) — antes los cuatro controles
+     compartían el mismo 8px y leían como una sola fila sin agrupar. */
+  gap: 18px;
   flex-shrink: 0;
+  grid-column: 3;
+  justify-self: end;
+}
+
+.sessionGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.themeToggleWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Iguala el footprint de 44px del resto de los controles — el switch
+     mide 52×30 por diseño propio, pero necesita el mismo alto de caja
+     para no romper el ritmo vertical de la fila. */
+  height: 44px;
 }
 
 .iconBtn {
@@ -263,6 +294,18 @@
 }
 
 @media (max-width: 560px) {
+  /* Con el buscador oculto, el logo completo + tema + carrito + cuenta +
+     salir no entran en un viewport chico (medido: piden ~430px, hay
+     ~340px) — el wordmark se recoge a solo el ícono, igual que la cuenta
+     ya se recoge a solo ícono acá abajo. */
+  .wordmark {
+    display: none;
+  }
+
+  .inner {
+    gap: 14px;
+  }
+
   .accountLabel {
     display: none;
   }

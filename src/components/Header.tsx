@@ -138,30 +138,32 @@ export function Header() {
           <span className={styles.themeToggleWrap}>
             <ThemeToggle />
           </span>
-          <Link
-            href="/carrito"
-            className={styles.iconBtn}
-            aria-label={`Carrito, ${count} ${count === 1 ? "producto" : "productos"}`}
-          >
-            <CartIcon />
-            {count > 0 && (
-              <span className={`${styles.cartCount} ${fuseLit ? styles.cartCountBump : ""}`}>{count}</span>
-            )}
-          </Link>
-          <Link href={user ? "/cuenta" : "/cuenta/login"} className={styles.accountBtn}>
-            <UserIcon />
-            <span className={styles.accountLabel}>{user ? user.name?.split(" ")[0] || "Mi cuenta" : "Iniciar sesión"}</span>
-          </Link>
-          {user && (
-            <button
-              type="button"
+          <div className={styles.sessionGroup}>
+            <Link
+              href="/carrito"
               className={styles.iconBtn}
-              aria-label="Cerrar sesión"
-              onClick={handleLogout}
+              aria-label={`Carrito, ${count} ${count === 1 ? "producto" : "productos"}`}
             >
-              <LogOutIcon />
-            </button>
-          )}
+              <CartIcon />
+              {count > 0 && (
+                <span className={`${styles.cartCount} ${fuseLit ? styles.cartCountBump : ""}`}>{count}</span>
+              )}
+            </Link>
+            <Link href={user ? "/cuenta" : "/cuenta/login"} className={styles.accountBtn}>
+              <UserIcon />
+              <span className={styles.accountLabel}>{user ? user.name?.split(" ")[0] || "Mi cuenta" : "Iniciar sesión"}</span>
+            </Link>
+            {user && (
+              <button
+                type="button"
+                className={styles.iconBtn}
+                aria-label="Cerrar sesión"
+                onClick={handleLogout}
+              >
+                <LogOutIcon />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </header>
