@@ -1,0 +1,397 @@
+.main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+.crumb {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
+}
+
+.crumb a:hover {
+  color: var(--ink);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* Visual column */
+
+.visual {
+  position: sticky;
+  top: 90px;
+}
+
+.visualPanel {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.calloutCard {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.calloutCard h3 {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.calloutCard p {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+/* Info column */
+
+.title {
+  font-size: clamp(30px, 3.6vw, 40px);
+  margin-bottom: 8px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+}
+
+.meta svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.badgeRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 7px 12px;
+  border-radius: 999px;
+}
+
+.pill svg {
+  width: 14px;
+  height: 14px;
+  color: var(--confirm);
+}
+
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin-bottom: 12px;
+}
+
+/* Denomination picker */
+
+.pickerGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.pickCard {
+  position: relative;
+  text-align: left;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pickCard:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.pickCardActive {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pickCardOut {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pickCardOut:hover {
+  border-color: var(--border);
+}
+
+.pickDenom {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 19px;
+  color: var(--ink);
+}
+
+.pickUnit {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-left: 3px;
+}
+
+.pickPrice {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 3px;
+}
+
+.pickCheck {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pickCheck svg {
+  width: 10px;
+  height: 10px;
+}
+
+.pickTag {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* Price / quantity / CTA */
+
+.orderPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 26px 26px 4px;
+}
+
+.orderCard {
+  padding-bottom: 24px;
+}
+
+.priceLabel {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.priceValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 34px;
+}
+
+.priceNote {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.priceSelected {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 20px;
+}
+
+.qtyRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.stepperBtn {
+  width: 42px;
+  height: 48px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.stepperBtn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.stepperBtn:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.stepperValue {
+  width: 44px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+}
+
+.addBtn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 14.5px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.addBtn:hover {
+  background: var(--surface-2);
+}
+
+.addBtnDone {
+  border-color: var(--confirm);
+  color: var(--confirm);
+  background: var(--confirm-soft);
+}
+
+.continueBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 15px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 15.5px;
+  margin-bottom: 22px;
+}
+
+.continueBtn:hover {
+  filter: brightness(1.06);
+}
+
+.payments {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  padding-bottom: 22px;
+}
+
+.paymentPills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.paymentPill {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 6px 11px;
+  border-radius: 8px;
+}
+
+.paymentNote {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.soldOutNote {
+  font-size: 14px;
+  color: var(--alert);
+  margin-bottom: 20px;
+}
+
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .visual {
+    position: static;
+    max-width: 320px;
+  }
+
+  .pickerGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding: 22px 16px 60px;
+  }
+
+  .visual {
+    max-width: 220px;
+  }
+}

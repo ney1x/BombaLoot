@@ -1,0 +1,157 @@
+.line {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.imageWrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.game {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.mark {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.denomRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.denom {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.unit {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.unitPrice {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.stepperBtn {
+  width: 30px;
+  height: 34px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.stepperBtn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.stepperBtn:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.stepperValue {
+  width: 32px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.lineTotal {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 14.5px;
+  min-width: 78px;
+  text-align: right;
+}
+
+.removeBtn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.removeBtn:hover {
+  background: var(--alert-soft);
+  color: var(--alert);
+}
+
+.removeBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.limitNote {
+  font-size: 11px;
+  color: var(--warn);
+  margin-top: 3px;
+}
+
+@media (max-width: 560px) {
+  .line {
+    flex-wrap: wrap;
+  }
+
+  .right {
+    width: 100%;
+    justify-content: space-between;
+    padding-left: 92px;
+  }
+}

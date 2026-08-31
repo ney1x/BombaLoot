@@ -1,0 +1,174 @@
+.main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 44px 24px 90px;
+}
+
+.head {
+  margin-bottom: 30px;
+}
+
+.head h1 {
+  font-size: clamp(28px, 3.4vw, 38px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  align-items: start;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.continueLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 18px;
+}
+
+.continueLink svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Summary */
+
+.summary {
+  position: sticky;
+  top: 90px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px 22px;
+}
+
+.summary h2 {
+  font-size: 17px;
+  margin-bottom: 18px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.summaryRow.discount {
+  color: var(--confirm);
+}
+
+.summaryRow .value {
+  font-family: var(--font-mono);
+}
+
+.summaryDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0;
+}
+
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.totalLabel {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.totalValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+}
+
+.summary .btn {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.guestNote {
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Mobile sticky bar */
+
+.mobileBar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: 30px 16px 110px;
+  }
+
+  .summary {
+    display: none;
+  }
+
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobileBarTotal {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .mobileBarLabel {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  .mobileBarValue {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+  }
+
+  .mobileBar .btn {
+    flex-shrink: 0;
+  }
+}

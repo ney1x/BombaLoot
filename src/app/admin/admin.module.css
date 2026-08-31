@@ -1,0 +1,158 @@
+/*
+ * Panel admin: denso, profesional, escaneable. Deliberadamente distinto del
+ * storefront — sin degradados, sin acentos decorativos, tipografía de
+ * cuerpo en todos lados (el display font queda para el storefront).
+ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 8px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.brandMark {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.brandSub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.navLink {
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.sidebarFoot {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.sessionRole {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sessionRole[data-role="SUPPORT"] {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.sessionEmail {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 6px;
+  word-break: break-all;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.topbarTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+.main {
+  padding: 28px 32px 60px;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    padding: 12px 16px;
+  }
+  .brand {
+    border-bottom: none;
+    padding: 0 12px 0 0;
+    margin-bottom: 0;
+  }
+  .nav {
+    flex-direction: row;
+  }
+  .sidebarFoot {
+    display: none;
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+  .main {
+    padding: 20px 16px 40px;
+  }
+}

@@ -6,19 +6,39 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "tsx --conditions=react-server scripts/db.ts migrate",
+    "db:seed": "tsx --conditions=react-server scripts/db.ts seed",
+    "db:reset": "tsx --conditions=react-server scripts/db.ts reset",
+    "db:sweep": "tsx --conditions=react-server scripts/db.ts sweep",
+    "db:refund-worker": "tsx --conditions=react-server scripts/db.ts refund-worker",
+    "db:reconcile-payments": "tsx --conditions=react-server scripts/db.ts reconcile-payments",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.0",
+    "drizzle-orm": "^0.45.2",
     "next": "16.3.3",
+    "pg": "^8.23.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
-    "typescript": "^5"
+    "tsx": "^4.23.13",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

@@ -1,0 +1,256 @@
+.crumb {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crumb svg {
+  width: 13px;
+  height: 13px;
+}
+
+.crumb:hover {
+  color: var(--ink);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.head h1 {
+  font-size: clamp(22px, 2.6vw, 28px);
+}
+
+.date {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-bottom: 20px;
+}
+
+.statusRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.banner {
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+}
+
+.banner svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.banner h3 {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.banner p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.banner a {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.bannerWarn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.bannerBad {
+  background: var(--alert-soft);
+  color: var(--alert);
+}
+
+.bannerGood {
+  background: var(--confirm-soft);
+  color: var(--confirm);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.item {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.item + .item {
+  border-top: 1px solid var(--border);
+}
+
+.imageWrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.itemBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemGame {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mark {
+  width: 12px;
+  height: 12px;
+}
+
+.itemDenom {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.itemDenom b {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.itemUnit {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.itemMeta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.itemPrice {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.totals {
+  padding: 4px 18px 18px;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  padding: 6px 0;
+}
+
+.totalRow.final {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 12px;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 18px 20px;
+}
+
+.timelineStep {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.timelineStep:last-child {
+  padding-bottom: 0;
+}
+
+.timelineDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  margin-top: 4px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.timelineStep.done .timelineDot {
+  background: var(--confirm);
+}
+
+.timelineStep:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 14px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.timelineLabel {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.timelineNote {
+  font-size: 12px;
+  color: var(--ink-faint);
+}

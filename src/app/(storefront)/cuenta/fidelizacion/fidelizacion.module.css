@@ -1,0 +1,48 @@
+.ladder {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.tierCard {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 14px;
+  text-align: center;
+}
+
+.tierCard.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tierCard h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
+.tierCard .req {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+
+.tierCard .pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.tierCard.active .pct {
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .ladder {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
