@@ -1,5 +1,7 @@
 .intro {
-  padding: 44px 0 6px;
+  /* El intro ahora es lo primero en el flujo — el padding-top es el aire
+     desde el header, el padding-bottom separa del banner que sigue. */
+  padding: 36px 0 28px;
   max-width: 640px;
 }
 
@@ -30,7 +32,6 @@
 .banner {
   position: relative;
   isolation: isolate;
-  margin-top: 28px;
   aspect-ratio: 2.4 / 1;
   border-radius: 20px;
   overflow: hidden;
@@ -154,7 +155,6 @@
 @media (max-width: 900px) {
   .banner {
     aspect-ratio: 4 / 3;
-    margin-top: 20px;
   }
 
   .overlay {
@@ -162,7 +162,7 @@
   }
 
   .intro {
-    padding-top: 34px;
+    padding: 28px 0 32px;
   }
 }
 
@@ -170,7 +170,6 @@
   .banner {
     aspect-ratio: 3 / 4;
     border-radius: 16px;
-    margin-top: 16px;
   }
 
   .info {
@@ -178,6 +177,8 @@
   }
 
   .intro {
-    padding-top: 30px;
+    /* Los dos CTA envuelven a su propia fila en mobile ("Cómo funciona"
+       queda solo) — más aire acá para que no se lea pegado al banner. */
+    padding: 24px 0 36px;
   }
 }

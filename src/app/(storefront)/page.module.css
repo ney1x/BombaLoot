@@ -11,7 +11,10 @@
 }
 
 .stepsSection {
-  padding-top: 16px;
+  /* Más ajustado que el ritmo de entrada de 46px del resto (deliberado:
+     TrustStrip y "Cómo funciona" son las dos secciones de confianza,
+     van agrupadas) pero ya no el 16px accidental de antes. */
+  padding-top: 32px;
   padding-bottom: 64px;
   border-top: 1px solid var(--border);
 }

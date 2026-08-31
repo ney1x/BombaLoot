@@ -41,6 +41,29 @@ export function HeroRotator({
 
   return (
     <>
+      {/*
+       * El titular va antes del carrusel a propósito: un visitante nuevo
+       * necesita saber qué es este sitio antes de ver un producto puntual
+       * rotando — lo general antes de lo específico. Antes estaba después
+       * del banner, así que primero veías "VALORANT 575 VP" sin contexto.
+       */}
+      <div className={styles.intro}>
+        <h1>Tu código digital, al instante.</h1>
+        <p>
+          Elegí la denominación exacta que necesitás, pagá de forma segura y
+          recibí el código en tu pedido apenas confirmamos el pago con el
+          proveedor — sin cuenta obligatoria.
+        </p>
+        <div className={styles.actions}>
+          <Link href="/catalogo" className="btn btnPrimary">
+            Ver catálogo completo
+          </Link>
+          <a href="#como-funciona" className="btn btnQuiet">
+            Cómo funciona
+          </a>
+        </div>
+      </div>
+
       <section
         className={styles.banner}
         onMouseEnter={pause}
@@ -92,23 +115,6 @@ export function HeroRotator({
           </div>
         </div>
       </section>
-
-      <div className={styles.intro}>
-        <h1>Tu código digital, al instante.</h1>
-        <p>
-          Elegí la denominación exacta que necesitás, pagá de forma segura y
-          recibí el código en tu pedido apenas confirmamos el pago con el
-          proveedor — sin cuenta obligatoria.
-        </p>
-        <div className={styles.actions}>
-          <Link href="/catalogo" className="btn btnPrimary">
-            Ver catálogo completo
-          </Link>
-          <a href="#como-funciona" className="btn btnQuiet">
-            Cómo funciona
-          </a>
-        </div>
-      </div>
     </>
   );
 }

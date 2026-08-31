@@ -3,7 +3,7 @@ import styles from "./carrito.module.css";
 import { CartView } from "@/components/CartView";
 
 export const metadata: Metadata = {
-  title: "Carrito — Loadout",
+  title: "Carrito — bombaloot",
 };
 
 export default function CarritoPage() {

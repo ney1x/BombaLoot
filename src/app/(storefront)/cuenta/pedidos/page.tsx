@@ -7,7 +7,7 @@ import { ReceiptIcon } from "@/components/icons";
 import { requireUser } from "@/server/auth/guards";
 import { MOCK_ORDERS } from "@/lib/orders";
 
-export const metadata: Metadata = { title: "Mis compras — Loadout" };
+export const metadata: Metadata = { title: "Mis compras — bombaloot" };
 
 export default async function OrdersPage() {
   const user = await requireUser("/cuenta/pedidos");

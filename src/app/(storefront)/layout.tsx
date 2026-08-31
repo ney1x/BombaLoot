@@ -33,7 +33,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Loadout — recarga tu juego",
+  title: "bombaloot — recarga tu juego",
   description:
     "Códigos digitales de recarga para tus juegos favoritos, entregados apenas se confirma el pago.",
 };

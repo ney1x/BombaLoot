@@ -9,7 +9,7 @@ import { MOCK_ORDERS } from "@/lib/orders";
 import { formatCop } from "@/lib/products";
 import { tierForPurchases } from "@/lib/user";
 
-export const metadata: Metadata = { title: "Mi cuenta — Loadout" };
+export const metadata: Metadata = { title: "Mi cuenta — bombaloot" };
 
 export default async function AccountSummaryPage() {
   const user = await requireUser("/cuenta");

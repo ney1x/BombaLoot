@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { AuthLayout } from "@/components/AuthLayout";
+import { SecureAuthShell } from "@/components/SecureAuthShell";
 import { PasswordField } from "@/components/PasswordField";
 import styles from "@/components/AuthForm.module.css";
-import { AlertIcon } from "@/components/icons";
+import { AlertIcon, GoogleIcon } from "@/components/icons";
 import { useSession } from "@/lib/session-context";
 
 function LoginForm() {
@@ -50,12 +50,8 @@ function LoginForm() {
   }
 
   return (
-    <AuthLayout title="Sumá beneficios con tu cuenta">
-      <div className={styles.eyebrow}>Bienvenido de nuevo</div>
+    <SecureAuthShell>
       <h2 className={styles.heading}>Iniciar sesión</h2>
-      <p className={styles.switchLine}>
-        ¿No tenés cuenta todavía? <Link href="/cuenta/registro">Registrate</Link>
-      </p>
 
       {error && (
         <p className={styles.formError}>
@@ -93,12 +89,22 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className={styles.divider}>o</div>
+      <div className={styles.divider}>o continuá con</div>
+
+      <button type="button" className={styles.socialBtn} disabled title="Muy pronto">
+        <GoogleIcon />
+        Google
+        <span className={styles.soonTag}>Muy pronto</span>
+      </button>
 
       <Link href="/catalogo" className={`btn btnSecondary ${styles.guestBtn}`}>
         Continuar como invitado
       </Link>
-    </AuthLayout>
+
+      <p className={styles.switchLine}>
+        ¿No tenés cuenta todavía? <Link href="/cuenta/registro">Registrate</Link>
+      </p>
+    </SecureAuthShell>
   );
 }
 

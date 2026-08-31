@@ -57,7 +57,7 @@
 .spark {
   fill: var(--mark-spark);
   transform-origin: center;
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sparkDim {
@@ -65,13 +65,13 @@
 }
 
 /*
- * La mecha "prende": el grupo de chispas salta con overshoot elástico.
- * `:hover` cubre pasar el mouse por el logo (CSS puro); `.lit` es el mismo
- * gesto disparado por JS cuando se agrega algo al carrito.
+ * La mecha "prende": el grupo de chispas pulsa — ease-out-expo, sin
+ * overshoot elástico. `:hover` cubre pasar el mouse por el logo (CSS
+ * puro); `.lit` es el mismo gesto disparado por JS al agregar al carrito.
  */
 .mark:hover .spark,
 .lit .spark {
-  animation: spark-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: spark-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mark:hover .spark:nth-of-type(2),
@@ -89,7 +89,7 @@
     transform: scale(1);
   }
   45% {
-    transform: scale(1.55);
+    transform: scale(1.4);
   }
   100% {
     transform: scale(1);
@@ -97,6 +97,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .mark:hover .spark,
   .lit .spark {
     animation: none;
   }

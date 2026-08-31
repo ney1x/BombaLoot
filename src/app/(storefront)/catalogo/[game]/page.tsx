@@ -22,7 +22,7 @@ export async function generateMetadata({
   const { game: gameParam } = await params;
   if (!isGameId(gameParam)) return {};
   const game = GAMES.find((g) => g.id === gameParam)!;
-  return { title: `${game.label} — Loadout` };
+  return { title: `${game.label} — bombaloot` };
 }
 
 export default async function GamePage({

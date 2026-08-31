@@ -1,6 +1,9 @@
 .wrap {
   max-width: 1240px;
-  margin: 8px auto 0;
+  /* Mismo ritmo de entrada que el resto de las secciones (46px) — antes
+     eran 8px, un accidente de que este bloque nunca compartió el sistema
+     de espaciado con .section en page.module.css. */
+  margin: 46px auto 0;
   padding: 0 24px;
 }
 

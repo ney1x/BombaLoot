@@ -4,7 +4,7 @@ import styles from "./checkout.module.css";
 import { CheckoutView } from "@/components/CheckoutView";
 
 export const metadata: Metadata = {
-  title: "Checkout — Loadout",
+  title: "Checkout — bombaloot",
 };
 
 export default function CheckoutPage() {

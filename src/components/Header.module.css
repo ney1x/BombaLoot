@@ -2,8 +2,22 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: var(--paper);
+  /* Superficie elevada (--surface), no el mismo tono que el fondo de
+     página (--paper) — es lo que separa "franja plana" de "panel" sin
+     necesitar una sombra grande. */
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  /* Token de marca local al navbar — el resto del sitio sigue con
+     --accent (azul-violeta) como está; este cian solo vive acá, en el
+     logo, el foco del buscador y el punto de "sesión activa". */
+  --brand-ink: #1c2432;
+  --brand-cyan: #0aa9d1;
+}
+
+:root[data-theme="dark"] .bar {
+  --brand-ink: #eef1f6;
+  --brand-cyan: #22c3ea;
 }
 
 .inner {
@@ -25,12 +39,10 @@
  * --accent (esta pasada rediseña solo el navbar, el resto del sitio sigue
  * con su acento azul-violeta como está).
  */
-.logo {
-  --brand-ink: #1c2432;
-  --brand-cyan: #0aa9d1;
+.brandGroup {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   flex-shrink: 0;
   /* Columna fija — sin esto, ocultar el buscador en mobile (display:none)
      corre el auto-placement de la grilla y `.actions` termina invadiendo
@@ -39,9 +51,35 @@
   justify-self: start;
 }
 
-:root[data-theme="dark"] .logo {
-  --brand-ink: #eef1f6;
-  --brand-cyan: #22c3ea;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.trustTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.trustTag svg {
+  width: 14px;
+  height: 14px;
+  color: var(--confirm, #1c9a5b);
+}
+
+@media (max-width: 900px) {
+  .trustTag {
+    display: none;
+  }
 }
 
 .wordmark {
@@ -73,16 +111,28 @@
   height: 18px;
   color: var(--ink-faint);
   pointer-events: none;
+  transition: color 0.15s ease;
 }
 
 .searchInput {
   width: 100%;
-  padding: 11px 14px 11px 40px;
+  /* Altura explícita — comparte los 44px de los botones de ícono y del
+     toggle de tema, en vez de quedar a lo que dé el padding vertical. */
+  height: 44px;
+  padding: 0 14px 0 40px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  /* Campo "recesado" contra la superficie elevada del navbar (--surface):
+     un tono más profundo (--surface-2), no una card blanca flotando
+     sobre otra blanca — así el buscador se lee integrado, no pegado. */
+  border: 1px solid transparent;
+  background: var(--surface-2);
   color: var(--ink);
   font-size: 14.5px;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.searchInput:hover {
+  border-color: var(--border);
 }
 
 .gamesDropdown {
@@ -97,7 +147,7 @@
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-md);
   z-index: 40;
 }
 
@@ -121,8 +171,10 @@
   color: var(--ink);
 }
 
-.gameOption:hover {
+.gameOption:hover,
+.gameOption:focus-visible {
   background: var(--surface-2);
+  outline: none;
 }
 
 .gameDot {
@@ -132,13 +184,26 @@
   flex-shrink: 0;
 }
 
+.gameOptionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .searchInput::placeholder {
   color: var(--ink-faint);
 }
 
 .searchInput:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  background: var(--surface);
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-cyan) 18%, transparent);
+}
+
+.searchWrap:focus-within .searchIcon {
+  color: var(--brand-cyan);
 }
 
 .actions {
@@ -164,16 +229,29 @@
   align-items: center;
   justify-content: center;
   /* Iguala el footprint de 44px del resto de los controles — el switch
-     mide 52×30 por diseño propio, pero necesita el mismo alto de caja
-     para no romper el ritmo vertical de la fila. */
+     mide 52×30 por diseño propio (componente compartido con el admin,
+     no se toca acá), pero necesita el mismo alto de caja para no romper
+     el ritmo vertical de la fila. */
   height: 44px;
+  padding: 0 4px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+/* Mismo lenguaje de hover que el resto de los controles (iconBtn) — sin
+   esto el toggle es el único elemento de la fila que no responde al
+   pasar el mouse, y se siente aislado del sistema. */
+.themeToggleWrap:hover {
+  background: var(--surface-2);
 }
 
 .iconBtn {
   position: relative;
   width: 44px;
   height: 44px;
-  border-radius: 11px;
+  /* Mismo radius que el buscador (10px) — antes era 11px, una unidad
+     arbitraria distinta que ningún otro control en la barra usaba. */
+  border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
@@ -181,11 +259,16 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
 .iconBtn:hover {
   background: var(--surface-2);
   border-color: var(--border);
+}
+
+.iconBtn:active {
+  transform: scale(0.94);
 }
 
 .iconBtn svg {
@@ -199,27 +282,31 @@
   right: 4px;
   min-width: 16px;
   height: 16px;
-  padding: 0 3px;
+  padding: 0 4px;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   line-height: 16px;
   text-align: center;
   transform-origin: center;
 }
 
 .cartCountBump {
-  animation: cart-bump 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Sin overshoot elástico a propósito — ease-out-expo, rápido y seco,
+     no un rebote. */
+  animation: cart-bump 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes cart-bump {
   0% {
     transform: scale(1);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
-  45% {
-    transform: scale(1.3);
+  40% {
+    transform: scale(1.22);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
   100% {
     transform: scale(1);
@@ -232,29 +319,18 @@
   }
 }
 
-.accountBtn {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 44px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-  padding: 0 16px 0 14px;
-  border-radius: 11px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  white-space: nowrap;
-}
-
-.accountBtn svg {
-  width: 21px;
-  height: 21px;
-  flex-shrink: 0;
-}
-
-.accountBtn:hover {
-  background: var(--surface-2);
+/* Punto de sesión activa — mismo lenguaje que el contador del carrito
+   (badge circular, misma esquina) pero sin número: solo señala "tenés
+   una cuenta conectada", visible de un vistazo. */
+.accountDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--confirm);
+  border: 2px solid var(--surface);
 }
 
 .mobileOnly {
@@ -278,8 +354,7 @@
     padding: 12px 16px;
   }
 
-  .searchMode .logo,
-  .searchMode .accountBtn,
+  .searchMode .brandGroup,
   .searchMode .themeToggleWrap,
   .searchMode a.iconBtn {
     display: none;
@@ -296,29 +371,14 @@
 @media (max-width: 560px) {
   /* Con el buscador oculto, el logo completo + tema + carrito + cuenta +
      salir no entran en un viewport chico (medido: piden ~430px, hay
-     ~340px) — el wordmark se recoge a solo el ícono, igual que la cuenta
-     ya se recoge a solo ícono acá abajo. */
+     ~340px) — el wordmark se recoge a solo el ícono. La cuenta ya es
+     ícono puro a cualquier ancho, no necesita su propio colapso acá. */
   .wordmark {
     display: none;
   }
 
   .inner {
     gap: 14px;
-  }
-
-  .accountLabel {
-    display: none;
-  }
-
-  .accountBtn {
-    width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .accountBtn svg {
-    width: 22px;
-    height: 22px;
   }
 
   .actions {
