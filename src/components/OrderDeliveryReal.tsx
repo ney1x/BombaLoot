@@ -54,10 +54,23 @@ export function OrderDeliveryReal({ id }: { id: string }) {
   const searchParams = useSearchParams();
   const [order, setOrder] = useState<RealOrder | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [codes, setCodes] = useState<Record<string, string> | null>(null);
+  // Varios códigos por producto — comprar quantity=4 del mismo producto
+  // entrega 4 códigos distintos, no uno solo. Antes esto era
+  // Record<string, string>: la API devuelve un objeto por código
+  // (mismo productId repetido tantas veces como la cantidad comprada), y
+  // guardar uno solo por productId pisaba los anteriores, dejando 3 de 4
+  // códigos ya entregados en la base pero nunca mostrados al comprador.
+  const [codes, setCodes] = useState<Record<string, string[]> | null>(null);
 
   const session = typeof window !== "undefined" ? loadRealCheckoutSession() : null;
-  const accessToken = searchParams.get("accessToken") ?? session?.accessToken ?? undefined;
+  // El accessToken de sesión solo vale para EL PEDIDO que lo generó — sin
+  // el `session.orderId === id`, visitar /pedido/<otro-id> con una sesión
+  // de checkout reciente todavía en sessionStorage ignoraba el id de la
+  // URL y mostraba (y entregaba los códigos de) el pedido de la sesión,
+  // no el pedido pedido. En una compu compartida eso filtra códigos de
+  // un comprador a quien visita el link de otro.
+  const accessToken =
+    searchParams.get("accessToken") ?? (session?.orderId === id ? session.accessToken : undefined) ?? undefined;
 
   useEffect(() => {
     let cancelled = false;
@@ -97,9 +110,9 @@ export function OrderDeliveryReal({ id }: { id: string }) {
         const response = await fetch(`/api/orders/${order.orderId}/codes${qs}`);
         if (!response.ok || cancelled) return;
         const body = await response.json();
-        const map: Record<string, string> = {};
+        const map: Record<string, string[]> = {};
         for (const c of body.codes as Array<{ productId: string; code: string }>) {
-          map[c.productId] = c.code;
+          (map[c.productId] ??= []).push(c.code);
         }
         if (!cancelled) setCodes(map);
       } catch {
@@ -203,7 +216,7 @@ export function OrderDeliveryReal({ id }: { id: string }) {
         {order.items.map((item, i) => {
           const gameId = gameIdFor(item.productId);
           const Mark = gameId ? GAME_MARKS[gameId] : undefined;
-          const code = codes?.[item.productId];
+          const itemCodes = codes?.[item.productId] ?? [];
           return (
             <div className={styles.item} key={`${item.productId}-${i}`}>
               <div className={styles.imageWrap}>
@@ -224,11 +237,24 @@ export function OrderDeliveryReal({ id }: { id: string }) {
                   ×{item.quantity} · {formatCop(item.unitPriceCop)} c/u
                 </div>
 
-                {readyToReveal && code && (
+                {readyToReveal && itemCodes.length > 0 && (
                   <>
-                    <CodeReveal code={code} />
+                    <div className={styles.codeList}>
+                      {itemCodes.map((code, codeIndex) => (
+                        <div key={code} className={styles.codeListItem}>
+                          {itemCodes.length > 1 && (
+                            <span className={styles.codeListLabel}>
+                              Código {codeIndex + 1} de {itemCodes.length}
+                            </span>
+                          )}
+                          <CodeReveal code={code} />
+                        </div>
+                      ))}
+                    </div>
                     <p className={styles.codeInfo}>
-                      Este código es de un solo uso. Guardalo en un lugar seguro — no lo compartas.
+                      {itemCodes.length > 1
+                        ? "Cada código es de un solo uso. Guardalos en un lugar seguro — no los compartas."
+                        : "Este código es de un solo uso. Guardalo en un lugar seguro — no lo compartas."}
                     </p>
                   </>
                 )}
