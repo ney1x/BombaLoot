@@ -2,26 +2,64 @@ import Link from "next/link";
 import styles from "./OrderRow.module.css";
 import { StatusPill } from "./StatusPill";
 import { ChevronRightIcon } from "./icons";
-import { DELIVERY_STATUS_META, PAYMENT_STATUS_META, orderItemsSummary, type Order } from "@/lib/orders";
 import { formatCop } from "@/lib/products";
+import type { OrderStatus } from "@/server/services/checkout-service";
 
-export function OrderRow({ order }: { order: Order }) {
-  const payment = PAYMENT_STATUS_META[order.paymentStatus];
-  const delivery = DELIVERY_STATUS_META[order.deliveryStatus];
+export interface OrderRowData {
+  orderId: string;
+  orderNumber: string;
+  createdAt: Date | string;
+  totalCop: number;
+  orderStatus: OrderStatus;
+  items: Array<{ gameLabel: string; denomination: string; unit: string; quantity: number }>;
+}
+
+const PAYMENT_LABEL: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Pago pendiente",
+  PAYMENT_EXPIRED: "Pago vencido",
+  PAID_PENDING_DELIVERY: "Pago confirmado",
+  PAID_AWAITING_REFUND: "Pago confirmado",
+  COMPLETED: "Pago confirmado",
+  FAILED: "Pago rechazado",
+  REFUNDED: "Reembolsado",
+};
+
+const PAYMENT_TONE: Record<OrderStatus, "good" | "warn" | "bad"> = {
+  PENDING_PAYMENT: "warn",
+  PAYMENT_EXPIRED: "bad",
+  PAID_PENDING_DELIVERY: "good",
+  PAID_AWAITING_REFUND: "good",
+  COMPLETED: "good",
+  FAILED: "bad",
+  REFUNDED: "warn",
+};
+
+const DELIVERED_STATUSES: OrderStatus[] = ["COMPLETED"];
+
+function itemsSummary(items: OrderRowData["items"]): string {
+  return items.map((i) => `${i.gameLabel} ${i.denomination} ${i.unit} ×${i.quantity}`).join(", ");
+}
+
+export function OrderRow({ order }: { order: OrderRowData }) {
+  const delivered = DELIVERED_STATUSES.includes(order.orderStatus);
 
   return (
-    <Link href={`/cuenta/pedidos/${order.id}`} className={styles.row}>
+    <Link href={`/cuenta/pedidos/${order.orderId}`} className={styles.row}>
       <div className={styles.main}>
         <div className={styles.top}>
-          <span className={styles.id}>#{order.id}</span>
+          <span className={styles.id}>#{order.orderNumber}</span>
           <span className={styles.date}>
-            {new Date(order.date).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}
+            {new Date(order.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })}
           </span>
         </div>
-        <div className={styles.items}>{orderItemsSummary(order)}</div>
+        <div className={styles.items}>{itemsSummary(order.items)}</div>
         <div className={styles.statusRow}>
-          <StatusPill tone={payment.tone}>{payment.label}</StatusPill>
-          {order.paymentStatus === "paid" && <StatusPill tone={delivery.tone}>{delivery.label}</StatusPill>}
+          <StatusPill tone={PAYMENT_TONE[order.orderStatus]}>{PAYMENT_LABEL[order.orderStatus]}</StatusPill>
+          {(delivered || order.orderStatus === "PAID_PENDING_DELIVERY") && (
+            <StatusPill tone={delivered ? "good" : "neutral"}>
+              {delivered ? "Entregado" : "Por entregar"}
+            </StatusPill>
+          )}
         </div>
       </div>
       <div className={styles.right}>

@@ -5,7 +5,8 @@ import { AccountShell } from "@/components/AccountShell";
 import { LoyaltyProgress } from "@/components/LoyaltyProgress";
 import { OrderRow } from "@/components/OrderRow";
 import { requireUser } from "@/server/auth/guards";
-import { MOCK_ORDERS } from "@/lib/orders";
+import { getPool } from "@/server/db/client";
+import { listOrdersForUser } from "@/server/services/checkout-service";
 import { formatCop } from "@/lib/products";
 import { tierForPurchases } from "@/lib/user";
 
@@ -16,11 +17,11 @@ export default async function AccountSummaryPage() {
   const tier = tierForPurchases(user.purchasesCount);
   const displayName = user.name?.trim() || user.email;
 
-  // Los pedidos siguen siendo el catálogo mock (fase 5 los conecta a la
-  // base real) — lo que ya es real acá es la identidad: nombre, email y
-  // cantidad de compras salen de la sesión autenticada, no de MOCK_USER.
-  const totalSpent = MOCK_ORDERS.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.totalCop, 0);
-  const recentOrders = MOCK_ORDERS.slice(0, 3);
+  const orders = await listOrdersForUser(getPool(), user.userId);
+  const totalSpent = orders
+    .filter((o) => o.orderStatus === "COMPLETED" || o.orderStatus === "PAID_PENDING_DELIVERY")
+    .reduce((s, o) => s + o.totalCop, 0);
+  const recentOrders = orders.slice(0, 3);
 
   return (
     <AccountShell user={user}>
@@ -68,7 +69,7 @@ export default async function AccountSummaryPage() {
         </div>
         <div className={styles.orderList}>
           {recentOrders.map((order) => (
-            <OrderRow order={order} key={order.id} />
+            <OrderRow order={order} key={order.orderId} />
           ))}
         </div>
       </div>

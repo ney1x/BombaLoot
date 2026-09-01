@@ -43,6 +43,7 @@ const NAV_ITEMS = [
   { href: "/admin/juegos", label: "Juegos" },
   { href: "/admin/inventario", label: "Inventario" },
   { href: "/admin/pedidos", label: "Pedidos" },
+  { href: "/admin/soporte", label: "Soporte" },
   { href: "/admin/reembolsos", label: "Reembolsos" },
   { href: "/admin/usuarios", label: "Usuarios" },
   { href: "/admin/fidelizacion", label: "Fidelización" },

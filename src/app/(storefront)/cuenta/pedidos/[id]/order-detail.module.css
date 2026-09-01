@@ -254,3 +254,62 @@
   font-size: 12px;
   color: var(--ink-faint);
 }
+
+.codeList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.codeListLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+
+.notFound {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.notFound h1 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.notFound p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.skeleton {
+  height: 88px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: order-skeleton-sweep 1.3s ease-in-out infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes order-skeleton-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--surface-2);
+  }
+}

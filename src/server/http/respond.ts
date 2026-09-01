@@ -9,6 +9,7 @@ import {
   InvalidCurrentPasswordError,
   InvalidOrderTokenError,
   InvalidResetTokenError,
+  InvalidTicketTokenError,
   InvalidRoleTransitionError,
   OrderAlreadyClaimedError,
   SelfRoleChangeError,
@@ -41,6 +42,7 @@ import {
   RefundOrderMismatchError,
   RefundRequestNotFoundError,
   ReservationExpiredError,
+  SupportTicketNotFoundError,
 } from "../services/errors";
 import { RateLimitExceededError } from "../services/rate-limit";
 import {
@@ -97,6 +99,9 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   if (error instanceof OrderAlreadyClaimedError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
+  if (error instanceof InvalidTicketTokenError) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
+  }
 
   // ── admin / roles (fase 6A) ──
   if (error instanceof UnauthorizedError) {
@@ -118,6 +123,7 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     error instanceof CodeNotFoundError ||
     error instanceof AdminOrderNotFoundError ||
     error instanceof RefundRequestNotFoundError ||
+    error instanceof SupportTicketNotFoundError ||
     error instanceof ImageNotFoundError ||
     error instanceof GameVisualNotFoundError ||
     error instanceof LoyaltyTierNotFoundError ||

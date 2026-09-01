@@ -5,12 +5,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { OrderRow } from "@/components/OrderRow";
 import { ReceiptIcon } from "@/components/icons";
 import { requireUser } from "@/server/auth/guards";
-import { MOCK_ORDERS } from "@/lib/orders";
+import { getPool } from "@/server/db/client";
+import { listOrdersForUser } from "@/server/services/checkout-service";
 
 export const metadata: Metadata = { title: "Mis compras — bombaloot" };
 
 export default async function OrdersPage() {
   const user = await requireUser("/cuenta/pedidos");
+  const orders = await listOrdersForUser(getPool(), user.userId);
 
   return (
     <AccountShell user={user}>
@@ -19,7 +21,7 @@ export default async function OrdersPage() {
         <p>Todos tus pedidos, con su estado de pago y entrega.</p>
       </div>
 
-      {MOCK_ORDERS.length === 0 ? (
+      {orders.length === 0 ? (
         <EmptyState
           icon={ReceiptIcon}
           title="Todavía no hiciste ningún pedido"
@@ -29,8 +31,8 @@ export default async function OrdersPage() {
         />
       ) : (
         <div className={styles.orderList}>
-          {MOCK_ORDERS.map((order) => (
-            <OrderRow order={order} key={order.id} />
+          {orders.map((order) => (
+            <OrderRow order={order} key={order.orderId} />
           ))}
         </div>
       )}

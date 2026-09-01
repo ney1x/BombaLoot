@@ -57,6 +57,14 @@ export class InvalidOrderTokenError extends Error {
   }
 }
 
+export class InvalidTicketTokenError extends Error {
+  readonly code = "INVALID_TICKET_TOKEN";
+  constructor() {
+    super("No encontramos una conversación con ese enlace");
+    this.name = "InvalidTicketTokenError";
+  }
+}
+
 /** Sin sesión, o sesión vencida/revocada — para rutas de API admin (no redirige, no hace notFound). */
 export class UnauthorizedError extends Error {
   readonly code = "UNAUTHORIZED";

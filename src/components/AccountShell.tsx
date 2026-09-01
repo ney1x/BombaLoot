@@ -11,6 +11,7 @@ import { tierForPurchases } from "@/lib/user";
 const NAV_ITEMS = [
   { href: "/cuenta", label: "Resumen" },
   { href: "/cuenta/pedidos", label: "Mis compras" },
+  { href: "/cuenta/soporte", label: "Mis solicitudes" },
   { href: "/cuenta/fidelizacion", label: "Fidelización" },
   { href: "/cuenta/perfil", label: "Perfil" },
 ];

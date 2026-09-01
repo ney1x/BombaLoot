@@ -67,6 +67,26 @@ export const paymentProvider = pgEnum("payment_provider", ["WOMPI", "PAYPAL"]);
 export const discountKind = pgEnum("discount_kind", ["PERCENT", "FIXED"]);
 export const discountScope = pgEnum("discount_scope", ["ORDER", "GAME", "PRODUCT"]);
 
+export const supportTicketCategory = pgEnum("support_ticket_category", [
+  "NO_CODE",
+  "CODE_INVALID",
+  "ORDER_ISSUE",
+  "REFUND_REQUEST",
+  "PAYMENT_PENDING",
+  "DELIVERED_NOT_RECEIVED",
+  "ACCOUNT_ISSUE",
+  "OTHER",
+]);
+
+export const supportTicketStatus = pgEnum("support_ticket_status", [
+  "OPEN",
+  "IN_PROGRESS",
+  "RESOLVED",
+  "CLOSED",
+]);
+
+export const supportMessageSender = pgEnum("support_message_sender", ["CUSTOMER", "ADMIN"]);
+
 /* ─────────────────────────── identidad ─────────────────────────── */
 
 export const users = pgTable(
@@ -541,6 +561,59 @@ export const orderDiscounts = pgTable(
   ],
 );
 
+/* ─────────────────────────── soporte ─────────────────────────── */
+
+/**
+ * Ticket de soporte: puede nacer de un invitado (sin `user_id`) o de una
+ * cuenta logueada. Acceso de invitado por `access_token_hash` — mismo
+ * patrón que `orders.access_token_hash` (ver `tokens.ts`): el número de
+ * ticket identifica, nunca autoriza.
+ *
+ * `order_id` es best-effort: se resuelve en el momento de crear el ticket
+ * buscando `order_number_input` contra `orders`, pero se guarda igual el
+ * texto crudo aunque no matchee (número mal escrito, pedido de otra
+ * cuenta) — soporte lo ve de todas formas en el ticket.
+ */
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketNumber: text("ticket_number").notNull().unique(),
+    accessTokenHash: bytea("access_token_hash").notNull().unique(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    email: text("email").notNull(),
+    category: supportTicketCategory("category").notNull(),
+    status: supportTicketStatus("status").notNull().default("OPEN"),
+    orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+    orderNumberInput: text("order_number_input"),
+    assignedTo: uuid("assigned_to").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("support_tickets_status_idx").on(t.status, t.lastMessageAt),
+    index("support_tickets_order_idx").on(t.orderId),
+    index("support_tickets_user_idx").on(t.userId),
+  ],
+);
+
+export const supportMessages = pgTable(
+  "support_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    senderType: supportMessageSender("sender_type").notNull(),
+    /** Quién lo escribió, si estaba logueado — el admin siempre lo está; el cliente, a veces. */
+    senderUserId: uuid("sender_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("support_messages_ticket_idx").on(t.ticketId, t.createdAt)],
+);
+
 /* ─────────────────────────── auditoría ─────────────────────────── */
 
 export const auditLogs = pgTable(
@@ -583,4 +656,6 @@ export const schema = {
   refundRequests,
   orderDiscounts,
   auditLogs,
+  supportTickets,
+  supportMessages,
 };

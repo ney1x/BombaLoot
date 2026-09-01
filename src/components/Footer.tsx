@@ -25,16 +25,16 @@ export function Footer() {
         <div>
           <div className={styles.colTitle}>Confianza</div>
           <ul className={styles.colList}>
-            <li><Link href="/soporte">Cómo funciona</Link></li>
-            <li><Link href="/soporte#reembolsos">Política de reembolsos</Link></li>
-            <li><Link href="/soporte#privacidad">Privacidad</Link></li>
+            <li><Link href="/terminos">Términos y Condiciones</Link></li>
+            <li><Link href="/privacidad">Políticas de privacidad</Link></li>
+            <li><Link href="/cookies">Política de cookies</Link></li>
           </ul>
         </div>
         <div>
           <div className={styles.colTitle}>Soporte</div>
           <ul className={styles.colList}>
-            <li><Link href="/soporte">Centro de ayuda</Link></li>
-            <li><Link href="/soporte#contacto">Contacto</Link></li>
+            <li><Link href="/faq">Preguntas frecuentes</Link></li>
+            <li><Link href="/ayuda">Ayuda</Link></li>
           </ul>
         </div>
       </div>

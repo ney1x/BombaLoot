@@ -245,3 +245,13 @@ export class RefundOrderMismatchError extends Error {
     this.name = "RefundOrderMismatchError";
   }
 }
+
+/* ────────────────────────── soporte ────────────────────────── */
+
+export class SupportTicketNotFoundError extends Error {
+  readonly code = "SUPPORT_TICKET_NOT_FOUND";
+  constructor(readonly ticketId: string) {
+    super(`El ticket ${ticketId} no existe`);
+    this.name = "SupportTicketNotFoundError";
+  }
+}

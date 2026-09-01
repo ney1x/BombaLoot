@@ -49,3 +49,8 @@ export function generateOrderNumber(): string {
     Array.from({ length }, (_, i) => alphabet[bytes[start + i] % alphabet.length]).join("");
   return `${block(0, 4)}-${block(4, 4)}`;
 }
+
+/** Mismo esquema que `generateOrderNumber`, con prefijo "T-" para no confundir un número de ticket con uno de pedido a simple vista. */
+export function generateTicketNumber(): string {
+  return `T-${generateOrderNumber()}`;
+}
