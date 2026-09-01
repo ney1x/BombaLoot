@@ -76,10 +76,12 @@ export function CartLineItem({
             +
           </button>
         </div>
-        <span className={`${styles.lineTotal} num-display`}>{formatCop(product.priceCop * quantity)}</span>
-        <button type="button" className={styles.removeBtn} onClick={onRemove} aria-label="Eliminar producto">
-          <TrashIcon />
-        </button>
+        <div className={styles.priceGroup}>
+          <span className={`${styles.lineTotal} num-display`}>{formatCop(product.priceCop * quantity)}</span>
+          <button type="button" className={styles.removeBtn} onClick={onRemove} aria-label="Eliminar producto">
+            <TrashIcon />
+          </button>
+        </div>
       </div>
     </div>
   );

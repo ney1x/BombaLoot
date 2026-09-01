@@ -43,31 +43,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [lines, hydrated]);
 
   const value = useMemo<CartContextValue>(() => {
+    /*
+     * Persistimos en localStorage EN EL MISMO tick que actualizamos el
+     * estado, no solo vía el useEffect de arriba. Un botón que agrega al
+     * carrito y navega en el mismo click (ej. "Continuar" en
+     * GamePurchase) puede desmontar este provider antes de que el efecto
+     * llegue a correr — la navegación de Link gana la carrera contra un
+     * effect que se agenda para después del commit, y el carrito se pierde
+     * en silencio. Escribiendo acá, con el array ya calculado en mano, no
+     * hay ventana en la que un usuario pueda navegar antes de guardar.
+     */
+    function persist(next: CartLine[]) {
+      setLines(next);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+    }
+
     function addItem(productId: string, quantity = 1) {
-      setLines((prev) => {
-        const existing = prev.find((l) => l.productId === productId);
-        if (existing) {
-          return prev.map((l) =>
-            l.productId === productId ? { ...l, quantity: l.quantity + quantity } : l,
-          );
-        }
-        return [...prev, { productId, quantity }];
-      });
+      const existing = lines.find((l) => l.productId === productId);
+      const next = existing
+        ? lines.map((l) => (l.productId === productId ? { ...l, quantity: l.quantity + quantity } : l))
+        : [...lines, { productId, quantity }];
+      persist(next);
     }
 
     function updateQuantity(productId: string, quantity: number) {
       // Bajar a 0 deja la línea visible (se puede volver a subir con "+");
       // solo removeItem la saca de la lista.
       const clamped = Math.max(0, quantity);
-      setLines((prev) => prev.map((l) => (l.productId === productId ? { ...l, quantity: clamped } : l)));
+      persist(lines.map((l) => (l.productId === productId ? { ...l, quantity: clamped } : l)));
     }
 
     function removeItem(productId: string) {
-      setLines((prev) => prev.filter((l) => l.productId !== productId));
+      persist(lines.filter((l) => l.productId !== productId));
     }
 
     function clear() {
-      setLines([]);
+      persist([]);
     }
 
     return {

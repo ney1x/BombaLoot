@@ -32,11 +32,16 @@ export function CartView() {
   const discount = Math.round(subtotal * (tier.discountPct / 100));
   const total = subtotal - discount;
 
-  if (products === null) {
-    return null;
-  }
-
-  if (resolved.length === 0) {
+  /*
+   * El carrito vacío no depende del catálogo — `lines` (localStorage) ya
+   * lo sabemos sin esperar la respuesta de /api/catalog. Antes esto
+   * esperaba a `products` incluso para el caso vacío: en una red lenta
+   * (LTE, túnel), la página quedaba en blanco sin ningún indicador,
+   * indistinguible de "está roto" para quien mira. Con líneas reales sí
+   * hace falta el catálogo (precio/stock vigente), así que ahí sí se
+   * muestra un esqueleto mientras carga.
+   */
+  if (lines.length === 0) {
     return (
       <EmptyState
         icon={CartEmptyIcon}
@@ -48,9 +53,23 @@ export function CartView() {
     );
   }
 
+  if (products === null) {
+    return (
+      <div className={styles.grid} aria-busy="true">
+        <div className={styles.column}>
+          <div className={styles.lines}>
+            {lines.map((line) => (
+              <div key={line.productId} className={styles.lineSkeleton} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.grid}>
-      <div>
+      <div className={styles.column}>
         <div className={styles.lines}>
           {resolved.map(({ line, product }) => (
             <CartLineItem

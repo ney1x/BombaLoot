@@ -19,10 +19,48 @@
   align-items: start;
 }
 
+/*
+ * `1fr` en un grid item sigue siendo `minmax(auto, 1fr)` — el mínimo
+ * implícito ("auto") es el min-content del contenido, no 0. Si una línea
+ * del carrito pide más ancho del que hay (targets táctiles + precio en
+ * mobile), la COLUMNA entera crece para no recortarlo, y eso empuja todo
+ * el layout más ancho que el viewport (barra fija de pago incluida, fuera
+ * de pantalla). min-width:0 fuerza a esta celda a respetar el ancho real
+ * de la columna y dejar que .line/.right envuelvan como corresponde.
+ */
+.column {
+  min-width: 0;
+}
+
 .lines {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+}
+
+.lineSkeleton {
+  height: 106px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: cart-skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+@keyframes cart-skeleton-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineSkeleton {
+    animation: none;
+    background: var(--surface-2);
+  }
 }
 
 .continueLink {

@@ -270,7 +270,7 @@
 }
 
 .stepperBtn {
-  width: 42px;
+  width: 44px;
   height: 48px;
   background: var(--surface);
   color: var(--ink);
@@ -393,5 +393,23 @@
 
   .visual {
     max-width: 220px;
+  }
+}
+
+@media (max-width: 400px) {
+  /* "Agregar al carrito" (14.5px, weight 700) necesita ~150px para no
+     partirse — por debajo de eso el stepper de ancho fijo (130px) lo deja
+     apretado a ~94px y el texto envuelve en dos líneas dentro de una fila
+     que no crece para acomodarlas. Se apila en vez de apretar. */
+  .qtyRow {
+    flex-direction: column;
+  }
+
+  .stepper {
+    align-self: flex-start;
+  }
+
+  .addBtn {
+    width: 100%;
   }
 }

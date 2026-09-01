@@ -387,3 +387,13 @@
     gap: 4px;
   }
 }
+
+@media (max-width: 340px) {
+  /* Piso de ancho soportado (320px): buscar + tema + carrito + cuenta +
+     salir ya están en su gap mínimo (4px) — lo que sobra para achicar acá
+     es el padding lateral de la barra, no los controles en sí. */
+  .inner {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+}

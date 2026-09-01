@@ -108,6 +108,12 @@
   font-size: 14px;
 }
 
+.priceGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .lineTotal {
   font-family: var(--font-mono);
   font-weight: 500;
@@ -147,11 +153,58 @@
 @media (max-width: 560px) {
   .line {
     flex-wrap: wrap;
+    gap: 12px 16px;
   }
 
   .right {
     width: 100%;
     justify-content: space-between;
     padding-left: 92px;
+  }
+
+  /* Targets táctiles ≥44×44 — el tamaño denso de desktop (30×34 / 32×32)
+     es correcto para mouse pero queda debajo del mínimo táctil acá. */
+  .stepperBtn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .stepperValue {
+    width: 36px;
+    font-size: 15px;
+  }
+
+  .removeBtn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .removeBtn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .lineTotal {
+    min-width: 0;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 360px) {
+  /* En el piso de ancho soportado (320px) el precio compite por espacio
+     con el stepper (44px de target) + trash (44px) en la misma fila —
+     se apila la etiqueta de precio arriba del grupo para no achicar los
+     targets ni forzar wrap dentro de .priceGroup. */
+  .right {
+    padding-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .priceGroup {
+    justify-content: space-between;
   }
 }
