@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
 import { EyeIcon, EyeOffIcon } from "@/components/icons";
@@ -24,6 +24,30 @@ const STATUS_TONE: Record<string, string> = {
   VOID: "bad",
 };
 
+const STATUS_OPTIONS = ["AVAILABLE", "RESERVED", "PAID", "DELIVERED", "VOID"];
+
+/** Fecha + hora — antes solo mostraba la fecha, sin forma de distinguir
+    dos códigos cargados el mismo día. */
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** YYYY-MM-DD en la zona horaria local — mismo formato que devuelve un
+    <input type="date">, para poder comparar contra él directamente. */
+function toDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function CodesManager({
   productId,
   initialCodes,
@@ -46,6 +70,30 @@ export function CodesManager({
   const [editValue, setEditValue] = useState("");
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [revealingId, setRevealingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [loadedDateFilter, setLoadedDateFilter] = useState("");
+  const [deliveredDateFilter, setDeliveredDateFilter] = useState("");
+
+  const hasActiveFilters =
+    search || statusFilter || sortOrder !== "desc" || loadedDateFilter || deliveredDateFilter;
+
+  const visibleCodes = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const filtered = codes.filter((c) => {
+      if (statusFilter && c.status !== statusFilter) return false;
+      if (term && !c.fingerprint.toLowerCase().includes(term)) return false;
+      if (loadedDateFilter && toDateInputValue(c.createdAt) !== loadedDateFilter) return false;
+      if (deliveredDateFilter && (!c.deliveredAt || toDateInputValue(c.deliveredAt) !== deliveredDateFilter))
+        return false;
+      return true;
+    });
+    return filtered.sort((a, b) => {
+      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortOrder === "desc" ? -diff : diff;
+    });
+  }, [codes, search, statusFilter, sortOrder, loadedDateFilter, deliveredDateFilter]);
 
   async function refresh() {
     const res = await fetch(`/api/admin/products/${productId}/codes`);
@@ -174,6 +222,77 @@ export function CodesManager({
         </form>
       )}
 
+      <div className={shared.filterForm}>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar fingerprint…"
+          aria-label="Buscar por fingerprint"
+          style={{ minWidth: 200 }}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filtrar por estado"
+        >
+          <option value="">Todos los estados</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+          aria-label="Ordenar por fecha de carga"
+        >
+          <option value="desc">Más reciente primero</option>
+          <option value="asc">Más antiguo primero</option>
+        </select>
+        <div className={shared.field} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <label htmlFor="loadedDate" className={shared.subtitle} style={{ marginTop: 0 }}>
+            Cargado
+          </label>
+          <input
+            id="loadedDate"
+            type="date"
+            value={loadedDateFilter}
+            onChange={(e) => setLoadedDateFilter(e.target.value)}
+          />
+        </div>
+        <div className={shared.field} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <label htmlFor="deliveredDate" className={shared.subtitle} style={{ marginTop: 0 }}>
+            Entregado
+          </label>
+          <input
+            id="deliveredDate"
+            type="date"
+            value={deliveredDateFilter}
+            onChange={(e) => setDeliveredDateFilter(e.target.value)}
+          />
+        </div>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            className={shared.btnSmall}
+            onClick={() => {
+              setSearch("");
+              setStatusFilter("");
+              setSortOrder("desc");
+              setLoadedDateFilter("");
+              setDeliveredDateFilter("");
+            }}
+          >
+            Limpiar
+          </button>
+        )}
+        <span className={shared.subtitle}>
+          {visibleCodes.length} de {codes.length}
+        </span>
+      </div>
+
       <div className={shared.tableWrap}>
         <table className={shared.table}>
           <thead>
@@ -187,7 +306,7 @@ export function CodesManager({
             </tr>
           </thead>
           <tbody>
-            {codes.map((c) => {
+            {visibleCodes.map((c) => {
               const isOwner = !c.uploadedById || c.uploadedById === currentUserId;
               const canReveal = canEdit && isOwner && c.status === "AVAILABLE";
               return (
@@ -220,8 +339,8 @@ export function CodesManager({
                   </span>
                 </td>
                 <td>{c.uploadedByName ?? "—"}</td>
-                <td>{new Date(c.createdAt).toLocaleDateString("es-CO")}</td>
-                <td>{c.deliveredAt ? new Date(c.deliveredAt).toLocaleDateString("es-CO") : "—"}</td>
+                <td className={shared.mono}>{formatDateTime(c.createdAt)}</td>
+                <td className={shared.mono}>{c.deliveredAt ? formatDateTime(c.deliveredAt) : "—"}</td>
                 {canEdit && (
                   <td>
                     {c.status === "AVAILABLE" && !isOwner ? (
@@ -267,10 +386,10 @@ export function CodesManager({
               </tr>
               );
             })}
-            {codes.length === 0 && (
+            {visibleCodes.length === 0 && (
               <tr>
                 <td colSpan={canEdit ? 6 : 5} className={shared.empty}>
-                  Sin códigos cargados.
+                  {codes.length === 0 ? "Sin códigos cargados." : "Ningún código coincide con el filtro."}
                 </td>
               </tr>
             )}

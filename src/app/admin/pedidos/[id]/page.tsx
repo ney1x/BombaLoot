@@ -75,6 +75,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <table className={shared.table}>
             <thead>
               <tr>
+                <th>Producto</th>
                 <th>Fingerprint</th>
                 <th>Estado</th>
               </tr>
@@ -82,6 +83,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             <tbody>
               {order.codes.map((c) => (
                 <tr key={c.id}>
+                  <td>
+                    {c.gameLabel} · {c.denomination} {c.unit}
+                  </td>
                   <td className={shared.mono}>{c.fingerprint}</td>
                   <td>
                     <span className={shared.badge}>{c.status}</span>
@@ -90,7 +94,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               ))}
               {order.codes.length === 0 && (
                 <tr>
-                  <td colSpan={2} className={shared.empty}>
+                  <td colSpan={3} className={shared.empty}>
                     Sin códigos asignados todavía.
                   </td>
                 </tr>

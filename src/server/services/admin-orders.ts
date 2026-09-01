@@ -129,7 +129,14 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     unitPriceCop: number;
     lineTotalCop: number;
   }>;
-  codes: Array<{ id: string; status: string; fingerprint: string }>;
+  codes: Array<{
+    id: string;
+    status: string;
+    fingerprint: string;
+    gameLabel: string;
+    denomination: string;
+    unit: string;
+  }>;
   paymentIntents: Array<{
     id: string;
     provider: string;
@@ -202,10 +209,20 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       }>;
     }>,
     db.execute(sql`
-      SELECT c.id, c.status, c.secret_fingerprint
+      SELECT c.id, c.status, c.secret_fingerprint, oi.game_label, oi.denomination, oi.unit
         FROM codes c JOIN order_items oi ON oi.id = c.order_item_id
        WHERE oi.order_id = ${orderId}::uuid
-    `) as unknown as Promise<{ rows: Array<{ id: string; status: string; secret_fingerprint: Buffer }> }>,
+       ORDER BY oi.game_label, oi.denomination, c.created_at
+    `) as unknown as Promise<{
+      rows: Array<{
+        id: string;
+        status: string;
+        secret_fingerprint: Buffer;
+        game_label: string;
+        denomination: string;
+        unit: string;
+      }>;
+    }>,
     db.execute(sql`
       SELECT id, provider, provider_ref, status, amount_cop, created_at
         FROM payment_intents WHERE order_id = ${orderId}::uuid ORDER BY created_at DESC
@@ -291,6 +308,9 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       id: c.id,
       status: c.status,
       fingerprint: c.secret_fingerprint.toString("hex").slice(0, 16),
+      gameLabel: c.game_label,
+      denomination: c.denomination,
+      unit: c.unit,
     })),
     paymentIntents: intentRows.rows.map((p) => ({
       id: p.id,
