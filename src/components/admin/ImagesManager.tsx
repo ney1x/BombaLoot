@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
 
@@ -14,10 +14,25 @@ export interface AdminImage {
 }
 
 /**
- * Sin subida de archivos: se pega la URL de una imagen ya alojada en un
- * CDN externo (no hay credenciales de storage configuradas todavía — ver
- * `admin-images.ts`). Varias imágenes por producto, una marcada
- * "Principal" — el backend garantiza que solo una quede así.
+ * Sube el archivo a /api/admin/upload (Vercel Blob) y devuelve la URL del
+ * CDN — mismo helper que GameVisualsManager, subida inmediata al elegir el
+ * archivo en vez de esperar al submit del form.
+ */
+async function uploadFile(file: File, scope: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("scope", scope);
+  const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "No se pudo subir la imagen");
+  return data.url as string;
+}
+
+/**
+ * Subida de archivo real (Vercel Blob) con la URL pegada a mano como
+ * alternativa — mismo criterio que GameVisualsManager. Varias imágenes por
+ * producto, una marcada "Principal" — el backend garantiza que solo una
+ * quede así.
  */
 export function ImagesManager({
   productId,
@@ -34,6 +49,24 @@ export function ImagesManager({
   const [altText, setAltText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const url = await uploadFile(file, `products/${productId}`);
+      setImageUrl(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo subir la imagen");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   async function refresh() {
     const res = await fetch(`/api/admin/products/${productId}/images`);
@@ -142,23 +175,50 @@ export function ImagesManager({
         <form onSubmit={handleAdd} className={shared.card} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div className={shared.formGrid}>
             <div className={shared.field}>
-              <label htmlFor="imageUrl">URL de la imagen (ya alojada en un CDN)</label>
+              <label htmlFor="imageFile">Subir imagen (PNG/JPG/WEBP, máx. 5MB)</label>
               <input
-                id="imageUrl"
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://cdn.example.com/valorant-565.png"
-                required
+                id="imageFile"
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/avif"
+                onChange={handleFileChange}
+                disabled={uploading}
               />
+              {uploading && <span className={shared.subtitle}>Subiendo al CDN…</span>}
+              {!uploading && imageUrl && (
+                <span
+                  className={shared.mono}
+                  style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {imageUrl}
+                </span>
+              )}
             </div>
             <div className={shared.field}>
               <label htmlFor="altText">Texto alternativo</label>
               <input id="altText" value={altText} onChange={(e) => setAltText(e.target.value)} placeholder="565 VP — Valorant" />
             </div>
           </div>
+          <details>
+            <summary className={shared.subtitle} style={{ cursor: "pointer" }}>
+              O pegar una URL ya alojada
+            </summary>
+            <div className={shared.field} style={{ marginTop: 8, maxWidth: 420 }}>
+              <input
+                aria-label="URL de imagen"
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://cdn.example.com/valorant-565.png"
+              />
+            </div>
+          </details>
           <div className={shared.actions}>
-            <button type="submit" className={`${shared.btnSmall} ${shared.btnSmallPrimary}`} disabled={submitting}>
+            <button
+              type="submit"
+              className={`${shared.btnSmall} ${shared.btnSmallPrimary}`}
+              disabled={submitting || uploading || !imageUrl.trim()}
+            >
               {submitting ? "Agregando…" : "Agregar imagen"}
             </button>
           </div>
