@@ -50,6 +50,11 @@ export async function POST(request: NextRequest) {
     const blob = await put(`${prefix}/${crypto.randomUUID()}-${file.name}`, file, {
       access: "public",
       addRandomSuffix: false,
+      // Token explícito: sin esto, el SDK intenta autenticar por OIDC
+      // (via VERCEL_OIDC_TOKEN, que `vercel env pull` agrega solo) y ese
+      // proyecto no tiene OIDC habilitado para el ambiente "development" —
+      // falla incluso con BLOB_READ_WRITE_TOKEN presente en el entorno.
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
     return NextResponse.json({ url: blob.url, actorId: actor.userId }, { status: 201 });
