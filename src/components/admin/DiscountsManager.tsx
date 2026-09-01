@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
+import { GAMES, PRODUCTS } from "@/lib/products";
 
 export interface AdminDiscount {
   id: string;
@@ -23,6 +24,7 @@ export function DiscountsManager({ initialDiscounts, canEdit }: { initialDiscoun
   const [discounts, setDiscounts] = useState(initialDiscounts);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [scope, setScope] = useState<"ORDER" | "GAME" | "PRODUCT">("ORDER");
 
   async function refresh() {
     const res = await fetch("/api/admin/discounts");
@@ -65,6 +67,7 @@ export function DiscountsManager({ initialDiscounts, canEdit }: { initialDiscoun
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo crear el descuento");
       formEl.reset();
+      setScope("ORDER");
       await refresh();
       router.refresh();
     } catch (err) {
@@ -169,16 +172,45 @@ export function DiscountsManager({ initialDiscounts, canEdit }: { initialDiscoun
             </div>
             <div className={shared.field}>
               <label htmlFor="d-scope">Alcance</label>
-              <select id="d-scope" name="scope" defaultValue="ORDER">
+              <select
+                id="d-scope"
+                name="scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as "ORDER" | "GAME" | "PRODUCT")}
+              >
                 <option value="ORDER">Todo el pedido</option>
                 <option value="GAME">Un juego</option>
                 <option value="PRODUCT">Un producto</option>
               </select>
             </div>
-            <div className={shared.field}>
-              <label htmlFor="d-scopeRef">Referencia de alcance (id de juego/producto)</label>
-              <input id="d-scopeRef" name="scopeRef" placeholder="valorant" />
-            </div>
+            {scope !== "ORDER" && (
+              <div className={shared.field}>
+                <label htmlFor="d-scopeRef">{scope === "GAME" ? "Juego" : "Producto"}</label>
+                {scope === "GAME" ? (
+                  <select id="d-scopeRef" name="scopeRef" required defaultValue="">
+                    <option value="" disabled>
+                      Elegí un juego…
+                    </option>
+                    {GAMES.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.label} · {g.id}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select id="d-scopeRef" name="scopeRef" required defaultValue="">
+                    <option value="" disabled>
+                      Elegí un producto…
+                    </option>
+                    {PRODUCTS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.gameLabel} · {p.denomination} {p.unit} · {p.id}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             <div className={shared.field}>
               <label htmlFor="d-minSubtotalCop">Subtotal mínimo (COP)</label>
               <input id="d-minSubtotalCop" name="minSubtotalCop" type="number" min={0} defaultValue={0} />

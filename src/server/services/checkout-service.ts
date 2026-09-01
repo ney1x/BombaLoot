@@ -8,6 +8,7 @@ import { createOpaqueToken, generateOrderNumber, hashToken } from "../auth/token
 import type { AuditActor } from "./inventory";
 import { attachCodesToOrderItem, createReservation, PAYMENT_WINDOW_SECONDS } from "./inventory";
 import { resolveLoyaltyTier } from "./loyalty";
+import { redeemDiscountCode } from "./admin-discounts";
 import { writeAudit } from "./audit";
 import { checkRateLimit } from "./rate-limit";
 import { CHECKOUT_LIMITS } from "./checkout-limits";
@@ -111,6 +112,7 @@ export function resetIdempotencyCache(): void {
 
 interface ProductRow {
   id: string;
+  gameId: string;
   gameLabel: string;
   denomination: string;
   unit: string;
@@ -118,11 +120,13 @@ interface ProductRow {
   maxPerOrder: number;
 }
 
-async function lookupActiveProducts(tx: TxDb, productIds: string[]): Promise<Map<string, ProductRow>> {
+/** De solo lectura — se usa dentro de la transacción del checkout (`TxDb`)
+    y también, sin transacción, para la vista previa del cupón (`Db`). */
+export async function lookupActiveProducts(db: Db | TxDb, productIds: string[]): Promise<Map<string, ProductRow>> {
   if (productIds.length === 0) return new Map();
 
-  const { rows } = (await tx.execute(sql`
-    SELECT p.id, g.label AS game_label, p.denomination, p.unit, p.price_cop, p.max_per_order
+  const { rows } = (await db.execute(sql`
+    SELECT p.id, g.id AS game_id, g.label AS game_label, p.denomination, p.unit, p.price_cop, p.max_per_order
       FROM products p
       JOIN games g ON g.id = p.game_id
      WHERE p.id IN (${sql.join(productIds.map((id) => sql`${id}`), sql`, `)})
@@ -131,6 +135,7 @@ async function lookupActiveProducts(tx: TxDb, productIds: string[]): Promise<Map
   `)) as unknown as {
     rows: Array<{
       id: string;
+      game_id: string;
       game_label: string;
       denomination: string;
       unit: string;
@@ -144,6 +149,7 @@ async function lookupActiveProducts(tx: TxDb, productIds: string[]): Promise<Map
       r.id,
       {
         id: r.id,
+        gameId: r.game_id,
         gameLabel: r.game_label,
         denomination: r.denomination,
         unit: r.unit,
@@ -287,13 +293,15 @@ export interface CheckoutParams {
   lines: CheckoutLineInput[];
   idempotencyKey: string;
   owner: CheckoutOwner;
+  /** Código de cupón opcional, tal como lo escribió el comprador (se normaliza acá). */
+  discountCode?: string;
   rateLimitKey?: string;
   ip?: string | null;
   userAgent?: string | null;
 }
 
 export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<CheckoutResult> {
-  const { lines, idempotencyKey, owner, rateLimitKey, ip, userAgent } = params;
+  const { lines, idempotencyKey, owner, discountCode, rateLimitKey, ip, userAgent } = params;
 
   if (!idempotencyKey || idempotencyKey.trim().length < 8) {
     throw new RangeError("idempotencyKey inválida");
@@ -350,7 +358,31 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
       const subtotalCop = priced.reduce((sum, l) => sum + l.product.priceCop * l.quantity, 0);
 
       const tier = owner.type === "user" ? await resolveLoyaltyTier(tx, owner.purchasesCount) : null;
-      const discountCop = tier ? Math.round((subtotalCop * tier.discountPct) / 100) : 0;
+      const loyaltyDiscountCop = tier ? Math.round((subtotalCop * tier.discountPct) / 100) : 0;
+
+      // Cupón opcional: vive en la misma transacción que el resto del
+      // checkout — si algo más adelante falla (sin stock, reserva
+      // perdida), el ROLLBACK deshace también el incremento de uses_count,
+      // así que un cupón nunca se "gasta" en un pedido que no se creó.
+      const redeemed = discountCode
+        ? await redeemDiscountCode(tx, {
+            code: discountCode,
+            subtotalCop,
+            lines: priced.map((l) => ({
+              productId: l.productId,
+              gameId: l.product.gameId,
+              lineTotalCop: l.product.priceCop * l.quantity,
+            })),
+            buyerEmail: owner.email,
+          })
+        : null;
+
+      // Sin cupón: solo lealtad. Con cupón apilable: los dos suman. Con
+      // cupón no apilable: el cupón reemplaza a lealtad — es la elección
+      // activa del comprador sobre un descuento automático de fondo.
+      const couponDiscountCop = redeemed?.amountCop ?? 0;
+      const discountCop =
+        redeemed && !redeemed.stackable ? couponDiscountCop : loyaltyDiscountCop + couponDiscountCop;
       const totalCop = subtotalCop - discountCop;
 
       const reservationOwner =
@@ -397,6 +429,22 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
           throw new IdempotencyRaceMarker();
         }
         throw error;
+      }
+
+      // Cada fuente de descuento queda como su propia fila — nunca solo la
+      // suma en `orders.discount_cop` — para poder auditar de dónde salió
+      // cada peso descontado (lealtad vs. cupón) sin adivinar.
+      if (tier && (redeemed?.stackable !== false || !redeemed)) {
+        await tx.execute(sql`
+          INSERT INTO order_discounts (order_id, rule_id, source, label, amount_cop)
+          VALUES (${orderRow.id}::uuid, NULL, 'LOYALTY', ${`${tier.name} · ${tier.discountPct}%`}, ${loyaltyDiscountCop})
+        `);
+      }
+      if (redeemed) {
+        await tx.execute(sql`
+          INSERT INTO order_discounts (order_id, rule_id, source, label, amount_cop)
+          VALUES (${orderRow.id}::uuid, ${redeemed.ruleId}::uuid, 'COUPON', ${redeemed.label}, ${redeemed.amountCop})
+        `);
       }
 
       const items: CheckoutItemResult[] = [];
@@ -456,6 +504,10 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
         userAgent: actor.userAgent,
       });
 
+      const labelParts: string[] = [];
+      if (tier && (!redeemed || redeemed.stackable)) labelParts.push(`${tier.name} · ${tier.discountPct}%`);
+      if (redeemed) labelParts.push(redeemed.label);
+
       return {
         orderId: orderRow.id,
         orderNumber: orderRow.order_number,
@@ -464,7 +516,7 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
         subtotalCop,
         discountCop,
         totalCop,
-        discountLabel: tier ? `${tier.name} · ${tier.discountPct}%` : null,
+        discountLabel: labelParts.length > 0 ? labelParts.join(" + ") : null,
         paymentStatus: orderRow.payment_status,
         deliveryStatus: orderRow.delivery_status,
         paymentExpiresAt: new Date(orderRow.payment_expires_at),

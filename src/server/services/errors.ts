@@ -86,6 +86,22 @@ export class MissingOwnerError extends Error {
   }
 }
 
+/**
+ * Un código de descuento no aplica — por cualquier motivo (no existe,
+ * inactivo, fuera de vigencia, no llega al subtotal mínimo, agotado, o el
+ * comprador ya lo usó el máximo de veces permitido). Un solo error con
+ * mensaje ya listo para mostrar: el checkout no necesita distinguir la
+ * causa exacta, solo decirle al comprador por qué no se aplicó.
+ */
+export class DiscountCodeInvalidError extends Error {
+  readonly code = "DISCOUNT_CODE_INVALID";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "DiscountCodeInvalidError";
+  }
+}
+
 /* ────────────────────────── admin — productos y códigos (fase 6B) ────────────────────────── */
 
 export class ProductNotFoundError extends Error {

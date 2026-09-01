@@ -26,6 +26,8 @@ export const checkoutSchema = z.object({
   /** Solo se usa si no hay sesión — para un usuario logueado, el email sale de la cuenta. */
   buyerEmail: z.string().trim().toLowerCase().email().max(320).optional(),
   buyerName: z.string().trim().max(120).optional(),
+  /** Código de cupón opcional, tal como lo escribió el comprador. */
+  discountCode: z.string().trim().min(1).max(40).optional(),
 });
 
 export type CheckoutRequestBody = z.infer<typeof checkoutSchema>;

@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       lines: body.lines,
       idempotencyKey: body.idempotencyKey,
       owner,
+      discountCode: body.discountCode,
       rateLimitKey,
       ip: meta.ip,
       userAgent: meta.userAgent,

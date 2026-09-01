@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "@/app/(storefront)/checkout/checkout.module.css";
 import { BuyerInfoForm } from "./BuyerInfoForm";
 import { CheckoutSummary, type CheckoutLine } from "./CheckoutSummary";
+import { DiscountCodeField, type AppliedDiscount } from "./DiscountCodeField";
 import { EmptyState } from "./EmptyState";
 import { InlineBanner } from "./InlineBanner";
 import { PaymentMethodPicker } from "./PaymentMethodPicker";
@@ -41,6 +42,7 @@ export function CheckoutView() {
 
   const [buyer, setBuyer] = useState<BuyerInfo>({ name: "", email: "", isGuest: true });
   const [method, setMethod] = useState<PaymentMethodId>("wompi");
+  const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
   const [reservationExpired, setReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -83,10 +85,22 @@ export function CheckoutView() {
 
   const tier = tierForPurchases(sessionUser?.purchasesCount ?? 0);
   const discountPct = buyer.isGuest ? 0 : tier.discountPct;
-  const discountLabel = buyer.isGuest ? undefined : `${tier.name} · ${tier.discountPct}%`;
+  const tierLabel = buyer.isGuest ? undefined : `${tier.name} · ${tier.discountPct}%`;
 
   const subtotalCop = checkoutLines.reduce((sum, l) => sum + l.product.priceCop * l.quantity, 0);
-  const discountCop = Math.round(subtotalCop * (discountPct / 100));
+  const loyaltyDiscountCop = Math.round(subtotalCop * (discountPct / 100));
+
+  // Mismo criterio que `checkoutCart` en el backend: un cupón apilable
+  // suma al descuento por nivel; uno no apilable lo reemplaza (es la
+  // elección activa del comprador sobre el descuento automático de
+  // fondo). El backend vuelve a calcular todo esto igual al confirmar —
+  // esto es solo la vista previa antes de enviar el pedido.
+  const couponDiscountCop = discount?.amountCop ?? 0;
+  const discountCop = discount && !discount.stackable ? couponDiscountCop : loyaltyDiscountCop + couponDiscountCop;
+  const discountLabel =
+    discount && !discount.stackable
+      ? discount.code
+      : [tierLabel, discount?.code].filter(Boolean).join(" + ") || undefined;
   const totalCop = subtotalCop - discountCop;
 
   const hasStockIssue = checkoutLines.some((l) => l.flag);
@@ -126,6 +140,7 @@ export function CheckoutView() {
           idempotencyKey: idempotencyKeyRef.current,
           buyerEmail: buyer.email.trim(),
           buyerName: buyer.name.trim() || undefined,
+          discountCode: discount?.code,
         }),
       });
 
@@ -195,6 +210,17 @@ export function CheckoutView() {
           discountLabel={discountLabel}
           totalCop={totalCop}
         />
+
+        {!expired && checkoutLines.length > 0 && (
+          <section className={styles.section}>
+            <DiscountCodeField
+              lines={checkoutLines.map(({ product, quantity }) => ({ productId: product.id, quantity }))}
+              buyerEmail={buyer.email.trim()}
+              applied={discount}
+              onApplied={setDiscount}
+            />
+          </section>
+        )}
 
         {expired ? (
           <div className={styles.expiredCard}>

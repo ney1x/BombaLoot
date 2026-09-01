@@ -20,6 +20,7 @@ import {
   CodeNotEditableError,
   CodeNotFoundError,
   CodeNotOwnedError,
+  DiscountCodeInvalidError,
   DiscountRuleNotFoundError,
   DuplicateCodeError,
   DuplicateDiscountCodeError,
@@ -161,6 +162,9 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     return NextResponse.json({ error: "Tu reserva expiró. Volvé a intentar desde el carrito." }, { status: 409 });
   }
   if (error instanceof MissingOwnerError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof DiscountCodeInvalidError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
