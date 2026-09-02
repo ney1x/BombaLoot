@@ -297,7 +297,7 @@ export async function applyApprovedPayment(pool: Pool, details: ApprovedPaymentD
       });
       await sendMail({
         to: order.email,
-        subject: "Sobre tu pedido — Loadout",
+        subject: "Sobre tu pedido — bombaloot",
         text: paymentUnavailableEmail(order.orderNumber),
       });
     }

@@ -332,7 +332,7 @@ export async function requestPasswordReset(
   const resetUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/cuenta/recuperar/${token}`;
   await sendMail({
     to: normalized,
-    subject: "Recuperá tu contraseña de Loadout",
+    subject: "Recuperá tu contraseña de bombaloot",
     text: passwordResetEmail(resetUrl),
   });
 }

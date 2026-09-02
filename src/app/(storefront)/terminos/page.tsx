@@ -1,7 +1,7 @@
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Términos y Condiciones — Loadout",
+  title: "Términos y Condiciones — bombaloot",
 };
 
 export default function TerminosPage() {
@@ -49,7 +49,7 @@ export default function TerminosPage() {
       <p>En determinados productos, la entrega puede ser automática. En otros casos, puede requerir procesamiento manual.</p>
       <p>BombaLoot podrá solicitar información adicional cuando sea necesaria para completar correctamente un pedido.</p>
 
-      <h2>4. Códigos y productos no utilizados</h2>
+      <h2 id="reembolsos">4. Códigos y productos no utilizados</h2>
       <p>Los códigos digitales entregados se consideran productos de consumo digital.</p>
       <p>
         Una vez que un código ha sido mostrado o entregado al cliente,{" "}

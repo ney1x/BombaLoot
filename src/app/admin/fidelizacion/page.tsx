@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { listLoyaltyTiers } from "@/server/services/admin-loyalty";
 import { LoyaltyTiersManager } from "@/components/admin/LoyaltyTiersManager";
 
-export const metadata: Metadata = { title: "Fidelización — Admin Loadout" };
+export const metadata: Metadata = { title: "Fidelización — Admin bombaloot" };
 
 export default async function AdminLoyaltyPage() {
   const [session, tiers] = await Promise.all([getCurrentSession(), listLoyaltyTiers(getDb())]);

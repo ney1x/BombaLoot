@@ -11,6 +11,7 @@ export function Spinner({ size = 40, className }: { size?: number; className?: s
       className={`${styles.spinner} ${className ?? ""}`}
       style={{ width: size, height: size }}
       aria-hidden="true"
+      data-motion="essential"
     />
   );
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Política de Cookies — Loadout",
+  title: "Política de Cookies — bombaloot",
 };
 
 export default function CookiesPage() {

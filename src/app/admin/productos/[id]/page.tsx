@@ -11,7 +11,7 @@ import { ProductEditForm } from "@/components/admin/ProductEditForm";
 import { CodesManager } from "@/components/admin/CodesManager";
 import { ImagesManager } from "@/components/admin/ImagesManager";
 
-export const metadata: Metadata = { title: "Producto — Admin Loadout" };
+export const metadata: Metadata = { title: "Producto — Admin bombaloot" };
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -8,7 +8,7 @@ import { getDb } from "@/server/db/client";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/support";
 import { getTicketAdmin, listMessages } from "@/server/services/support-service";
 
-export const metadata: Metadata = { title: "Ticket de soporte — Admin Loadout" };
+export const metadata: Metadata = { title: "Ticket de soporte — Admin bombaloot" };
 
 export default async function AdminSupportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

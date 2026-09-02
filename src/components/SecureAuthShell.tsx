@@ -34,8 +34,8 @@ export function SecureAuthShell({ children }: { children: ReactNode }) {
 
       <p className={styles.legal}>
         Al iniciar sesión confirmás que leíste y aceptás las{" "}
-        <Link href="/soporte#reembolsos">condiciones de compra</Link>. Cómo tratamos tus datos personales
-        está en la <Link href="/soporte#privacidad">política de privacidad</Link>.
+        <Link href="/terminos#reembolsos">condiciones de compra</Link>. Cómo tratamos tus datos personales
+        está en la <Link href="/privacidad">política de privacidad</Link>.
       </p>
     </div>
   );

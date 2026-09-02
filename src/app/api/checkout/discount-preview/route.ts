@@ -2,10 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
+import { requestMeta } from "@/server/http/request-meta";
 import { apiErrorToResponse } from "@/server/http/respond";
 import { checkoutLineSchema } from "@/server/services/checkout-schemas";
+import { DISCOUNT_PREVIEW_LIMITS } from "@/server/services/checkout-limits";
 import { lookupActiveProducts } from "@/server/services/checkout-service";
 import { previewDiscountCode } from "@/server/services/admin-discounts";
+import { checkRateLimit } from "@/server/services/rate-limit";
 
 const schema = z.object({
   code: z.string().trim().min(1).max(40),
@@ -26,6 +29,15 @@ export async function POST(request: NextRequest) {
     const buyerEmail = session?.email ?? body.buyerEmail ?? "";
 
     const db = getDb();
+
+    // Sin sesión obligatoria acá (el preview corre para invitados también),
+    // así que la clave combina usuario o IP — mismo criterio que
+    // `/api/checkout`. Sin esto, el endpoint es un oráculo de fuerza bruta
+    // para descubrir cupones de distribución restringida.
+    const meta = requestMeta(request);
+    const rateLimitKey = session ? `user:${session.userId}` : `ip:${meta.ip}`;
+    await checkRateLimit(db, `discount-preview:${rateLimitKey}`, DISCOUNT_PREVIEW_LIMITS.maxPerWindow, DISCOUNT_PREVIEW_LIMITS.windowSeconds);
+
     const products = await lookupActiveProducts(
       db,
       body.lines.map((l) => l.productId),

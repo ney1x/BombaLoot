@@ -10,11 +10,15 @@
   --accent-2: #7c5cff;
   --accent-ink: #ffffff;
   --accent-soft: #e4e8fd;
-  --confirm: #1b8a5a;
+  /* Oscurecidos desde #1b8a5a/#a3690c/#c6432b — esos fallaban AA (3.80-4.13:1)
+     contra su propio -soft, que es donde se usan siempre (StatusPill,
+     InlineBanner, ReservationTimer). Ahora ≥4.5:1 contra -soft, blanco y
+     --paper. Modo oscuro no se toca, ya pasaba (5.76-7.41:1). */
+  --confirm: #187b50;
   --confirm-soft: #e2f4ea;
-  --warn: #a3690c;
+  --warn: #95600b;
   --warn-soft: #f7ecd6;
-  --alert: #c6432b;
+  --alert: #bc3f29;
   --alert-soft: #fbe6e0;
 
   --shadow-sm: 0 1px 2px rgba(20, 22, 27, 0.05);
@@ -205,8 +209,14 @@ input {
   }
 }
 
+/*
+ * `[data-motion="essential"]` (Spinner, el pulse de PaymentStatusLayout)
+ * queda afuera a propósito: es la única señal de "esto sigue en curso" en
+ * pantallas como "Confirmando tu pago" — apagarla no reduce movimiento
+ * superfluo, hace desaparecer el feedback de que algo está pasando.
+ */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *:not([data-motion="essential"], [data-motion="essential"] *) {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

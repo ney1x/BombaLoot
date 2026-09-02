@@ -75,7 +75,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
 
 export function passwordResetEmail(resetUrl: string): MailMessage["text"] {
   return [
-    "Pediste restablecer tu contraseña en Loadout.",
+    "Pediste restablecer tu contraseña en bombaloot.",
     "",
     `Abrí este link para elegir una nueva (vence en 30 minutos): ${resetUrl}`,
     "",

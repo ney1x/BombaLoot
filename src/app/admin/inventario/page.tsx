@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listAdminProducts } from "@/server/services/admin-products";
 
-export const metadata: Metadata = { title: "Inventario — Admin Loadout" };
+export const metadata: Metadata = { title: "Inventario — Admin bombaloot" };
 
 const STOCK_LABEL: Record<string, string> = { available: "OK", low: "STOCK BAJO", out: "AGOTADO" };
 const STOCK_TONE: Record<string, string> = { available: "good", low: "warn", out: "bad" };

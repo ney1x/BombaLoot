@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listOrdersAdmin, orderFiltersSchema, type OrderFilters } from "@/server/services/admin-orders";
 
-export const metadata: Metadata = { title: "Pedidos — Admin Loadout" };
+export const metadata: Metadata = { title: "Pedidos — Admin bombaloot" };
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING_PAYMENT: "PENDIENTE",

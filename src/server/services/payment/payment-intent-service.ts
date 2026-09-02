@@ -131,7 +131,7 @@ export interface InitWompiPaymentParams {
   orderId: string;
   accessToken?: string;
   userId?: string;
-  /** Origen público del sitio (`https://loadout.co`, o el túnel/localhost de dev) — arma la `redirect_url`. */
+  /** Origen público del sitio (`https://bombaloot.co`, o el túnel/localhost de dev) — arma la `redirect_url`. */
   redirectBaseUrl: string;
 }
 

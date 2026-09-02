@@ -7,7 +7,7 @@ import { formatCop } from "@/lib/products";
 import { getOrderDetailAdmin } from "@/server/services/admin-orders";
 import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
 
-export const metadata: Metadata = { title: "Detalle de pedido — Admin Loadout" };
+export const metadata: Metadata = { title: "Detalle de pedido — Admin bombaloot" };
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

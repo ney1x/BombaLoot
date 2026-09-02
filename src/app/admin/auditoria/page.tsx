@@ -4,7 +4,7 @@ import shared from "../shared.module.css";
 import { getDb } from "@/server/db/client";
 import { auditFiltersSchema, listAuditLogsAdmin } from "@/server/services/admin-audit";
 
-export const metadata: Metadata = { title: "Auditoría — Admin Loadout" };
+export const metadata: Metadata = { title: "Auditoría — Admin bombaloot" };
 
 export default async function AdminAuditPage({
   searchParams,

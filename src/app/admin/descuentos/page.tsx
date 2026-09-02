@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { listDiscountRules } from "@/server/services/admin-discounts";
 import { DiscountsManager } from "@/components/admin/DiscountsManager";
 
-export const metadata: Metadata = { title: "Descuentos — Admin Loadout" };
+export const metadata: Metadata = { title: "Descuentos — Admin bombaloot" };
 
 export default async function AdminDiscountsPage() {
   const [session, discounts] = await Promise.all([getCurrentSession(), listDiscountRules(getDb())]);

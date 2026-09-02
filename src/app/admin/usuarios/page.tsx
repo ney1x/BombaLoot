@@ -7,7 +7,7 @@ import { listUsersAdmin } from "@/server/services/admin-users";
 import { SupportRoleAction } from "@/components/admin/SupportRoleAction";
 import { SuspendAction } from "@/components/admin/SuspendAction";
 
-export const metadata: Metadata = { title: "Usuarios — Admin Loadout" };
+export const metadata: Metadata = { title: "Usuarios — Admin bombaloot" };
 
 const ROLE_TONE: Record<string, string | undefined> = { ADMIN: "accent", SUPPORT: "warn", CUSTOMER: undefined };
 

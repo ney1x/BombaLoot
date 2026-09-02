@@ -19,7 +19,10 @@ export function PaymentStatusLayout({
   return (
     <main className={styles.main}>
       <div className={styles.card}>
-        <span className={`${styles.iconBadge} ${styles[tone]} ${pulse ? styles.pulse : ""}`}>
+        <span
+          className={`${styles.iconBadge} ${styles[tone]} ${pulse ? styles.pulse : ""}`}
+          data-motion={pulse ? "essential" : undefined}
+        >
           {icon}
         </span>
         <h1>{title}</h1>

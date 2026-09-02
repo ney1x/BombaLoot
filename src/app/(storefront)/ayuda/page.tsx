@@ -4,7 +4,7 @@ import { SupportRecentTickets } from "@/components/SupportRecentTickets";
 import { SupportTicketForm } from "@/components/SupportTicketForm";
 
 export const metadata = {
-  title: "Ayuda — Loadout",
+  title: "Ayuda — bombaloot",
 };
 
 export default function AyudaPage() {

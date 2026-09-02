@@ -2,7 +2,7 @@ import Link from "next/link";
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Política de Privacidad — Loadout",
+  title: "Política de Privacidad — bombaloot",
 };
 
 export default function PrivacidadPage() {

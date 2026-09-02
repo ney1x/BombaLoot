@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { listGameVisuals } from "@/server/services/game-visuals";
 import { GameVisualsManager } from "@/components/admin/GameVisualsManager";
 
-export const metadata: Metadata = { title: "Juegos — Admin Loadout" };
+export const metadata: Metadata = { title: "Juegos — Admin bombaloot" };
 
 export default async function GamesPage() {
   const db = getDb();

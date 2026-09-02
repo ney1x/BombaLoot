@@ -308,7 +308,7 @@ export function CheckoutView() {
           </button>
           <p className={styles.terms}>
             Al continuar aceptás nuestras{" "}
-            <Link href="/soporte#reembolsos">condiciones de compra y reembolsos</Link>.
+            <Link href="/terminos#reembolsos">condiciones de compra y reembolsos</Link>.
           </p>
 
           <div className={styles.trustList}>

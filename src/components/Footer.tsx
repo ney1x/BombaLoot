@@ -7,7 +7,7 @@ export function Footer() {
       <div className={styles.inner}>
         <div className={styles.brandCol}>
           <div className={styles.logo}>
-            LOAD<span>OUT</span>
+            BOMBA<span>LOOT</span>
           </div>
           <p>
             Recarga de saldo y códigos digitales para tus juegos favoritos. Pago
@@ -38,7 +38,7 @@ export function Footer() {
           </ul>
         </div>
       </div>
-      <div className={styles.bottom}>© 2026 Loadout</div>
+      <div className={styles.bottom}>© 2026 bombaloot</div>
     </footer>
   );
 }
