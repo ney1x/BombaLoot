@@ -5,6 +5,7 @@ import shared from "../../shared.module.css";
 import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { getOrderDetailAdmin } from "@/server/services/admin-orders";
+import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
 
 export const metadata: Metadata = { title: "Detalle de pedido — Admin Loadout" };
 
@@ -31,6 +32,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           {order.orderStatus}
         </span>
       </div>
+
+      {order.paymentStatus === "PENDING" && (
+        <div style={{ marginBottom: 20 }}>
+          <CancelFraudAction orderId={order.orderId} />
+        </div>
+      )}
 
       <div className={shared.card}>
         <h2 className={shared.title} style={{ fontSize: 15 }}>

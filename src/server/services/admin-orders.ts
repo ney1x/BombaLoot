@@ -1,9 +1,13 @@
 import "server-only";
 
 import { sql } from "drizzle-orm";
+import type { Pool } from "pg";
 import { z } from "zod";
-import type { Db } from "../db/client";
+import { withTransaction, type Db } from "../db/client";
+import type { ValidatedSession } from "../auth/session";
 import { deriveOrderStatus, type OrderStatus } from "./checkout-service";
+import { AdminOrderNotFoundError, OrderNotCancellableError } from "./errors";
+import { writeAudit } from "./audit";
 
 /**
  * Vista operativa de pedidos para el admin. A diferencia de
@@ -339,4 +343,61 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       metadata: a.metadata,
     })),
   };
+}
+
+/**
+ * Cancela por sospecha de fraude un pedido que todavía no cobró — libera
+ * los códigos reservados de vuelta al inventario vendible, mismo mecanismo
+ * que `sweepExpiredPendingOrders` (el barrido automático de ventana de pago
+ * vencida), pero disparado a mano por un admin/SUPPORT con un motivo
+ * explícito en vez de por el paso del tiempo.
+ *
+ * Un pedido ya PAID no pasa por acá: ese caso es un reembolso (dinero real
+ * de por medio), y ya existe ese flujo completo en `admin-refunds.ts` — acá
+ * solo se corta la operación que todavía no le costó nada al comprador.
+ */
+export async function cancelOrderForFraud(
+  pool: Pool,
+  actor: ValidatedSession,
+  orderId: string,
+  reason: string,
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<{ codesReleased: number }> {
+  return withTransaction(pool, async (tx) => {
+    const { rows } = (await tx.execute(sql`
+      SELECT id, payment_status FROM orders WHERE id = ${orderId}::uuid FOR UPDATE
+    `)) as unknown as { rows: { id: string; payment_status: string }[] };
+    const order = rows[0];
+    if (!order) throw new AdminOrderNotFoundError(orderId);
+    if (order.payment_status !== "PENDING") {
+      throw new OrderNotCancellableError(orderId, order.payment_status);
+    }
+
+    await tx.execute(sql`
+      UPDATE orders SET payment_status = 'FAILED', last_payment_error = ${reason}, updated_at = now()
+       WHERE id = ${orderId}::uuid
+    `);
+
+    const { rowCount } = (await tx.execute(sql`
+      UPDATE codes c
+         SET status = 'AVAILABLE', reservation_id = NULL, reserved_until = NULL, order_item_id = NULL
+        FROM order_items oi
+       WHERE c.order_item_id = oi.id
+         AND oi.order_id = ${orderId}::uuid
+         AND c.status = 'RESERVED'
+    `)) as unknown as { rowCount: number | null };
+
+    await writeAudit(tx, {
+      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorId: actor.userId,
+      action: "order.cancelled_fraud",
+      entityType: "order",
+      entityId: orderId,
+      metadata: { reason, codesReleased: rowCount ?? 0 },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+
+    return { codesReleased: rowCount ?? 0 };
+  });
 }

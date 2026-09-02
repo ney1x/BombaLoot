@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -99,12 +100,19 @@ export const users = pgTable(
     name: text("name"),
     role: userRole("role").notNull().default("CUSTOMER"),
     purchasesCount: integer("purchases_count").notNull().default(0),
+    /** NOT NULL = cuenta suspendida. Nunca se borra la fila — ver 0010_account_suspension.sql. */
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    suspendedReason: text("suspended_reason"),
+    suspendedBy: uuid("suspended_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    /** NOT NULL = cuenta eliminada por el propio usuario (autoservicio, ver 0013_account_deletion.sql). Registro, no el mecanismo de bloqueo — eso lo hace reescribir `password_hash`. */
+    anonymizedAt: timestamp("anonymized_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("users_email_lower_key").on(sql`lower(${t.email})`),
     check("users_purchases_count_positive", sql`${t.purchasesCount} >= 0`),
+    index("users_suspended_idx").on(t.suspendedAt).where(sql`suspended_at IS NOT NULL`),
   ],
 );
 
@@ -614,6 +622,30 @@ export const supportMessages = pgTable(
   (t) => [index("support_messages_ticket_idx").on(t.ticketId, t.createdAt)],
 );
 
+/* ─────────────────────────── seguridad ─────────────────────────── */
+
+/**
+ * `ip` es `text`, no `inet` — `getClientIp()` puede devolver "unknown"
+ * cuando no hay proxy header, y eso rompería un tipo `inet`. Ver
+ * 0011_ip_blocks.sql para el resto del razonamiento.
+ */
+export const ipBlocks = pgTable("ip_blocks", {
+  ip: text("ip").primaryKey(),
+  reason: text("reason").notNull(),
+  blockedBy: uuid("blocked_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const rateLimitCounters = pgTable(
+  "rate_limit_counters",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.windowStart] }), index("rate_limit_counters_window_idx").on(t.windowStart)],
+);
+
 /* ─────────────────────────── auditoría ─────────────────────────── */
 
 export const auditLogs = pgTable(
@@ -658,4 +690,6 @@ export const schema = {
   auditLogs,
   supportTickets,
   supportMessages,
+  ipBlocks,
+  rateLimitCounters,
 };

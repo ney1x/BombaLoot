@@ -123,3 +123,58 @@
   color: var(--ink-faint);
   padding: 12px 0;
 }
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.skeletonHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skeletonTitle {
+  width: 60%;
+  height: 1.4rem;
+  border-radius: 6px;
+}
+
+.skeletonPill {
+  width: 84px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.skeletonSub {
+  width: 40%;
+  height: 13.5px;
+  margin: 10px 0 24px;
+  border-radius: 4px;
+}
+
+.skeletonBubble {
+  height: 52px;
+  width: 60%;
+}
+
+.skeletonRight {
+  align-self: flex-end;
+}
+
+.skeletonLeft {
+  align-self: flex-start;
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

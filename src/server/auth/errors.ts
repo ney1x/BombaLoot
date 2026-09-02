@@ -13,6 +13,21 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
+/**
+ * A diferencia de `InvalidCredentialsError`, este sí se distingue del caso
+ * genérico — pero solo se lanza DESPUÉS de verificar que la contraseña es
+ * correcta (ver `loginUser`), nunca antes: alguien que no tiene la
+ * contraseña real no puede usar el mensaje para confirmar que la cuenta
+ * existe y está suspendida.
+ */
+export class AccountSuspendedError extends Error {
+  readonly code = "ACCOUNT_SUSPENDED";
+  constructor() {
+    super("Esta cuenta está suspendida. Contactá a soporte si creés que es un error.");
+    this.name = "AccountSuspendedError";
+  }
+}
+
 export class EmailAlreadyRegisteredError extends Error {
   readonly code = "EMAIL_ALREADY_REGISTERED";
   constructor() {
@@ -106,5 +121,31 @@ export class TargetUserNotFoundError extends Error {
   constructor() {
     super("Usuario no encontrado");
     this.name = "TargetUserNotFoundError";
+  }
+}
+
+/** Un ADMIN no puede suspender su propia cuenta por este camino (mismo criterio que `SelfRoleChangeError`). */
+export class SelfSuspensionError extends Error {
+  readonly code = "SELF_SUSPENSION";
+  constructor() {
+    super("No podés suspender tu propia cuenta");
+    this.name = "SelfSuspensionError";
+  }
+}
+
+/** ADMIN no se suspende desde este flujo — evita que un ADMIN comprometido bloquee a otro admin, o a sí mismo por error de UI. */
+export class CannotSuspendAdminError extends Error {
+  readonly code = "CANNOT_SUSPEND_ADMIN";
+  constructor() {
+    super("No se puede suspender una cuenta ADMIN desde acá");
+    this.name = "CannotSuspendAdminError";
+  }
+}
+
+export class InvalidSuspensionStateError extends Error {
+  readonly code = "INVALID_SUSPENSION_STATE";
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidSuspensionStateError";
   }
 }

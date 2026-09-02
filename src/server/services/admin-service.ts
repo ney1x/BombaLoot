@@ -3,7 +3,15 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import type { Pool } from "pg";
 import { withTransaction, type TxDb } from "../db/client";
-import { InvalidRoleTransitionError, SelfRoleChangeError, TargetUserNotFoundError } from "../auth/errors";
+import {
+  CannotSuspendAdminError,
+  InvalidRoleTransitionError,
+  InvalidSuspensionStateError,
+  SelfRoleChangeError,
+  SelfSuspensionError,
+  TargetUserNotFoundError,
+} from "../auth/errors";
+import { revokeAllUserSessions } from "../auth/session";
 import type { ValidatedSession } from "../auth/session";
 import { writeAudit } from "./audit";
 
@@ -29,11 +37,12 @@ export interface AdminActorContext {
 interface TargetUserRow {
   id: string;
   role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+  suspended_at: string | null;
 }
 
 async function loadTargetForUpdate(tx: TxDb, targetUserId: string): Promise<TargetUserRow> {
   const { rows } = (await tx.execute(sql`
-    SELECT id, role FROM users WHERE id = ${targetUserId}::uuid FOR UPDATE
+    SELECT id, role, suspended_at FROM users WHERE id = ${targetUserId}::uuid FOR UPDATE
   `)) as unknown as { rows: TargetUserRow[] };
 
   const row = rows[0];
@@ -99,6 +108,82 @@ export async function removeSupportRole(
       entityType: "user",
       entityId: targetUserId,
       metadata: { fromRole: "SUPPORT", toRole: "CUSTOMER" },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+  });
+}
+
+/**
+ * Suspende una cuenta: bloquea login (`loginUser` revisa `suspended_at`
+ * después de validar la contraseña) y revoca toda sesión viva de una — un
+ * usuario suspendido a mitad de sesión queda deslogueado en su próximo
+ * request, no solo en su próximo login.
+ *
+ * ADMIN y SUPPORT pueden ambos suspender (matriz de permisos de soporte:
+ * es exactamente el tipo de acción que SUPPORT necesita poder tomar sin
+ * escalar a un ADMIN), pero ninguno de los dos puede suspender un ADMIN ni
+ * su propia cuenta.
+ */
+export async function suspendUser(
+  pool: Pool,
+  actor: ValidatedSession,
+  targetUserId: string,
+  reason: string,
+  context: AdminActorContext = {},
+): Promise<void> {
+  if (actor.userId === targetUserId) throw new SelfSuspensionError();
+
+  await withTransaction(pool, async (tx) => {
+    const target = await loadTargetForUpdate(tx, targetUserId);
+
+    if (target.role === "ADMIN") throw new CannotSuspendAdminError();
+    if (target.suspended_at) throw new InvalidSuspensionStateError("Esta cuenta ya está suspendida");
+
+    await tx.execute(sql`
+      UPDATE users
+         SET suspended_at = now(), suspended_reason = ${reason}, suspended_by = ${actor.userId}::uuid,
+             updated_at = now()
+       WHERE id = ${targetUserId}::uuid
+    `);
+    const revoked = await revokeAllUserSessions(tx, targetUserId);
+
+    await writeAudit(tx, {
+      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorId: actor.userId,
+      action: "account.suspended",
+      entityType: "user",
+      entityId: targetUserId,
+      metadata: { reason, sessionsRevoked: revoked },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+  });
+}
+
+export async function unsuspendUser(
+  pool: Pool,
+  actor: ValidatedSession,
+  targetUserId: string,
+  context: AdminActorContext = {},
+): Promise<void> {
+  await withTransaction(pool, async (tx) => {
+    const target = await loadTargetForUpdate(tx, targetUserId);
+
+    if (!target.suspended_at) throw new InvalidSuspensionStateError("Esta cuenta no está suspendida");
+
+    await tx.execute(sql`
+      UPDATE users
+         SET suspended_at = NULL, suspended_reason = NULL, suspended_by = NULL, updated_at = now()
+       WHERE id = ${targetUserId}::uuid
+    `);
+
+    await writeAudit(tx, {
+      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorId: actor.userId,
+      action: "account.unsuspended",
+      entityType: "user",
+      entityId: targetUserId,
       ip: context.ip,
       userAgent: context.userAgent,
     });

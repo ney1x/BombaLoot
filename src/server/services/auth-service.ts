@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import type { Pool } from "pg";
 import { createDb, withTransaction } from "../db/client";
 import {
+  AccountSuspendedError,
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
   InvalidCurrentPasswordError,
@@ -23,6 +24,7 @@ import { createOpaqueToken, hashToken } from "../auth/tokens";
 import { AUTH_LIMITS } from "./auth-limits";
 import { passwordResetEmail, sendMail } from "./mailer";
 import { checkRateLimit } from "./rate-limit";
+import { assertIpNotBlocked } from "./security-service";
 import { writeAudit } from "./audit";
 
 /**
@@ -69,8 +71,11 @@ export async function registerUser(
   meta: RequestMeta,
   rateLimitKey?: string,
 ): Promise<AuthResult> {
+  await assertIpNotBlocked(pool, meta.ip, { userAgent: meta.userAgent, action: "auth.register" });
+
   if (rateLimitKey) {
-    checkRateLimit(
+    await checkRateLimit(
+      createDb(pool),
       `auth:register:${rateLimitKey}`,
       AUTH_LIMITS.registerMaxPerWindow,
       AUTH_LIMITS.registerWindowSeconds,
@@ -158,19 +163,22 @@ export async function loginUser(
   meta: RequestMeta,
   rateLimitKey?: string,
 ): Promise<AuthResult> {
+  await assertIpNotBlocked(pool, meta.ip, { userAgent: meta.userAgent, action: "auth.login" });
+
+  const email = normalizeEmail(input.email);
+  const db = createDb(pool);
+
   if (rateLimitKey) {
-    checkRateLimit(
+    await checkRateLimit(
+      db,
       `auth:login:${rateLimitKey}`,
       AUTH_LIMITS.loginMaxPerWindow,
       AUTH_LIMITS.loginWindowSeconds,
     );
   }
 
-  const email = normalizeEmail(input.email);
-  const db = createDb(pool);
-
   const { rows } = (await db.execute(
-    sql`SELECT id, name, email, role, purchases_count, password_hash
+    sql`SELECT id, name, email, role, purchases_count, password_hash, suspended_at
           FROM users WHERE lower(email) = ${email}`,
   )) as unknown as {
     rows: Array<{
@@ -180,6 +188,7 @@ export async function loginUser(
       role: string;
       purchases_count: number;
       password_hash: string;
+      suspended_at: string | null;
     }>;
   };
 
@@ -202,6 +211,22 @@ export async function loginUser(
     // Mismo error, mismo mensaje, tanto si el email no existe como si la
     // contraseña es incorrecta — el llamador no puede distinguir los casos.
     throw new InvalidCredentialsError();
+  }
+
+  // Contraseña ya verificada correcta acá abajo — recién ahora es seguro
+  // distinguir "suspendida" de "credenciales inválidas" sin que eso sirva
+  // para enumerar cuentas (ver comentario en `AccountSuspendedError`).
+  if (row.suspended_at) {
+    await writeAudit(db, {
+      actorType: "CUSTOMER",
+      actorId: row.id,
+      action: "auth.login_blocked_suspended",
+      entityType: "user",
+      entityId: row.id,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+    throw new AccountSuspendedError();
   }
 
   return withTransaction(pool, async (tx) => {
@@ -264,16 +289,17 @@ export async function requestPasswordReset(
   email: string,
   rateLimitKey?: string,
 ): Promise<void> {
+  const normalized = normalizeEmail(email);
+  const db = createDb(pool);
+
   if (rateLimitKey) {
-    checkRateLimit(
+    await checkRateLimit(
+      db,
       `auth:reset-request:${rateLimitKey}`,
       AUTH_LIMITS.resetRequestMaxPerWindow,
       AUTH_LIMITS.resetRequestWindowSeconds,
     );
   }
-
-  const normalized = normalizeEmail(email);
-  const db = createDb(pool);
 
   const { rows } = (await db.execute(
     sql`SELECT id FROM users WHERE lower(email) = ${normalized}`,
@@ -409,6 +435,58 @@ export async function changePassword(
       actorType: "CUSTOMER",
       actorId: userId,
       action: "auth.password_changed",
+      entityType: "user",
+      entityId: userId,
+    });
+  });
+}
+
+/* ────────────────────────── eliminar cuenta (autoservicio) ────────────────────────── */
+
+/**
+ * Autoservicio de "eliminar mi cuenta" (Política de Privacidad §9). No
+ * borra la fila — los pedidos (`orders.user_id`) y el resto de la
+ * actividad financiera/de auditoría tienen que sobrevivir por obligación
+ * legal y de contabilidad. En cambio, anonimiza: nombre y email dejan de
+ * ser reales, y `password_hash` se reemplaza por un hash aleatorio
+ * irreproducible — eso solo ya alcanza para que el login normal falle
+ * (mismo camino que una contraseña incorrecta), sin necesitar un chequeo
+ * nuevo en `loginUser`. Revoca TODAS las sesiones, incluida la actual: a
+ * diferencia de `changePassword`, acá no hay nada que preservar.
+ */
+export async function deleteOwnAccount(
+  pool: Pool,
+  userId: string,
+  currentPassword: string,
+): Promise<void> {
+  const db = createDb(pool);
+
+  const { rows } = (await db.execute(
+    sql`SELECT password_hash FROM users WHERE id = ${userId}::uuid`,
+  )) as unknown as { rows: Array<{ password_hash: string }> };
+
+  const row = rows[0];
+  if (!row || !(await verifyPasswordHash(row.password_hash, currentPassword))) {
+    throw new InvalidCurrentPasswordError();
+  }
+
+  const unusableHash = await hashPassword(createOpaqueToken().value);
+
+  await withTransaction(pool, async (tx) => {
+    await tx.execute(sql`
+      UPDATE users
+         SET name = NULL,
+             email = 'eliminado-' || id || '@bombaloot.invalid',
+             password_hash = ${unusableHash},
+             anonymized_at = now(),
+             updated_at = now()
+       WHERE id = ${userId}::uuid
+    `);
+    await revokeAllUserSessions(tx, userId);
+    await writeAudit(tx, {
+      actorType: "CUSTOMER",
+      actorId: userId,
+      action: "account.deleted",
       entityType: "user",
       entityId: userId,
     });

@@ -62,7 +62,7 @@ let fetchImpl: (url: string, init?: RequestInit) => Promise<Response> = defaultF
 beforeEach(async () => {
   await resetData(pool);
   await seedLoyaltyTiers(pool);
-  resetRateLimits();
+  await resetRateLimits(pool);
   resetIdempotencyCache();
   fetchImpl = defaultFetchImpl;
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => fetchImpl(url, init));

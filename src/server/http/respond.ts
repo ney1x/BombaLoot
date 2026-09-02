@@ -3,16 +3,20 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import {
+  AccountSuspendedError,
+  CannotSuspendAdminError,
   EmailAlreadyRegisteredError,
   ForbiddenError,
   InvalidCredentialsError,
   InvalidCurrentPasswordError,
   InvalidOrderTokenError,
   InvalidResetTokenError,
+  InvalidSuspensionStateError,
   InvalidTicketTokenError,
   InvalidRoleTransitionError,
   OrderAlreadyClaimedError,
   SelfRoleChangeError,
+  SelfSuspensionError,
   TargetUserNotFoundError,
   UnauthorizedError,
 } from "../auth/errors";
@@ -34,14 +38,18 @@ import {
   InvalidGameError,
   InvalidProductError,
   InvalidQuantityError,
+  IpBlockedError,
+  IpBlockNotFoundError,
   LoyaltyTierNotFoundError,
   MissingOwnerError,
+  OrderNotCancellableError,
   ProductNotFoundError,
   QuantityNotAllowedError,
   RefundNotPendingManualReviewError,
   RefundOrderMismatchError,
   RefundRequestNotFoundError,
   ReservationExpiredError,
+  SupportOrderNotFoundError,
   SupportTicketNotFoundError,
 } from "../services/errors";
 import { RateLimitExceededError } from "../services/rate-limit";
@@ -84,6 +92,9 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   if (error instanceof InvalidCredentialsError) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
+  if (error instanceof AccountSuspendedError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
   if (error instanceof EmailAlreadyRegisteredError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
@@ -107,13 +118,18 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   if (error instanceof UnauthorizedError) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
-  if (error instanceof ForbiddenError || error instanceof SelfRoleChangeError) {
+  if (
+    error instanceof ForbiddenError ||
+    error instanceof SelfRoleChangeError ||
+    error instanceof SelfSuspensionError ||
+    error instanceof CannotSuspendAdminError
+  ) {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof TargetUserNotFoundError) {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
-  if (error instanceof InvalidRoleTransitionError) {
+  if (error instanceof InvalidRoleTransitionError || error instanceof InvalidSuspensionStateError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
 
@@ -143,7 +159,8 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     error instanceof CodeNotEditableError ||
     error instanceof RefundNotPendingManualReviewError ||
     error instanceof DuplicateLoyaltyTierError ||
-    error instanceof DuplicateDiscountCodeError
+    error instanceof DuplicateDiscountCodeError ||
+    error instanceof OrderNotCancellableError
   ) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
@@ -172,6 +189,15 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   }
   if (error instanceof DiscountCodeInvalidError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof SupportOrderNotFoundError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof IpBlockedError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof IpBlockNotFoundError) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
   }
 
   // ── pagos (fase 5) ──

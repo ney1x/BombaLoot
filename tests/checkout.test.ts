@@ -46,7 +46,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetData(pool);
   await seedLoyaltyTiers(pool);
-  resetRateLimits();
+  await resetRateLimits(pool);
   resetIdempotencyCache();
 });
 

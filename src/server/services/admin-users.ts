@@ -25,6 +25,8 @@ export interface AdminUserRow {
   role: "CUSTOMER" | "ADMIN" | "SUPPORT";
   purchasesCount: number;
   createdAt: Date;
+  suspendedAt: Date | null;
+  suspendedReason: string | null;
 }
 
 interface UserQueryRow {
@@ -34,6 +36,8 @@ interface UserQueryRow {
   role: "CUSTOMER" | "ADMIN" | "SUPPORT";
   purchases_count: number;
   created_at: string;
+  suspended_at: string | null;
+  suspended_reason: string | null;
 }
 
 export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<AdminUserRow[]> {
@@ -43,7 +47,7 @@ export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<Admi
   const where = conditions.reduce((acc, c) => sql`${acc} AND ${c}`);
 
   const { rows } = (await db.execute(sql`
-    SELECT id, email, name, role, purchases_count, created_at
+    SELECT id, email, name, role, purchases_count, created_at, suspended_at, suspended_reason
       FROM users
      WHERE ${where}
      ORDER BY created_at DESC
@@ -57,6 +61,8 @@ export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<Admi
     role: r.role,
     purchasesCount: r.purchases_count,
     createdAt: new Date(r.created_at),
+    suspendedAt: r.suspended_at ? new Date(r.suspended_at) : null,
+    suspendedReason: r.suspended_reason,
   }));
 }
 
@@ -69,7 +75,8 @@ export interface AdminUserDetail extends AdminUserRow {
 
 export async function getUserDetailAdmin(db: Db, userId: string): Promise<AdminUserDetail | null> {
   const { rows: userRows } = (await db.execute(sql`
-    SELECT id, email, name, role, purchases_count, created_at FROM users WHERE id = ${userId}::uuid
+    SELECT id, email, name, role, purchases_count, created_at, suspended_at, suspended_reason
+      FROM users WHERE id = ${userId}::uuid
   `)) as unknown as { rows: UserQueryRow[] };
   const user = userRows[0];
   if (!user) return null;
@@ -98,6 +105,8 @@ export async function getUserDetailAdmin(db: Db, userId: string): Promise<AdminU
     role: user.role,
     purchasesCount: user.purchases_count,
     createdAt: new Date(user.created_at),
+    suspendedAt: user.suspended_at ? new Date(user.suspended_at) : null,
+    suspendedReason: user.suspended_reason,
     totalSpentCop: Number(ordersAgg.rows[0].total_spent_cop),
     ordersCount: Number(ordersAgg.rows[0].orders_count),
     loyaltyTier: tier ? { id: tier.id, name: tier.name, discountPct: Number(tier.discount_pct) } : null,

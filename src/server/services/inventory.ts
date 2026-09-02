@@ -248,7 +248,8 @@ export async function createReservation(
   if (lines.length === 0) throw new RangeError("Una reserva necesita al menos una línea");
 
   if (rateLimitKey) {
-    checkRateLimit(
+    await checkRateLimit(
+      tx,
       `reservation:create:${rateLimitKey}`,
       RESERVATION_LIMITS.createMaxPerWindow,
       RESERVATION_LIMITS.createWindowSeconds,

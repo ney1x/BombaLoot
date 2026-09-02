@@ -6,10 +6,11 @@ import { z } from "zod";
 import { createDb, withTransaction, type Db } from "../db/client";
 import { InvalidTicketTokenError } from "../auth/errors";
 import { createOpaqueToken, generateTicketNumber, hashToken } from "../auth/tokens";
-import { SUPPORT_CATEGORIES } from "@/lib/support";
+import { SUPPORT_CATEGORIES, isOrderRequired } from "@/lib/support";
 import { SUPPORT_LIMITS } from "./support-limits";
-import { SupportTicketNotFoundError } from "./errors";
+import { SupportOrderNotFoundError, SupportTicketNotFoundError } from "./errors";
 import { checkRateLimit } from "./rate-limit";
+import { assertIpNotBlocked } from "./security-service";
 
 /**
  * Tickets de soporte e hilo de mensajes cliente↔admin/SUPPORT.
@@ -36,6 +37,14 @@ export const createTicketSchema = z.object({
     .max(64)
     .optional()
     .transform((v) => (v ? v : undefined)),
+}).superRefine((data, ctx) => {
+  if (isOrderRequired(data.category) && !data.orderNumberInput) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["orderNumberInput"],
+      message: "Este motivo necesita el número de pedido",
+    });
+  }
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
@@ -133,7 +142,8 @@ export async function createSupportTicket(
   input: CreateTicketInput,
   opts: { ip: string; userId?: string | null },
 ): Promise<{ ticket: SupportTicketView; accessToken: string }> {
-  checkRateLimit(`support:create:${opts.ip}`, SUPPORT_LIMITS.createMaxPerWindow, SUPPORT_LIMITS.createWindowSeconds);
+  await assertIpNotBlocked(pool, opts.ip, { action: "support.create_ticket" });
+  await checkRateLimit(createDb(pool), `support:create:${opts.ip}`, SUPPORT_LIMITS.createMaxPerWindow, SUPPORT_LIMITS.createWindowSeconds);
 
   return withTransaction(pool, async (tx) => {
     let orderId: string | null = null;
@@ -142,6 +152,14 @@ export async function createSupportTicket(
         SELECT id FROM orders WHERE lower(order_number) = lower(${input.orderNumberInput}) LIMIT 1
       `)) as unknown as { rows: { id: string }[] };
       orderId = rows[0]?.id ?? null;
+    }
+
+    // El schema ya exige `orderNumberInput` para estos motivos (superRefine
+    // arriba) — acá se valida que ADEMÁS corresponda a un pedido real, no
+    // solo que el campo venga lleno. Sin esto, un número mal tipeado
+    // igual crearía el ticket con `order_id` en null, silenciosamente.
+    if (isOrderRequired(input.category) && !orderId) {
+      throw new SupportOrderNotFoundError(input.orderNumberInput!);
     }
 
     const ticketNumber = generateTicketNumber();
@@ -246,7 +264,7 @@ export async function addCustomerMessage(
   body: string,
   opts: { ip: string },
 ): Promise<SupportTicketView> {
-  checkRateLimit(`support:message:${opts.ip}`, SUPPORT_LIMITS.messageMaxPerWindow, SUPPORT_LIMITS.messageWindowSeconds);
+  await checkRateLimit(createDb(pool), `support:message:${opts.ip}`, SUPPORT_LIMITS.messageMaxPerWindow, SUPPORT_LIMITS.messageWindowSeconds);
 
   return withTransaction(pool, async (tx) => {
     const { rows } = (await tx.execute(sql`
@@ -267,7 +285,7 @@ export async function addCustomerMessageForUser(
   body: string,
   opts: { ip: string },
 ): Promise<SupportTicketView> {
-  checkRateLimit(`support:message:${opts.ip}`, SUPPORT_LIMITS.messageMaxPerWindow, SUPPORT_LIMITS.messageWindowSeconds);
+  await checkRateLimit(createDb(pool), `support:message:${opts.ip}`, SUPPORT_LIMITS.messageMaxPerWindow, SUPPORT_LIMITS.messageWindowSeconds);
 
   return withTransaction(pool, async (tx) => {
     const { rows } = (await tx.execute(sql`

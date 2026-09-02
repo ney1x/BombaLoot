@@ -89,7 +89,7 @@ export async function validateSessionToken(
 
   const { rows } = (await db.execute(sql`
     SELECT s.id AS session_id, s.expires_at,
-           u.id AS user_id, u.email, u.name, u.role, u.purchases_count
+           u.id AS user_id, u.email, u.name, u.role, u.purchases_count, u.suspended_at
       FROM sessions s
       JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ${hashToken(token)}
@@ -103,11 +103,18 @@ export async function validateSessionToken(
       name: string | null;
       role: "CUSTOMER" | "ADMIN" | "SUPPORT";
       purchases_count: number;
+      suspended_at: string | null;
     }>;
   };
 
   const row = rows[0];
   if (!row) return null;
+  // Red de seguridad: suspender ya revoca todas las sesiones del usuario
+  // (`suspendUser`, en la misma transacción), así que esta rama es
+  // prácticamente inalcanzable en uso normal — pero si alguna vez una
+  // sesión sobrevive a una suspensión (fila tocada a mano, bug futuro), acá
+  // se corta igual, tratándola como sesión inválida.
+  if (row.suspended_at) return null;
 
   return {
     sessionId: row.session_id,

@@ -64,7 +64,15 @@ export type AuditAction =
   | "loyalty_tier.toggled_active"
   | "discount.created"
   | "discount.updated"
-  | "discount.toggled_active";
+  | "discount.toggled_active"
+  | "auth.login_blocked_suspended"
+  | "account.suspended"
+  | "account.unsuspended"
+  | "account.deleted"
+  | "security.ip_blocked"
+  | "security.ip_unblocked"
+  | "security.blocked_ip_attempt"
+  | "order.cancelled_fraud";
 
 export interface AuditEntry {
   actorType: ActorType;

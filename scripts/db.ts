@@ -81,6 +81,10 @@ async function main() {
           `Pedidos: ${orders.ordersExpired} pedido(s) marcado(s) FAILED por ventana de pago vencida, ` +
             `${orders.codesReleased} código(s) liberado(s).`,
         );
+
+        const { sweepExpiredRateLimits } = await import("../src/server/services/rate-limit");
+        const rateLimitRows = await sweepExpiredRateLimits(createDb(pool));
+        console.log(`Rate limits: ${rateLimitRows} ventana(s) vieja(s) eliminada(s).`);
         break;
       }
 

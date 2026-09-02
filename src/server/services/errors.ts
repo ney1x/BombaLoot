@@ -220,6 +220,15 @@ export class AdminOrderNotFoundError extends Error {
   }
 }
 
+/** Solo se puede cancelar por fraude un pedido que todavía no cobró — uno ya PAID pasa por el flujo de reembolso existente, no por acá. */
+export class OrderNotCancellableError extends Error {
+  readonly code = "ORDER_NOT_CANCELLABLE";
+  constructor(readonly orderId: string, readonly paymentStatus: string) {
+    super(`El pedido ${orderId} está en estado ${paymentStatus} — solo se puede cancelar un pedido PENDING`);
+    this.name = "OrderNotCancellableError";
+  }
+}
+
 export class RefundRequestNotFoundError extends Error {
   readonly code = "REFUND_REQUEST_NOT_FOUND";
   constructor(readonly refundRequestId: string) {
@@ -248,10 +257,38 @@ export class RefundOrderMismatchError extends Error {
 
 /* ────────────────────────── soporte ────────────────────────── */
 
+/* ────────────────────────── seguridad ────────────────────────── */
+
+/** Mismo mensaje genérico sea cual sea el motivo real del bloqueo — no le confirma a quien está bloqueado que lo está "por sospecha de fraude" vs. cualquier otra razón. */
+export class IpBlockedError extends Error {
+  readonly code = "IP_BLOCKED";
+  constructor() {
+    super("No pudimos procesar tu solicitud. Si creés que es un error, contactá a soporte.");
+    this.name = "IpBlockedError";
+  }
+}
+
+export class IpBlockNotFoundError extends Error {
+  readonly code = "IP_BLOCK_NOT_FOUND";
+  constructor(readonly ip: string) {
+    super(`La IP ${ip} no está bloqueada`);
+    this.name = "IpBlockNotFoundError";
+  }
+}
+
 export class SupportTicketNotFoundError extends Error {
   readonly code = "SUPPORT_TICKET_NOT_FOUND";
   constructor(readonly ticketId: string) {
     super(`El ticket ${ticketId} no existe`);
     this.name = "SupportTicketNotFoundError";
+  }
+}
+
+/** El motivo elegido exige un pedido real, y el número que mandó el cliente no matchea ninguno. */
+export class SupportOrderNotFoundError extends Error {
+  readonly code = "SUPPORT_ORDER_NOT_FOUND";
+  constructor(readonly orderNumberInput: string) {
+    super("No encontramos un pedido con ese número. Revisalo e intentá de nuevo.");
+    this.name = "SupportOrderNotFoundError";
   }
 }

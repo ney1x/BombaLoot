@@ -11,6 +11,7 @@ import { resolveLoyaltyTier } from "./loyalty";
 import { redeemDiscountCode } from "./admin-discounts";
 import { writeAudit } from "./audit";
 import { checkRateLimit } from "./rate-limit";
+import { assertIpNotBlocked } from "./security-service";
 import { CHECKOUT_LIMITS } from "./checkout-limits";
 import {
   EmptyCartError,
@@ -303,6 +304,8 @@ export interface CheckoutParams {
 export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<CheckoutResult> {
   const { lines, idempotencyKey, owner, discountCode, rateLimitKey, ip, userAgent } = params;
 
+  await assertIpNotBlocked(pool, ip, { userAgent, action: "checkout" });
+
   if (!idempotencyKey || idempotencyKey.trim().length < 8) {
     throw new RangeError("idempotencyKey inválida");
   }
@@ -323,7 +326,7 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
   if (existing) return existing;
 
   if (rateLimitKey) {
-    checkRateLimit(`checkout:${rateLimitKey}`, CHECKOUT_LIMITS.maxPerWindow, CHECKOUT_LIMITS.windowSeconds);
+    await checkRateLimit(db, `checkout:${rateLimitKey}`, CHECKOUT_LIMITS.maxPerWindow, CHECKOUT_LIMITS.windowSeconds);
   }
 
   // Cantidades: Zod ya validó esto en el borde HTTP (ver checkout schema);

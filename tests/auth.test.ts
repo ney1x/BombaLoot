@@ -42,7 +42,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetData(pool);
-  resetRateLimits();
+  await resetRateLimits(pool);
 });
 
 const NEW_USER = {

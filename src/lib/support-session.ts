@@ -35,3 +35,11 @@ export function listSavedTickets(): SavedTicketRef[] {
     return [];
   }
 }
+
+/** Un link guardado que ya no resuelve (ticket borrado, token revocado) no debería seguir ofreciéndose — se llama cuando la carga del ticket falla. */
+export function removeTicketRef(id: string): void {
+  try {
+    const list = listSavedTickets().filter((t) => t.id !== id);
+    localStorage.setItem(KEY, JSON.stringify(list));
+  } catch {}
+}

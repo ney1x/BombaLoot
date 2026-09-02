@@ -43,7 +43,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetData(pool);
-  resetRateLimits();
+  await resetRateLimits(pool);
 });
 
 /* ═══════════════════════════ C2 — secretos en audit_logs ═══════════════════════════ */
@@ -284,11 +284,11 @@ describe("A3 — límites contra abuso de reservas", () => {
     },
   );
 
-  it("checkRateLimit por sí solo: bloquea al superar el máximo dentro de la ventana", () => {
+  it("checkRateLimit por sí solo: bloquea al superar el máximo dentro de la ventana", async () => {
     for (let i = 0; i < 3; i += 1) {
-      expect(() => checkRateLimit("clave-de-prueba", 3, 60)).not.toThrow();
+      await checkRateLimit(db, "clave-de-prueba", 3, 60);
     }
-    expect(() => checkRateLimit("clave-de-prueba", 3, 60)).toThrow(RateLimitExceededError);
+    await expect(checkRateLimit(db, "clave-de-prueba", 3, 60)).rejects.toThrow(RateLimitExceededError);
   });
 });
 

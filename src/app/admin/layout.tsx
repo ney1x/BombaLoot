@@ -46,6 +46,7 @@ const NAV_ITEMS = [
   { href: "/admin/soporte", label: "Soporte" },
   { href: "/admin/reembolsos", label: "Reembolsos" },
   { href: "/admin/usuarios", label: "Usuarios" },
+  { href: "/admin/seguridad", label: "Seguridad" },
   { href: "/admin/fidelizacion", label: "Fidelización" },
   { href: "/admin/descuentos", label: "Descuentos" },
   { href: "/admin/auditoria", label: "Auditoría" },

@@ -7,6 +7,7 @@ import styles from "./SupportConversation.module.css";
 import { ArrowLeftIcon } from "./icons";
 import { StatusPill } from "./StatusPill";
 import { SUPPORT_CATEGORY_LABEL, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE, type SupportCategory } from "@/lib/support";
+import { removeTicketRef } from "@/lib/support-session";
 
 interface TicketView {
   id: string;
@@ -23,8 +24,10 @@ interface MessageView {
   createdAt: string;
 }
 
-/** Sondeo simple cada 8s mientras la pestaña está abierta — alcanza para que la respuesta de soporte aparezca sin recargar, sin meter WebSockets a un sitio que no los tiene en ningún otro lado. */
+/** Sondeo simple cada 8s mientras la pestaña está abierta y visible — alcanza para que la respuesta de soporte aparezca sin recargar, sin meter WebSockets a un sitio que no los tiene en ningún otro lado. */
 const POLL_MS = 8000;
+/** Tras esta cantidad de fallos seguidos en el sondeo silencioso, se corta — no tiene sentido seguir pegándole a un ticket que dejó de responder. */
+const MAX_SILENT_FAILURES = 3;
 
 /**
  * Hilo de conversación reutilizado por `/ayuda/ticket/[id]` (invitado, con
@@ -42,6 +45,8 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silentFailuresRef = useRef(0);
 
   const fetchUrl = accessToken
     ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}`
@@ -50,28 +55,66 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
     ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}/messages`
     : `/api/support/tickets/${encodeURIComponent(ticketId)}`;
 
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  /** Falla definitiva (llegue del sondeo o de la carga inicial): el ticket ya no resuelve — no tiene sentido seguir insistiendo, y un link de invitado guardado que apunta acá ya no sirve. */
+  const markGone = useCallback(() => {
+    setNotFound(true);
+    stopPolling();
+    if (accessToken) removeTicketRef(ticketId);
+  }, [accessToken, stopPolling, ticketId]);
+
   const load = useCallback(
     async (silent = false) => {
       try {
         const response = await fetch(fetchUrl, { cache: "no-store" });
         if (!response.ok) {
-          if (!silent) setNotFound(true);
+          if (!silent) {
+            markGone();
+            return;
+          }
+          silentFailuresRef.current += 1;
+          if (silentFailuresRef.current >= MAX_SILENT_FAILURES) markGone();
           return;
         }
+        silentFailuresRef.current = 0;
         const body = await response.json();
         setTicket(body.ticket);
         setMessages(body.messages);
       } catch {
-        if (!silent) setNotFound(true);
+        if (!silent) {
+          markGone();
+          return;
+        }
+        silentFailuresRef.current += 1;
+        if (silentFailuresRef.current >= MAX_SILENT_FAILURES) markGone();
       }
     },
-    [fetchUrl],
+    [fetchUrl, markGone],
   );
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => void load(true), POLL_MS);
-    return () => clearInterval(interval);
+    pollTimerRef.current = setInterval(() => {
+      // Pestaña en segundo plano: no gastar conexión ni cómputo de DB en un
+      // sondeo que nadie está mirando — se retoma solo al volver a foco.
+      if (document.hidden) return;
+      void load(true);
+    }, POLL_MS);
+    return stopPolling;
+  }, [load, stopPolling]);
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (!document.hidden) void load(true);
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [load]);
 
   useEffect(() => {
@@ -118,7 +161,24 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
     );
   }
 
-  if (!ticket) return null;
+  if (!ticket) {
+    return (
+      <main className={styles.main}>
+        <Link href="/ayuda" className={styles.crumb}>
+          <ArrowLeftIcon /> Volver a Ayuda
+        </Link>
+        <div className={styles.skeletonHead}>
+          <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonPill}`} />
+        </div>
+        <div className={`${styles.skeleton} ${styles.skeletonSub}`} />
+        <div className={styles.thread}>
+          <div className={`${styles.skeleton} ${styles.skeletonBubble} ${styles.skeletonRight}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonBubble} ${styles.skeletonLeft}`} />
+        </div>
+      </main>
+    );
+  }
 
   const closed = ticket.status === "CLOSED";
 

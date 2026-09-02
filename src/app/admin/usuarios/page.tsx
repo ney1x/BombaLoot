@@ -5,6 +5,7 @@ import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { listUsersAdmin } from "@/server/services/admin-users";
 import { SupportRoleAction } from "@/components/admin/SupportRoleAction";
+import { SuspendAction } from "@/components/admin/SuspendAction";
 
 export const metadata: Metadata = { title: "Usuarios — Admin Loadout" };
 
@@ -25,6 +26,7 @@ export default async function AdminUsersPage({
     }),
   ]);
   const canManageRoles = session?.role === "ADMIN";
+  const canSuspend = session?.role === "ADMIN" || session?.role === "SUPPORT";
 
   return (
     <div className={shared.page}>
@@ -58,9 +60,11 @@ export default async function AdminUsersPage({
               <th>Email</th>
               <th>Nombre</th>
               <th>Rol</th>
+              <th>Estado</th>
               <th>Compras</th>
               <th>Desde</th>
-              {canManageRoles && <th>Acciones</th>}
+              {canManageRoles && <th>Rol</th>}
+              {canSuspend && <th>Cuenta</th>}
             </tr>
           </thead>
           <tbody>
@@ -73,6 +77,17 @@ export default async function AdminUsersPage({
                     {u.role}
                   </span>
                 </td>
+                <td>
+                  {u.suspendedAt ? (
+                    <span className={shared.badge} data-tone="bad" title={u.suspendedReason ?? undefined}>
+                      SUSPENDIDA
+                    </span>
+                  ) : (
+                    <span className={shared.badge} data-tone="good">
+                      ACTIVA
+                    </span>
+                  )}
+                </td>
                 <td className="num-display">{u.purchasesCount}</td>
                 <td>{u.createdAt.toLocaleDateString("es-CO")}</td>
                 {canManageRoles && (
@@ -80,11 +95,21 @@ export default async function AdminUsersPage({
                     <SupportRoleAction userId={u.id} role={u.role} />
                   </td>
                 )}
+                {canSuspend && (
+                  <td>
+                    <SuspendAction
+                      userId={u.id}
+                      role={u.role}
+                      suspended={Boolean(u.suspendedAt)}
+                      isSelf={session?.userId === u.id}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={canManageRoles ? 6 : 5} className={shared.empty}>
+                <td colSpan={6 + (canManageRoles ? 1 : 0) + (canSuspend ? 1 : 0)} className={shared.empty}>
                   Sin resultados.
                 </td>
               </tr>

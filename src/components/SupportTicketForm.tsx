@@ -6,7 +6,7 @@ import styles from "./SupportTicketForm.module.css";
 import { ArrowLeftIcon, ChevronRightIcon } from "./icons";
 import { useSession } from "@/lib/session-context";
 import { saveTicketRef } from "@/lib/support-session";
-import { SUPPORT_CATEGORIES, type SupportCategory } from "@/lib/support";
+import { SUPPORT_CATEGORIES, isOrderRequired, type SupportCategory } from "@/lib/support";
 
 export function SupportTicketForm() {
   const router = useRouter();
@@ -30,6 +30,7 @@ export function SupportTicketForm() {
   }, [user]);
 
   const categoryLabel = SUPPORT_CATEGORIES.find((c) => c.value === category)?.label;
+  const orderRequired = category ? isOrderRequired(category) : false;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,16 +90,25 @@ export function SupportTicketForm() {
       <div className={styles.fields}>
         <label className={styles.field} htmlFor={orderId}>
           <span className={styles.label}>
-            Número de pedido <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+            Número de pedido{" "}
+            {orderRequired ? (
+              <span className={styles.required}>(obligatorio para este motivo)</span>
+            ) : (
+              <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+            )}
           </span>
           <input
             id={orderId}
             type="text"
             className={styles.input}
             placeholder="Ej. A7F3-2291"
+            required={orderRequired}
             value={orderNumberInput}
             onChange={(e) => setOrderNumberInput(e.target.value)}
           />
+          {orderRequired && (
+            <span className={styles.hint}>Lo encontrás en el email de confirmación o en tu pedido, en Mi cuenta.</span>
+          )}
         </label>
 
         <label className={styles.field} htmlFor={emailId}>
