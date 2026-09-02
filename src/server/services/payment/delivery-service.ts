@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { withTransaction } from "../../db/client";
 import { decryptCode } from "../../crypto/codes";
 import { writeAudit } from "../audit";
+import { codesDeliveredEmail, sendMail } from "../mailer";
 import { loadOwnedOrder } from "./order-access";
 import { OrderNotFoundError } from "./errors";
 
@@ -52,7 +53,7 @@ export async function deliverOrderCodes(
     throw new OrderNotFoundError();
   }
 
-  return withTransaction(pool, async (tx) => {
+  const result = await withTransaction(pool, async (tx) => {
     const { rows: codeRows } = (await tx.execute(sql`
       SELECT c.id, c.status, oi.product_id, oi.game_label, oi.denomination, oi.unit,
              c.secret_cipher, c.secret_nonce, c.secret_tag
@@ -104,9 +105,27 @@ export async function deliverOrderCodes(
     });
 
     return {
-      orderNumber: orderRows[0].order_number,
-      deliveredAt: new Date(orderRows[0].delivered_at),
-      codes,
+      isNewDelivery: newlyDeliveredIds.length > 0,
+      value: {
+        orderNumber: orderRows[0].order_number,
+        deliveredAt: new Date(orderRows[0].delivered_at),
+        codes,
+      },
     };
   });
+
+  // Fuera de la transacción a propósito: el envío es una llamada de red al
+  // proveedor de email, no algo que deba retener una conexión/lock de la
+  // base mientras corre. Solo en la entrega NUEVA (no en cada revisita a
+  // `/pedido/[id]`) — de lo contrario, cada recarga de la página le
+  // reenviaría el mismo código por correo.
+  if (result.isNewDelivery) {
+    await sendMail({
+      to: order.email,
+      subject: `Tu código — pedido #${result.value.orderNumber}`,
+      text: codesDeliveredEmail(result.value.orderNumber, result.value.codes),
+    });
+  }
+
+  return result.value;
 }

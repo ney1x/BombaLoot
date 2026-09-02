@@ -53,10 +53,12 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   const session = typeof window !== "undefined" ? loadRealCheckoutSession() : null;
   const accessToken = session?.accessToken ?? undefined;
   const paypalToken = searchParams.get("token"); // PayPal reenvía `?token=<paypalOrderId>` en el return_url
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    pollCountRef.current = 0;
 
     async function captureIfNeeded() {
       if (capturedRef.current || !paypalToken) return;
@@ -86,6 +88,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
           return;
         }
 
+        setError(null);
         setResult(body as ResultResponse);
 
         const stillGoing = body.paymentIntentStatus === "PENDING" || body.paymentIntentStatus === "INITIATED";
@@ -104,17 +107,28 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
       if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentIntentId]);
+  }, [paymentIntentId, retryTick]);
 
   if (error) {
+    // El pago ya puede estar confirmado del lado del servidor aunque esta
+    // consulta haya fallado (red, timeout) — nunca mandar a `/checkout`
+    // acá: eso arranca un pedido nuevo y pierde la referencia al que ya se
+    // pagó. Reintenta la misma consulta y, si conocemos el pedido por
+    // `sessionStorage` (mismo origen del checkout), ofrece ir directo a él.
     return (
       <PaymentStatusLayout tone="warn" icon={<AlertIcon />} title="Algo salió mal">
         <p>{error}</p>
+        {session && <p className={styles.reference}>Pedido #{session.orderNumber}</p>}
         <div className={styles.ctaRow}>
-          <Link href="/checkout" className="btn btnPrimary">
+          <button type="button" className="btn btnPrimary" onClick={() => setRetryTick((t) => t + 1)}>
             Reintentar
-          </Link>
-          <Link href="/soporte#contacto" className="btn btnSecondary">
+          </button>
+          {session && (
+            <Link href={`/pedido/${session.orderId}`} className="btn btnSecondary">
+              Ver mi pedido
+            </Link>
+          )}
+          <Link href="/ayuda" className="btn btnSecondary">
             Contactar soporte
           </Link>
         </div>
@@ -185,7 +199,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
           </div>
         </div>
         <div className={styles.ctaRow}>
-          <Link href="/soporte#contacto" className="btn btnSecondary">
+          <Link href="/ayuda" className="btn btnSecondary">
             Contactar soporte
           </Link>
         </div>

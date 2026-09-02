@@ -258,3 +258,37 @@
     width: 100%;
   }
 }
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.skeletonTitle {
+  width: 70%;
+  height: 1.6rem;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.skeletonSub {
+  width: 45%;
+  height: 14px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.skeletonCard {
+  height: 220px;
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

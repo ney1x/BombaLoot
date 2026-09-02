@@ -196,7 +196,7 @@ function ErrorResult() {
         <Link href="/checkout" className="btn btnPrimary">
           Reintentar
         </Link>
-        <Link href="/soporte#contacto" className="btn btnSecondary">
+        <Link href="/ayuda" className="btn btnSecondary">
           Contactar soporte
         </Link>
       </div>

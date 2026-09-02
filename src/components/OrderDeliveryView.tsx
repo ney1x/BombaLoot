@@ -86,7 +86,7 @@ export function OrderDeliveryView({ id }: { id: string }) {
         <InlineBanner tone="warn" icon={<AlertIcon />} title="Código temporalmente no disponible">
           <p>
             Hubo un problema al asignar tu código. Ya lo estamos revisando — si en unas horas
-            seguís sin verlo, <Link href="/soporte#contacto">contactá a soporte</Link> con el
+            seguís sin verlo, <Link href="/ayuda">contactá a soporte</Link> con el
             número de este pedido.
           </p>
         </InlineBanner>
@@ -160,7 +160,7 @@ export function OrderDeliveryView({ id }: { id: string }) {
 
       <p className={styles.supportNote}>
         <HeadsetIcon />
-        ¿Algo no cuadra con tu pedido? <Link href="/soporte#contacto">Escribinos a soporte</Link>.
+        ¿Algo no cuadra con tu pedido? <Link href="/ayuda">Escribinos a soporte</Link>.
       </p>
     </main>
   );

@@ -2,10 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertIcon, HourglassIcon } from "@/components/icons";
+import styles from "./pago.module.css";
+import { AlertIcon } from "@/components/icons";
 import { PaymentStatusLayout } from "@/components/PaymentStatusLayout";
+import { Spinner } from "@/components/Spinner";
 import { PAYMENT_METHODS } from "@/lib/checkout";
 import { loadRealCheckoutSession, type RealCheckoutSession } from "@/lib/payment-session";
+
+/**
+ * Sin tarjeta ni borde a propósito — es un tránsito, no un mensaje que
+ * necesite el peso visual de una card. A `100dvh` para que el `Footer` del
+ * layout (sigue montado justo debajo) quede fuera de vista mientras dura
+ * el redirect, mismo criterio que `(storefront)/loading.tsx`.
+ */
+function RedirectingToPayment({ subtitle }: { subtitle?: React.ReactNode }) {
+  return (
+    <div className={styles.wrap} role="status" aria-live="polite">
+      <Spinner size={36} />
+      <p className={styles.title}>Redireccionando a pago seguro!</p>
+      {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+    </div>
+  );
+}
 
 /**
  * Inicia el pago real: llama `POST /api/payments/[provider]/init` (que NO
@@ -58,7 +76,9 @@ export default function PagoPendientePage() {
     })();
   }, [ready, session, router]);
 
-  if (!ready || !session) return null;
+  if (!ready || !session) {
+    return <RedirectingToPayment />;
+  }
 
   const method = PAYMENT_METHODS.find((m) => m.id === session.provider);
 
@@ -74,7 +94,7 @@ export default function PagoPendientePage() {
           <a href="/checkout" className="btn btnPrimary">
             Volver al checkout
           </a>
-          <a href="/soporte#contacto" className="btn btnSecondary">
+          <a href="/ayuda" className="btn btnSecondary">
             Contactar soporte
           </a>
         </div>
@@ -83,11 +103,7 @@ export default function PagoPendientePage() {
   }
 
   return (
-    <PaymentStatusLayout
-      tone="neutral"
-      pulse
-      icon={<HourglassIcon />}
-      title="Te estamos redirigiendo"
+    <RedirectingToPayment
       subtitle={
         <>
           Te llevamos a {method?.name ?? "tu método de pago"} para completar la transacción. Tu

@@ -208,7 +208,7 @@ export function AccountOrderDetail({ orderId }: { orderId: string }) {
             <h3>Tu código no está disponible temporalmente</h3>
             <p>
               Hubo un problema al asignarlo. Ya lo estamos revisando — si en unas horas seguís sin
-              verlo, <Link href="/soporte#contacto">contactá a soporte</Link> con el número de este
+              verlo, <Link href="/ayuda">contactá a soporte</Link> con el número de este
               pedido.
             </p>
           </div>

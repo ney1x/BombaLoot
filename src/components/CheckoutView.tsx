@@ -7,6 +7,7 @@ import styles from "@/app/(storefront)/checkout/checkout.module.css";
 import { BuyerInfoForm } from "./BuyerInfoForm";
 import { CheckoutSummary, type CheckoutLine } from "./CheckoutSummary";
 import { DiscountCodeField, type AppliedDiscount } from "./DiscountCodeField";
+import { EmailConfirmModal } from "./EmailConfirmModal";
 import { EmptyState } from "./EmptyState";
 import { InlineBanner } from "./InlineBanner";
 import { PaymentMethodPicker } from "./PaymentMethodPicker";
@@ -46,6 +47,7 @@ export function CheckoutView() {
   const [reservationExpired, setReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
   // Un UUID por intento de checkout (no por render): mismo criterio que el
   // backend espera para idempotencia — un reintento (doble clic, timeout)
   // reenvía el MISMO id; un intento nuevo (el usuario vuelve más tarde)
@@ -125,9 +127,21 @@ export function CheckoutView() {
     );
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit || submitting) return;
+    // Confirmar el email de vuelta es más importante para quien lo tipeó
+    // ahora mismo (invitado) que para quien ya lo tiene guardado en su
+    // cuenta — a ese no le hace falta el paso extra.
+    if (buyer.isGuest) {
+      setConfirmingEmail(true);
+      return;
+    }
+    void submitOrder();
+  }
+
+  async function submitOrder() {
+    setConfirmingEmail(false);
     setSubmitting(true);
     setSubmitError(null);
 
@@ -176,6 +190,14 @@ export function CheckoutView() {
   }
 
   return (
+    <>
+    {confirmingEmail && (
+      <EmailConfirmModal
+        email={buyer.email.trim()}
+        onConfirm={() => void submitOrder()}
+        onEdit={() => setConfirmingEmail(false)}
+      />
+    )}
     <form className={styles.grid} onSubmit={handleSubmit}>
       <div className={styles.main}>
         {!expired && checkoutLines.length > 0 && (
@@ -322,5 +344,6 @@ export function CheckoutView() {
         </div>
       )}
     </form>
+    </>
   );
 }

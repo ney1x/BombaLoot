@@ -1,14 +1,16 @@
 import "server-only";
 
+import { Resend } from "resend";
+
 /**
- * Envío de correo — MOCK. No hay proveedor de email conectado (Resend,
- * SES, lo que sea) en esta fase, igual que Wompi/PayPal siguen sin conectar.
- * En desarrollo, el link de recuperación se imprime en la consola del
- * servidor para poder probar el flujo entero a mano.
+ * Envío de correo. Con `RESEND_API_KEY` configurada, manda de verdad vía
+ * Resend; sin ella, cae al mismo mock de siempre (imprime en consola) —
+ * así un ambiente sin la key configurada (local, o antes de que se
+ * termine de dar de alta el dominio) sigue funcionando para probar el
+ * resto del flujo sin que falte el correo tumbe nada.
  *
- * La forma de la función ya es la definitiva: cuando se conecte un
- * proveedor real, se reemplaza el cuerpo de `sendMail`, no la firma — nada
- * que la llama debería tener que cambiar.
+ * La forma de la función es la misma de siempre: nada que la llama tuvo
+ * que cambiar cuando se conectó el proveedor real.
  */
 export interface MailMessage {
   to: string;
@@ -16,29 +18,59 @@ export interface MailMessage {
   text: string;
 }
 
+let resendClient: Resend | undefined;
+
+function getResendClient(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  if (!resendClient) resendClient = new Resend(apiKey);
+  return resendClient;
+}
+
 export async function sendMail(message: MailMessage): Promise<void> {
-  if (process.env.NODE_ENV === "production") {
-    // Sin proveedor real conectado todavía. No lanzar: que falte el correo
-    // no debe tumbar el flujo de recuperación de contraseña en sí (el token
-    // ya está creado y es válido igual si el usuario lo consigue por otro
-    // canal, ej. soporte). Se deja constancia clara en el log del servidor.
-    console.error("[mailer] NODE_ENV=production sin proveedor de email configurado.", {
-      to: message.to,
-      subject: message.subject,
-    });
+  const client = getResendClient();
+
+  if (!client) {
+    if (process.env.NODE_ENV === "production") {
+      // Sin proveedor real conectado todavía. No lanzar: que falte el correo
+      // no debe tumbar el flujo que lo dispara (el token de reset ya está
+      // creado y es válido igual, el código ya se le mostró en pantalla,
+      // etc.). Se deja constancia clara en el log del servidor.
+      console.error("[mailer] NODE_ENV=production sin RESEND_API_KEY configurada.", {
+        to: message.to,
+        subject: message.subject,
+      });
+      return;
+    }
+
+    console.log(
+      [
+        "\n───────────────────────────────────────────",
+        `[mailer:mock] Para: ${message.to}`,
+        `[mailer:mock] Asunto: ${message.subject}`,
+        "",
+        message.text,
+        "───────────────────────────────────────────\n",
+      ].join("\n"),
+    );
     return;
   }
 
-  console.log(
-    [
-      "\n───────────────────────────────────────────",
-      `[mailer:mock] Para: ${message.to}`,
-      `[mailer:mock] Asunto: ${message.subject}`,
-      "",
-      message.text,
-      "───────────────────────────────────────────\n",
-    ].join("\n"),
-  );
+  const from = process.env.EMAIL_FROM || "bombaloot <onboarding@resend.dev>";
+  const { error } = await client.emails.send({
+    from,
+    to: message.to,
+    subject: message.subject,
+    text: message.text,
+  });
+
+  // Mismo criterio que la rama sin proveedor: un email que no salió no
+  // debe tumbar el flujo que lo disparó — el pedido ya está pagado y
+  // entregado en pantalla, el reset ya tiene su token válido. Se deja
+  // constancia en el log para poder reenviarlo a mano si hace falta.
+  if (error) {
+    console.error("[mailer] Resend rechazó el envío.", { to: message.to, subject: message.subject, error });
+  }
 }
 
 export function passwordResetEmail(resetUrl: string): MailMessage["text"] {
@@ -81,5 +113,32 @@ export function refundCompletedEmail(orderNumber: string): string {
     `El reembolso de tu pedido #${orderNumber} fue procesado correctamente.`,
     "",
     "Según tu método de pago, puede tardar unos días hábiles en reflejarse.",
+  ].join("\n");
+}
+
+interface DeliveredCodeForEmail {
+  gameLabel: string;
+  denomination: string;
+  unit: string;
+  code: string;
+}
+
+/**
+ * Respaldo del código por email — la fuente de verdad sigue siendo
+ * `/pedido/[id]`, esto es para cuando el comprador no guardó ese link.
+ * Nunca se manda antes de que el código ya esté `DELIVERED` en la base
+ * (ver `deliverOrderCodes`), así que lo que viaja acá ya se le mostró en
+ * pantalla — no es la primera vez que ve el valor en claro.
+ */
+export function codesDeliveredEmail(orderNumber: string, codes: DeliveredCodeForEmail[]): string {
+  const lines = codes.map((c) => `${c.gameLabel} · ${c.denomination} ${c.unit}: ${c.code}`);
+  return [
+    `Tu pedido #${orderNumber} ya está confirmado. Estos son tus códigos:`,
+    "",
+    ...lines,
+    "",
+    "Guardalos en un lugar seguro — cada uno es de un solo uso y no los compartas con nadie.",
+    "",
+    "Podés volver a verlos cuando quieras en tu pedido, en bombaloot.",
   ].join("\n");
 }

@@ -140,7 +140,15 @@ export function OrderDeliveryReal({ id }: { id: string }) {
     );
   }
 
-  if (!order) return null;
+  if (!order) {
+    return (
+      <main className={styles.main}>
+        <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
+        <div className={`${styles.skeleton} ${styles.skeletonSub}`} />
+        <div className={`${styles.skeleton} ${styles.skeletonCard}`} />
+      </main>
+    );
+  }
 
   const dateLabel = new Date(order.createdAt).toLocaleDateString("es-CO", {
     day: "2-digit",
@@ -201,7 +209,7 @@ export function OrderDeliveryReal({ id }: { id: string }) {
           <p>
             Recibimos tu pago, pero no pudimos entregar el código solicitado. Tu pedido fue
             marcado para reembolso — te avisamos por email cuando esté listo. Si tenés dudas,{" "}
-            <Link href="/soporte#contacto">contactá a soporte</Link>.
+            <Link href="/ayuda">contactá a soporte</Link>.
           </p>
         </InlineBanner>
       )}
@@ -297,7 +305,7 @@ export function OrderDeliveryReal({ id }: { id: string }) {
 
       <p className={styles.supportNote}>
         <HeadsetIcon />
-        ¿Algo no cuadra con tu pedido? <Link href="/soporte#contacto">Escribinos a soporte</Link>.
+        ¿Algo no cuadra con tu pedido? <Link href="/ayuda">Escribinos a soporte</Link>.
       </p>
     </main>
   );
