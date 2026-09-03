@@ -5,10 +5,11 @@ import type { Pool } from "pg";
 import { createDb, withTransaction } from "../../db/client";
 import type { ValidatedSession } from "../../auth/session";
 import { decryptCode } from "../../crypto/codes";
-import { writeAudit } from "../audit";
+import { writeAudit, type AuditAction } from "../audit";
 import { codesDeliveredEmail, sendMail } from "../mailer";
 import { loadOwnedOrder } from "./order-access";
-import { AdminOrderNotFoundError, NoDeliveredCodesError } from "../errors";
+import { getOrderByIdAdmin, type OrderView } from "../checkout-service";
+import { AdminOrderNotFoundError, NoDeliveredCodesError, OrderNotPaidError } from "../errors";
 import { OrderNotFoundError } from "./errors";
 
 /**
@@ -45,16 +46,23 @@ interface CodeRow {
   secret_tag: Buffer;
 }
 
-export async function deliverOrderCodes(
+/**
+ * El núcleo de "entregar" — compartido entre el cliente (`deliverOrderCodes`,
+ * pide sus propios códigos en claro) y soporte (`adminDeliverOrderCodes`,
+ * solo confirma que se mandó, nunca ve el código). El actor de auditoría es
+ * el único parámetro que cambia entre los dos.
+ */
+async function runDelivery(
   pool: Pool,
-  params: { orderId: string; accessToken?: string; userId?: string },
-): Promise<DeliverOrderCodesResult> {
-  const order = await loadOwnedOrder(pool, params);
-
-  if (order.paymentStatus !== "PAID" || order.deliveryStatus === "UNAVAILABLE") {
-    throw new OrderNotFoundError();
-  }
-
+  order: OrderView,
+  auditActor: {
+    actorType: "CUSTOMER" | "ADMIN" | "SUPPORT";
+    actorId?: string;
+    action: AuditAction;
+    ip?: string | null;
+    userAgent?: string | null;
+  },
+): Promise<{ isNewDelivery: boolean; value: DeliverOrderCodesResult }> {
   const result = await withTransaction(pool, async (tx) => {
     const { rows: codeRows } = (await tx.execute(sql`
       SELECT c.id, c.status, oi.product_id, oi.game_label, oi.denomination, oi.unit,
@@ -96,14 +104,17 @@ export async function deliverOrderCodes(
     // M5: se audita el resultado, no el intento — solo los ids de código,
     // nunca el valor en claro (`writeAudit` lo rechazaría igual si se
     // colara). Distingue una entrega nueva de una re-visita a la misma
-    // pantalla (el cliente puede volver a `/pedido/[id]` después).
+    // pantalla (el cliente puede volver a `/pedido/[id]` después, o soporte
+    // puede reintentar la entrega manual sobre un pedido ya entregado).
     await writeAudit(tx, {
-      actorType: "CUSTOMER",
-      actorId: params.userId,
-      action: "code.delivered",
+      actorType: auditActor.actorType,
+      actorId: auditActor.actorId,
+      action: auditActor.action,
       entityType: "order",
       entityId: order.orderId,
       metadata: { codeIds: allIds, newlyDelivered: newlyDeliveredIds.length, repeatView: newlyDeliveredIds.length === 0 },
+      ip: auditActor.ip,
+      userAgent: auditActor.userAgent,
     });
 
     return {
@@ -129,7 +140,63 @@ export async function deliverOrderCodes(
     });
   }
 
+  return result;
+}
+
+export async function deliverOrderCodes(
+  pool: Pool,
+  params: { orderId: string; accessToken?: string; userId?: string },
+): Promise<DeliverOrderCodesResult> {
+  const order = await loadOwnedOrder(pool, params);
+
+  if (order.paymentStatus !== "PAID" || order.deliveryStatus === "UNAVAILABLE") {
+    throw new OrderNotFoundError();
+  }
+
+  const result = await runDelivery(pool, order, {
+    actorType: "CUSTOMER",
+    actorId: params.userId,
+    action: "code.delivered",
+  });
+
   return result.value;
+}
+
+/**
+ * Entrega manual por soporte: para cuando el flujo normal del cliente en
+ * `/pedido/[id]` nunca llegó a completarse (token de acceso perdido, el
+ * fetch de códigos falló en silencio, o cualquier otra razón) — el pago ya
+ * está confirmado pero ningún código pasó nunca a `DELIVERED`, así que
+ * `ResendCodesAction` no tiene nada que reenviar todavía. Mismo camino que
+ * `deliverOrderCodes` (descifra, marca `DELIVERED`, manda el email), pero
+ * sin exigir el token/sesión del dueño — la autorización acá es el rol
+ * admin/support de quien llama (verificado por la ruta), no la propiedad
+ * del pedido. Por eso, a diferencia de `deliverOrderCodes`, nunca devuelve
+ * el código en claro — mismo criterio que `resendDeliveredCodesEmail`.
+ */
+export async function adminDeliverOrderCodes(
+  pool: Pool,
+  actor: ValidatedSession,
+  orderId: string,
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<{ orderNumber: string; email: string; codeCount: number }> {
+  const order = await getOrderByIdAdmin(pool, orderId);
+  if (!order) throw new AdminOrderNotFoundError(orderId);
+  if (order.paymentStatus !== "PAID") throw new OrderNotPaidError(orderId, order.paymentStatus);
+
+  const result = await runDelivery(pool, order, {
+    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorId: actor.userId,
+    action: "code.delivered_by_support",
+    ip: context.ip,
+    userAgent: context.userAgent,
+  });
+
+  return {
+    orderNumber: result.value.orderNumber,
+    email: order.email,
+    codeCount: result.value.codes.length,
+  };
 }
 
 /**

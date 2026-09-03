@@ -405,3 +405,70 @@ export async function getTicketAdmin(db: Db, ticketId: string): Promise<SupportT
   };
   return rows[0] ? toTicketView(rows[0]) : null;
 }
+
+/* ────────────────────────── "escribiendo…" ──────────────────────────
+ * Presencia efímera, aparte del hilo de mensajes (que sigue en su propio
+ * sondeo de 8s) — necesita un sondeo mucho más frecuente para sentirse
+ * "en vivo", y no tiene sentido pagar ese costo en el fetch completo de
+ * mensajes. `now() - *_typing_at < 6s` decide "está escribiendo" al vuelo:
+ * no hace falta una señal explícita de "dejó de escribir", expira sola.
+ */
+const TYPING_ACTIVE_SQL = sql`> now() - interval '6 seconds'`;
+
+/** Cliente invitado marca que está escribiendo. `false` si el token no resuelve a ningún ticket. */
+export async function pingCustomerTypingByToken(pool: Pool, accessToken: string): Promise<boolean> {
+  const db = createDb(pool);
+  const { rows } = (await db.execute(sql`
+    UPDATE support_tickets SET customer_typing_at = now()
+     WHERE access_token_hash = ${hashToken(accessToken)}
+    RETURNING id
+  `)) as unknown as { rows: { id: string }[] };
+  return rows.length > 0;
+}
+
+/** Mismo ping, cliente logueado sin token a mano — mismo criterio IDOR que `addCustomerMessageForUser`. */
+export async function pingCustomerTypingForUser(pool: Pool, userId: string, ticketId: string): Promise<boolean> {
+  const db = createDb(pool);
+  const { rows } = (await db.execute(sql`
+    UPDATE support_tickets SET customer_typing_at = now()
+     WHERE id = ${ticketId}::uuid AND user_id = ${userId}::uuid
+    RETURNING id
+  `)) as unknown as { rows: { id: string }[] };
+  return rows.length > 0;
+}
+
+/** Ping del lado admin/SUPPORT — sin chequeo de dueño, la ruta ya exige el rol. */
+export async function pingAdminTyping(db: Db, ticketId: string): Promise<boolean> {
+  const { rows } = (await db.execute(sql`
+    UPDATE support_tickets SET admin_typing_at = now() WHERE id = ${ticketId}::uuid RETURNING id
+  `)) as unknown as { rows: { id: string }[] };
+  return rows.length > 0;
+}
+
+/** ¿Está escribiendo el ADMIN ahora mismo? — lo que le importa ver al cliente. */
+export async function getAdminTypingByToken(pool: Pool, accessToken: string): Promise<boolean> {
+  const db = createDb(pool);
+  const { rows } = (await db.execute(sql`
+    SELECT (admin_typing_at IS NOT NULL AND admin_typing_at ${TYPING_ACTIVE_SQL}) AS typing
+      FROM support_tickets WHERE access_token_hash = ${hashToken(accessToken)}
+  `)) as unknown as { rows: { typing: boolean }[] };
+  return rows[0]?.typing ?? false;
+}
+
+export async function getAdminTypingForUser(pool: Pool, userId: string, ticketId: string): Promise<boolean> {
+  const db = createDb(pool);
+  const { rows } = (await db.execute(sql`
+    SELECT (admin_typing_at IS NOT NULL AND admin_typing_at ${TYPING_ACTIVE_SQL}) AS typing
+      FROM support_tickets WHERE id = ${ticketId}::uuid AND user_id = ${userId}::uuid
+  `)) as unknown as { rows: { typing: boolean }[] };
+  return rows[0]?.typing ?? false;
+}
+
+/** ¿Está escribiendo el CLIENTE ahora mismo? — lo que le importa ver al admin. */
+export async function getCustomerTyping(db: Db, ticketId: string): Promise<boolean> {
+  const { rows } = (await db.execute(sql`
+    SELECT (customer_typing_at IS NOT NULL AND customer_typing_at ${TYPING_ACTIVE_SQL}) AS typing
+      FROM support_tickets WHERE id = ${ticketId}::uuid
+  `)) as unknown as { rows: { typing: boolean }[] };
+  return rows[0]?.typing ?? false;
+}

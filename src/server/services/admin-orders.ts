@@ -6,7 +6,13 @@ import { z } from "zod";
 import { withTransaction, type Db } from "../db/client";
 import type { ValidatedSession } from "../auth/session";
 import { deriveOrderStatus, type OrderStatus } from "./checkout-service";
-import { AdminOrderNotFoundError, OrderNotCancellableError } from "./errors";
+import {
+  AdminOrderNotFoundError,
+  NoOpenTicketForOrderError,
+  OrderNotCancellableError,
+  OrderNotPaidError,
+  OrderVerificationMismatchError,
+} from "./errors";
 import { writeAudit } from "./audit";
 
 /**
@@ -19,6 +25,17 @@ import { writeAudit } from "./audit";
  * `deriveOrderStatus` que ya usa el resto del sistema (fase 4), para que
  * el admin nunca vea un estado distinto del que ve el cliente en `/pedido`.
  */
+
+export const changeOrderEmailSchema = z.object({
+  // El comprobante de identidad: número de pedido + email tal como quedaron
+  // en el pedido real. Ninguno de los dos autoriza nada por sí solo — el
+  // que sí lo hace es la sesión admin/support de quien llama (verificada
+  // por la ruta) — esto es la prueba de que verificó a la persona correcta,
+  // no el mecanismo de autorización.
+  confirmOrderNumber: z.string().trim().min(1).max(64),
+  confirmCurrentEmail: z.string().trim().toLowerCase().email().max(320),
+  newEmail: z.string().trim().toLowerCase().email().max(320),
+});
 
 export const orderFiltersSchema = z.object({
   orderNumber: z.string().trim().max(64).optional(),
@@ -186,6 +203,13 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     entityId: string;
     metadata: Record<string, unknown>;
   }>;
+  /** Tickets que resolvieron a este pedido — best-effort, ver `supportTickets.orderId`. */
+  tickets: Array<{
+    id: string;
+    ticketNumber: string;
+    status: string;
+    createdAt: Date;
+  }>;
 }
 
 export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<AdminOrderDetail | null> {
@@ -216,7 +240,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
   const order = orderRows[0];
   if (!order) return null;
 
-  const [itemRows, codeRows, intentRows, refundRows, auditRows] = await Promise.all([
+  const [itemRows, codeRows, intentRows, refundRows, auditRows, ticketRows] = await Promise.all([
     db.execute(sql`
       SELECT product_id, game_label, denomination, unit, quantity, unit_price_cop, line_total_cop
         FROM order_items WHERE order_id = ${orderId}::uuid ORDER BY game_label, denomination
@@ -294,6 +318,12 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
         metadata: Record<string, unknown>;
       }>;
     }>,
+    db.execute(sql`
+      SELECT id, ticket_number, status, created_at
+        FROM support_tickets WHERE order_id = ${orderId}::uuid ORDER BY created_at DESC
+    `) as unknown as Promise<{
+      rows: Array<{ id: string; ticket_number: string; status: string; created_at: string }>;
+    }>,
   ]);
 
   const paymentExpiresAt = order.payment_expires_at ? new Date(order.payment_expires_at) : null;
@@ -363,6 +393,12 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       entityId: a.entity_id,
       metadata: a.metadata,
     })),
+    tickets: ticketRows.rows.map((t) => ({
+      id: t.id,
+      ticketNumber: t.ticket_number,
+      status: t.status,
+      createdAt: new Date(t.created_at),
+    })),
   };
 }
 
@@ -420,5 +456,74 @@ export async function cancelOrderForFraud(
     });
 
     return { codesReleased: rowCount ?? 0 };
+  });
+}
+
+/**
+ * Cambia a dónde llega el código de un pedido ya pagado — para cuando el
+ * comprador perdió acceso al email original (cuenta vieja, error de
+ * tipeo al pagar) y necesita que el código le llegue a otro lado. Sensible
+ * a propósito, con dos capas independientes:
+ *
+ * 1. **Verificación de identidad**: quien pide el cambio tiene que probar
+ *    el número de pedido Y el email que quedó asociado a la compra —
+ *    exactamente como llegaron al pagar, no datos nuevos. Un solo mensaje
+ *    de error genérico si cualquiera de los dos no matchea (mismo criterio
+ *    IDOR que el resto del sistema: no confirmarle a quien pregunta cuál
+ *    de los dos acertó).
+ * 2. **Ticket abierto**: tiene que existir un `support_tickets` con
+ *    `order_id` = este pedido en estado OPEN o IN_PROGRESS — el registro de
+ *    que alguien de soporte ya está siguiendo el caso, no una acción libre
+ *    que un admin dispare sin dejar rastro de por qué.
+ *
+ * Ninguna de las dos reemplaza al rol admin/support de quien llama (eso lo
+ * exige la ruta) — son la prueba de que, además de tener acceso al panel,
+ * alguien efectivamente verificó a la persona correcta antes de redirigir
+ * dónde aparece un código ya pagado.
+ */
+export async function changeOrderEmail(
+  pool: Pool,
+  actor: ValidatedSession,
+  orderId: string,
+  params: { confirmOrderNumber: string; confirmCurrentEmail: string; newEmail: string },
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<{ orderNumber: string; oldEmail: string; newEmail: string }> {
+  return withTransaction(pool, async (tx) => {
+    const { rows } = (await tx.execute(sql`
+      SELECT id, order_number, email, payment_status FROM orders WHERE id = ${orderId}::uuid FOR UPDATE
+    `)) as unknown as { rows: { id: string; order_number: string; email: string; payment_status: string }[] };
+    const order = rows[0];
+    if (!order) throw new AdminOrderNotFoundError(orderId);
+    if (order.payment_status !== "PAID") throw new OrderNotPaidError(orderId, order.payment_status);
+
+    const numberMatches = order.order_number.toLowerCase() === params.confirmOrderNumber.toLowerCase();
+    const emailMatches = order.email.toLowerCase() === params.confirmCurrentEmail;
+    if (!numberMatches || !emailMatches) throw new OrderVerificationMismatchError();
+
+    const { rows: ticketRows } = (await tx.execute(sql`
+      SELECT id FROM support_tickets
+       WHERE order_id = ${orderId}::uuid AND status IN ('OPEN', 'IN_PROGRESS')
+       ORDER BY created_at DESC
+       LIMIT 1
+    `)) as unknown as { rows: { id: string }[] };
+    const ticket = ticketRows[0];
+    if (!ticket) throw new NoOpenTicketForOrderError();
+
+    await tx.execute(sql`
+      UPDATE orders SET email = ${params.newEmail}, updated_at = now() WHERE id = ${orderId}::uuid
+    `);
+
+    await writeAudit(tx, {
+      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorId: actor.userId,
+      action: "order.email_changed",
+      entityType: "order",
+      entityId: orderId,
+      metadata: { oldEmail: order.email, newEmail: params.newEmail, ticketId: ticket.id },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+
+    return { orderNumber: order.order_number, oldEmail: order.email, newEmail: params.newEmail };
   });
 }

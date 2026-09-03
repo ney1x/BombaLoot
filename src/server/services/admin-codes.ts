@@ -42,6 +42,10 @@ export interface AdminCodeRow {
   status: string;
   fingerprint: string;
   orderItemId: string | null;
+  /** Pedido dueño del `order_item` — null salvo en PAID/DELIVERED. Para
+      linkear el fingerprint a la factura del pedido desde el admin. */
+  orderId: string | null;
+  orderNumber: string | null;
   reservedUntil: Date | null;
   createdAt: Date;
   deliveredAt: Date | null;
@@ -54,6 +58,8 @@ interface CodeQueryRow {
   status: string;
   secret_fingerprint: Buffer;
   order_item_id: string | null;
+  order_id: string | null;
+  order_number: string | null;
   reserved_until: string | null;
   created_at: string;
   delivered_at: string | null;
@@ -68,6 +74,8 @@ function toAdminCodeRow(row: CodeQueryRow): AdminCodeRow {
     status: row.status,
     fingerprint: row.secret_fingerprint.toString("hex").slice(0, 16),
     orderItemId: row.order_item_id,
+    orderId: row.order_id,
+    orderNumber: row.order_number,
     reservedUntil: row.reserved_until ? new Date(row.reserved_until) : null,
     createdAt: new Date(row.created_at),
     deliveredAt: row.delivered_at ? new Date(row.delivered_at) : null,
@@ -79,10 +87,13 @@ function toAdminCodeRow(row: CodeQueryRow): AdminCodeRow {
 export async function listCodesForProduct(db: Db, productId: string): Promise<AdminCodeRow[]> {
   const { rows } = (await db.execute(sql`
     SELECT c.id, c.status, c.secret_fingerprint, c.order_item_id, c.reserved_until, c.created_at, c.delivered_at,
+           o.id AS order_id, o.order_number,
            b.uploaded_by, u.name AS uploaded_by_name, u.email AS uploaded_by_email
       FROM codes c
       LEFT JOIN code_batches b ON b.id = c.batch_id
       LEFT JOIN users u ON u.id = b.uploaded_by
+      LEFT JOIN order_items oi ON oi.id = c.order_item_id
+      LEFT JOIN orders o ON o.id = oi.order_id
      WHERE c.product_id = ${productId}
      ORDER BY c.created_at DESC
      LIMIT 500

@@ -28,6 +28,12 @@ interface MessageView {
 const POLL_MS = 8000;
 /** Tras esta cantidad de fallos seguidos en el sondeo silencioso, se corta — no tiene sentido seguir pegándole a un ticket que dejó de responder. */
 const MAX_SILENT_FAILURES = 3;
+/** "Escribiendo…" necesita sentirse en vivo — sondeo propio, mucho más
+    seguido que el de mensajes, y liviano (un solo booleano). */
+const TYPING_POLL_MS = 2500;
+/** No un ping por tecla — a lo sumo uno cada 3s mientras se sigue
+    escribiendo, igual que el umbral de 6s del servidor le da margen de sobra. */
+const TYPING_PING_THROTTLE_MS = 3000;
 
 /**
  * Hilo de conversación reutilizado por `/ayuda/ticket/[id]` (invitado, con
@@ -44,9 +50,11 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminTyping, setAdminTyping] = useState(false);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silentFailuresRef = useRef(0);
+  const lastTypingPingRef = useRef(0);
 
   const fetchUrl = accessToken
     ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}`
@@ -54,6 +62,9 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
   const replyUrl = accessToken
     ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}/messages`
     : `/api/support/tickets/${encodeURIComponent(ticketId)}`;
+  const typingUrl = accessToken
+    ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}/typing`
+    : `/api/support/tickets/${encodeURIComponent(ticketId)}/typing`;
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -120,6 +131,45 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [messages.length]);
+
+  // Sondeo propio de "¿está escribiendo soporte?" — no depende de `ticket`
+  // (no hace falta esperar a la carga inicial del hilo) y no toca
+  // `silentFailuresRef`: un fallo acá no significa que el ticket dejó de
+  // existir, solo que no sabemos si están escribiendo ahora mismo.
+  useEffect(() => {
+    let cancelled = false;
+    async function pollTyping() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(typingUrl, { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        if (!cancelled) setAdminTyping(Boolean(body.typing));
+      } catch {
+        // sondeo silencioso — no es crítico perder un tick
+      }
+    }
+    void pollTyping();
+    const interval = setInterval(pollTyping, TYPING_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [typingUrl]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [adminTyping]);
+
+  /** Throttleado — no un POST por tecla, a lo sumo uno cada `TYPING_PING_THROTTLE_MS`. */
+  function pingTyping() {
+    const now = Date.now();
+    if (now - lastTypingPingRef.current < TYPING_PING_THROTTLE_MS) return;
+    lastTypingPingRef.current = now;
+    void fetch(typingUrl, { method: "POST" }).catch(() => {
+      // best-effort — que no se vea el "escribiendo…" del otro lado no es fatal
+    });
+  }
 
   async function handleReply(e: React.FormEvent) {
     e.preventDefault();
@@ -209,6 +259,20 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
             </span>
           </div>
         ))}
+        {adminTyping && (
+          <div
+            className={`${styles.message} ${styles.admin}`}
+            data-motion="essential"
+            aria-live="polite"
+            aria-label="Soporte está escribiendo"
+          >
+            <span className={styles.typingDots}>
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+            </span>
+          </div>
+        )}
         <div ref={threadEndRef} />
       </div>
 
@@ -220,7 +284,10 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
             className={styles.textarea}
             placeholder="Escribí tu respuesta…"
             value={reply}
-            onChange={(e) => setReply(e.target.value)}
+            onChange={(e) => {
+              setReply(e.target.value);
+              pingTyping();
+            }}
           />
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.replyRow}>

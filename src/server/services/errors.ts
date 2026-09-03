@@ -220,6 +220,48 @@ export class AdminOrderNotFoundError extends Error {
   }
 }
 
+/**
+ * Varias acciones de soporte (entrega manual, cambiar el email de entrega)
+ * solo tienen sentido sobre un pedido que ya cobró. Uno que sigue PENDING
+ * no tiene nada que entregar todavía (eso lo resuelve el webhook/poll), y
+ * uno FAILED/REFUNDED nunca debería soltar códigos ni redirigir dónde
+ * llegan — mismo criterio que ya protege `deliverOrderCodes`.
+ */
+export class OrderNotPaidError extends Error {
+  readonly code = "ORDER_NOT_PAID";
+  constructor(readonly orderId: string, readonly paymentStatus: string) {
+    super(`El pedido ${orderId} está en estado ${paymentStatus}, no PAID`);
+    this.name = "OrderNotPaidError";
+  }
+}
+
+/**
+ * El número de pedido y/o el email que confirmó quien pidió el cambio no
+ * coinciden con el pedido real — mismo mensaje genérico sea cual sea el
+ * campo que falló, para no confirmarle a quien está del otro lado cuál de
+ * los dos datos acertó (mismo criterio que `IpBlockedError`).
+ */
+export class OrderVerificationMismatchError extends Error {
+  readonly code = "ORDER_VERIFICATION_MISMATCH";
+  constructor() {
+    super("El número de pedido y el email no coinciden con los datos del pedido.");
+    this.name = "OrderVerificationMismatchError";
+  }
+}
+
+/**
+ * Cambiar a dónde llega el código de un pedido ya pagado es sensible —
+ * exige un ticket de soporte abierto sobre ESE pedido como registro de que
+ * alguien pidió el cambio y por qué, no una acción libre del admin.
+ */
+export class NoOpenTicketForOrderError extends Error {
+  readonly code = "NO_OPEN_TICKET_FOR_ORDER";
+  constructor() {
+    super("Hace falta un ticket de soporte abierto sobre este pedido para cambiar el email de entrega.");
+    this.name = "NoOpenTicketForOrderError";
+  }
+}
+
 /** Reenviar códigos por soporte solo tiene sentido si ya se entregó algo — nada que reenviar antes de eso. */
 export class NoDeliveredCodesError extends Error {
   readonly code = "NO_DELIVERED_CODES";

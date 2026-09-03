@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import shared from "../../shared.module.css";
 import { AdminSupportThread } from "@/components/admin/AdminSupportThread";
+import { EmailOrdersLink } from "@/components/admin/EmailOrdersLink";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/support";
@@ -28,7 +29,8 @@ export default async function AdminSupportDetailPage({ params }: { params: Promi
         <div>
           <h1 className={shared.title}>Ticket {ticket.ticketNumber}</h1>
           <p className={shared.subtitle}>
-            {ticket.email} · {SUPPORT_CATEGORY_LABEL[ticket.category as SupportCategory] ?? ticket.category}
+            <EmailOrdersLink email={ticket.email} /> ·{" "}
+            {SUPPORT_CATEGORY_LABEL[ticket.category as SupportCategory] ?? ticket.category}
             {ticket.orderNumber && (
               <>
                 {" · "}

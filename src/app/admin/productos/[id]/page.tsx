@@ -94,6 +94,8 @@ export default async function ProductDetailPage({
           status: c.status,
           fingerprint: c.fingerprint,
           orderItemId: c.orderItemId,
+          orderId: c.orderId,
+          orderNumber: c.orderNumber,
           createdAt: c.createdAt.toISOString(),
           deliveredAt: c.deliveredAt ? c.deliveredAt.toISOString() : null,
           uploadedById: c.uploadedById,

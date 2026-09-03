@@ -68,6 +68,12 @@ export const paymentProvider = pgEnum("payment_provider", ["WOMPI", "PAYPAL"]);
 export const discountKind = pgEnum("discount_kind", ["PERCENT", "FIXED"]);
 export const discountScope = pgEnum("discount_scope", ["ORDER", "GAME", "PRODUCT"]);
 
+/**
+ * REFUND_REQUEST se mantiene por los tickets viejos que ya lo tienen —
+ * Postgres no deja borrar valores de un enum sin recrear el tipo. Ya no es
+ * elegible al crear un ticket nuevo (ver `SUPPORT_CATEGORIES` en
+ * lib/support.ts, que reemplaza esa opción por LOST_ORDER_NUMBER).
+ */
 export const supportTicketCategory = pgEnum("support_ticket_category", [
   "NO_CODE",
   "CODE_INVALID",
@@ -77,6 +83,7 @@ export const supportTicketCategory = pgEnum("support_ticket_category", [
   "DELIVERED_NOT_RECEIVED",
   "ACCOUNT_ISSUE",
   "OTHER",
+  "LOST_ORDER_NUMBER",
 ]);
 
 export const supportTicketStatus = pgEnum("support_ticket_status", [
@@ -598,6 +605,10 @@ export const supportTickets = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Presencia efímera para "escribiendo…" — se pisa en cada tecleo, se
+        interpreta como activo solo si es reciente (ver support-service.ts). */
+    customerTypingAt: timestamp("customer_typing_at", { withTimezone: true }),
+    adminTypingAt: timestamp("admin_typing_at", { withTimezone: true }),
   },
   (t) => [
     index("support_tickets_status_idx").on(t.status, t.lastMessageAt),

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import styles from "./SupportTicketForm.module.css";
@@ -27,12 +28,21 @@ export function SupportTicketForm() {
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [email, setEmail] = useState(user?.email ?? "");
   const [message, setMessage] = useState("");
+  // Solo para LOST_ORDER_NUMBER — no hay número de pedido que pedir, así
+  // que esto (más el email) es lo que le da a soporte algo para buscar.
+  // Los dos opcionales: van adentro del mensaje del ticket, no en campos
+  // propios — no vale la pena una migración de columnas nuevas por dos
+  // datos que igual necesitan lectura humana.
+  const [paymentMethodInput, setPaymentMethodInput] = useState("");
+  const [purchaseInput, setPurchaseInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const orderId = useId();
   const emailId = useId();
   const messageId = useId();
+  const paymentMethodId = useId();
+  const purchaseId = useId();
 
   // Sincroniza el email una vez que `useSession()` resuelve (llega async) —
   // solo si el campo sigue vacío, para no pisar algo que el invitado ya escribió.
@@ -43,6 +53,9 @@ export function SupportTicketForm() {
 
   const categoryLabel = SUPPORT_CATEGORIES.find((c) => c.value === category)?.label;
   const orderRequired = category ? isOrderRequired(category) : false;
+  // Pedir el número acá no tiene sentido: la premisa del motivo es
+  // justamente que la persona no lo tiene.
+  const isLostOrder = category === "LOST_ORDER_NUMBER";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,13 +63,25 @@ export function SupportTicketForm() {
     setSubmitting(true);
     setError(null);
     try {
+      // Método de pago y qué compró (los dos opcionales) se arman adentro
+      // del mensaje del ticket — ver el comentario en el estado de arriba.
+      const finalMessage = isLostOrder
+        ? [
+            paymentMethodInput ? `Método de pago: ${paymentMethodInput}` : null,
+            purchaseInput ? `Qué compró: ${purchaseInput}` : null,
+            message,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : message;
+
       const response = await fetch("/api/support/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           category,
-          message,
+          message: finalMessage,
           orderNumberInput: orderNumberInput || undefined,
         }),
       });
@@ -100,31 +125,35 @@ export function SupportTicketForm() {
       <span className={styles.selectedCategory}>{categoryLabel}</span>
 
       <div className={styles.fields}>
-        <label className={styles.field} htmlFor={orderId}>
-          <span className={styles.label}>
-            Número de pedido{" "}
-            {orderRequired ? (
-              <span className={styles.required}>(obligatorio para este motivo)</span>
-            ) : (
-              <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+        {!isLostOrder && (
+          <label className={styles.field} htmlFor={orderId}>
+            <span className={styles.label}>
+              Número de pedido{" "}
+              {orderRequired ? (
+                <span className={styles.required}>(obligatorio para este motivo)</span>
+              ) : (
+                <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+              )}
+            </span>
+            <input
+              id={orderId}
+              type="text"
+              className={styles.input}
+              placeholder="Ej. A7F3-2291"
+              required={orderRequired}
+              value={orderNumberInput}
+              onChange={(e) => setOrderNumberInput(e.target.value)}
+            />
+            {orderRequired && (
+              <span className={styles.hint}>Lo encontrás en el email de confirmación o en tu pedido, en Mi cuenta.</span>
             )}
-          </span>
-          <input
-            id={orderId}
-            type="text"
-            className={styles.input}
-            placeholder="Ej. A7F3-2291"
-            required={orderRequired}
-            value={orderNumberInput}
-            onChange={(e) => setOrderNumberInput(e.target.value)}
-          />
-          {orderRequired && (
-            <span className={styles.hint}>Lo encontrás en el email de confirmación o en tu pedido, en Mi cuenta.</span>
-          )}
-        </label>
+          </label>
+        )}
 
         <label className={styles.field} htmlFor={emailId}>
-          <span className={styles.label}>Email</span>
+          <span className={styles.label}>
+            Email {isLostOrder && <span className={styles.required}>(obligatorio para este motivo)</span>}
+          </span>
           <input
             id={emailId}
             type="email"
@@ -135,7 +164,49 @@ export function SupportTicketForm() {
             onChange={(e) => setEmail(e.target.value)}
             readOnly={Boolean(user)}
           />
+          {isLostOrder && (
+            <span className={styles.hint}>
+              Tiene que ser el mismo con el que hiciste la compra — es lo único que tenemos para encontrar tu
+              pedido sin el número.
+            </span>
+          )}
         </label>
+
+        {isLostOrder && (
+          <>
+            <label className={styles.field} htmlFor={paymentMethodId}>
+              <span className={styles.label}>
+                Método de pago <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+              </span>
+              <select
+                id={paymentMethodId}
+                className={styles.input}
+                value={paymentMethodInput}
+                onChange={(e) => setPaymentMethodInput(e.target.value)}
+              >
+                <option value="">Preferís no decir / no estoy seguro</option>
+                <option value="Nequi">Nequi</option>
+                <option value="PSE">PSE</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="PayPal">PayPal</option>
+              </select>
+            </label>
+
+            <label className={styles.field} htmlFor={purchaseId}>
+              <span className={styles.label}>
+                ¿Qué compraste? <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+              </span>
+              <input
+                id={purchaseId}
+                type="text"
+                className={styles.input}
+                placeholder="Ej. 565 VP de Valorant"
+                value={purchaseInput}
+                onChange={(e) => setPurchaseInput(e.target.value)}
+              />
+            </label>
+          </>
+        )}
 
         <label className={styles.field} htmlFor={messageId}>
           <span className={styles.label}>Contanos qué pasó</span>
@@ -151,6 +222,11 @@ export function SupportTicketForm() {
         </label>
 
         {error && <p className={styles.error}>{error}</p>}
+
+        <p className={styles.legal}>
+          Al enviar esta solicitud, confirmás que leíste los <Link href="/terminos">Términos y Condiciones</Link> y
+          la <Link href="/privacidad">Política de Privacidad</Link>.
+        </p>
 
         <div className={styles.submitRow}>
           <button type="submit" className="btn btnPrimary" disabled={submitting}>

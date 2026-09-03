@@ -266,3 +266,44 @@ a.card:hover {
   font-size: 13px;
   color: var(--ink-soft);
 }
+
+/* "Escribiendo…" en AdminSupportThread — tres puntos que rebotan en
+   cascada. `data-motion="essential"` en el elemento que la usa: es señal
+   de que algo sigue en curso, así que tiene que seguir viva bajo
+   prefers-reduced-motion (mismo criterio que el Spinner). */
+.typingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.typingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typingDot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typingDot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}

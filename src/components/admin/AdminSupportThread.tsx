@@ -22,6 +22,10 @@ const POLL_MS = 8000;
 const STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 const MESSAGE_MAX = 4000;
 const CONFIRM_MS = 2500;
+/** "Escribiendo…" necesita sentirse en vivo — sondeo propio, más seguido que el de mensajes. */
+const TYPING_POLL_MS = 2500;
+/** A lo sumo un ping cada 3s mientras se sigue escribiendo. */
+const TYPING_PING_THROTTLE_MS = 3000;
 
 /** Hilo + respuesta + estado/asignación, todo en una página — el pedido explícito de que admin y cliente conversen sin salir del panel. */
 export function AdminSupportThread({
@@ -44,7 +48,9 @@ export function AdminSupportThread({
   const [savingStatus, setSavingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
+  const [customerTyping, setCustomerTyping] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastTypingPingRef = useRef(0);
 
   useEffect(() => {
     if (!confirmMsg) return;
@@ -68,6 +74,40 @@ export function AdminSupportThread({
     const interval = setInterval(load, POLL_MS);
     return () => clearInterval(interval);
   }, [load]);
+
+  // Sondeo propio de "¿está escribiendo el cliente?" — mucho más seguido
+  // que el de mensajes, y liviano (un solo booleano), así que no vale la
+  // pena mezclarlo con `load`.
+  useEffect(() => {
+    let cancelled = false;
+    async function pollTyping() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(`/api/admin/support/${ticketId}/typing`, { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) setCustomerTyping(Boolean(data.typing));
+      } catch {
+        // sondeo silencioso
+      }
+    }
+    void pollTyping();
+    const interval = setInterval(pollTyping, TYPING_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [ticketId]);
+
+  /** Throttleado — a lo sumo un POST cada `TYPING_PING_THROTTLE_MS`. */
+  function pingTyping() {
+    const now = Date.now();
+    if (now - lastTypingPingRef.current < TYPING_PING_THROTTLE_MS) return;
+    lastTypingPingRef.current = now;
+    void fetch(`/api/admin/support/${ticketId}/typing`, { method: "POST" }).catch(() => {
+      // best-effort
+    });
+  }
 
   async function handleReply(e: React.FormEvent) {
     e.preventDefault();
@@ -218,6 +258,26 @@ export function AdminSupportThread({
           </div>
         ))}
         {messages.length === 0 && <span className={shared.subtitle}>Sin mensajes todavía.</span>}
+        {customerTyping && (
+          <div
+            style={{
+              alignSelf: "flex-start",
+              padding: "10px 13px",
+              borderRadius: 10,
+              background: "var(--surface-2)",
+              color: "var(--ink)",
+            }}
+            data-motion="essential"
+            aria-live="polite"
+            aria-label="El cliente está escribiendo"
+          >
+            <span className={shared.typingDots}>
+              <span className={shared.typingDot} />
+              <span className={shared.typingDot} />
+              <span className={shared.typingDot} />
+            </span>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleReply} className={shared.card} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -238,6 +298,7 @@ export function AdminSupportThread({
             onChange={(e) => {
               setReply(e.target.value);
               autoGrow(e.target);
+              pingTyping();
             }}
             rows={4}
             style={{ resize: "vertical", overflow: "hidden", minHeight: 90 }}

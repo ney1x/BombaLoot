@@ -136,6 +136,21 @@
   color: var(--danger, #e5484d);
 }
 
+/* Mismo lenguaje que `.legal` en SecureAuthShell (el aviso del login) —
+   acá sin centrar: este formulario es de flujo vertical normal, no la
+   tarjeta angosta y centrada del login. */
+.legal {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.legal a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .submitRow {
   display: flex;
   align-items: center;

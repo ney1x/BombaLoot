@@ -43,7 +43,10 @@ import {
   LoyaltyTierNotFoundError,
   MissingOwnerError,
   NoDeliveredCodesError,
+  NoOpenTicketForOrderError,
   OrderNotCancellableError,
+  OrderNotPaidError,
+  OrderVerificationMismatchError,
   ProductNotFoundError,
   QuantityNotAllowedError,
   RefundNotPendingManualReviewError,
@@ -148,7 +151,11 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   ) {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
-  if (error instanceof InvalidGameError || error instanceof RefundOrderMismatchError) {
+  if (
+    error instanceof InvalidGameError ||
+    error instanceof RefundOrderMismatchError ||
+    error instanceof OrderVerificationMismatchError
+  ) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof CodeNotOwnedError) {
@@ -162,7 +169,9 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     error instanceof DuplicateLoyaltyTierError ||
     error instanceof DuplicateDiscountCodeError ||
     error instanceof OrderNotCancellableError ||
-    error instanceof NoDeliveredCodesError
+    error instanceof NoDeliveredCodesError ||
+    error instanceof OrderNotPaidError ||
+    error instanceof NoOpenTicketForOrderError
   ) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }

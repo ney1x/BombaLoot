@@ -9,10 +9,13 @@ import {
   STATUS_TONE as PAYMENT_STATUS_TONE,
 } from "../../payment-intent-status-labels";
 import { STATUS_LABEL as REFUND_STATUS_LABEL, STATUS_TONE as REFUND_STATUS_TONE } from "../../refund-status-labels";
+import { SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE } from "@/lib/support";
 import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { getOrderDetailAdmin } from "@/server/services/admin-orders";
 import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
+import { ChangeOrderEmailAction } from "@/components/admin/ChangeOrderEmailAction";
+import { DeliverCodesAction } from "@/components/admin/DeliverCodesAction";
 import { ResendCodesAction } from "@/components/admin/ResendCodesAction";
 
 export const metadata: Metadata = { title: "Detalle de pedido — Admin BombaLoot" };
@@ -23,6 +26,61 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   const { id } = await params;
   const order = await getOrderDetailAdmin(getDb(), id);
   if (!order) notFound();
+
+  const hasOpenTicket = order.tickets.some((t) => t.status === "OPEN" || t.status === "IN_PROGRESS");
+
+  const ticketsSection = (order.tickets.length > 0 || order.paymentStatus === "PAID") && (
+    <div className={shared.card}>
+      <h2 className={shared.title} style={{ fontSize: 15 }}>
+        Tickets de soporte
+      </h2>
+      {order.tickets.length > 0 ? (
+        <div className={shared.tableWrap} style={{ marginTop: 10 }}>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th scope="col">Ticket</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Creado</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.tickets.map((t) => (
+                <tr key={t.id}>
+                  <td className={shared.mono}>{t.ticketNumber}</td>
+                  <td>
+                    <span className={shared.badge} data-tone={SUPPORT_STATUS_TONE[t.status]}>
+                      {SUPPORT_STATUS_LABEL[t.status] ?? t.status}
+                    </span>
+                  </td>
+                  <td>{t.createdAt.toLocaleString("es-CO")}</td>
+                  <td>
+                    <Link href={`/admin/soporte/${t.id}`} className={shared.btnSmall}>
+                      Ver ticket
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className={shared.subtitle}>Ningún ticket resolvió a este pedido todavía.</p>
+      )}
+      {order.paymentStatus === "PAID" && (
+        <div style={{ marginTop: 10 }}>
+          {hasOpenTicket ? (
+            <ChangeOrderEmailAction orderId={order.orderId} />
+          ) : (
+            <p className={shared.subtitle}>
+              Para cambiar el email de entrega hace falta un ticket OPEN o IN_PROGRESS sobre este pedido.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const refundsSection = order.refundRequests.length > 0 && (
     <div className={shared.card}>
@@ -102,6 +160,8 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
       {refundsSection}
 
+      {ticketsSection}
+
       <div className={shared.card}>
         <h2 className={shared.title} style={{ fontSize: 15 }}>
           Productos
@@ -143,6 +203,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           Códigos asociados
         </h2>
         <p className={shared.subtitle}>Solo se muestra el fingerprint — nunca el código en claro.</p>
+        {order.paymentStatus === "PAID" && order.deliveryStatus !== "DELIVERED" && (
+          <div style={{ marginTop: 10 }}>
+            <DeliverCodesAction orderId={order.orderId} orderEmail={order.email} />
+          </div>
+        )}
         {order.deliveryStatus === "DELIVERED" && (
           <div style={{ marginTop: 10 }}>
             <ResendCodesAction orderId={order.orderId} orderEmail={order.email} />

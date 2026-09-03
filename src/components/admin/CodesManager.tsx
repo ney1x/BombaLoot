@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
 import { STATUS_LABEL, STATUS_TONE } from "@/app/admin/code-status-labels";
@@ -11,6 +12,10 @@ export interface AdminCode {
   status: string;
   fingerprint: string;
   orderItemId: string | null;
+  /** Solo PAID/DELIVERED lo tienen — el fingerprint linkea a la factura
+      del pedido cuando está presente. */
+  orderId: string | null;
+  orderNumber: string | null;
   createdAt: string;
   deliveredAt: string | null;
   uploadedById: string | null;
@@ -323,7 +328,17 @@ export function CodesManager({
               <tr key={c.id}>
                 <td className={shared.mono}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>{revealed[c.id] ?? c.fingerprint}</span>
+                    {c.orderId ? (
+                      <Link
+                        href={`/admin/pedidos/${c.orderId}`}
+                        title={c.orderNumber ? `Ver factura del pedido #${c.orderNumber}` : "Ver pedido"}
+                        style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
+                      >
+                        {revealed[c.id] ?? c.fingerprint}
+                      </Link>
+                    ) : (
+                      <span>{revealed[c.id] ?? c.fingerprint}</span>
+                    )}
                     {canReveal && (
                       <button
                         type="button"

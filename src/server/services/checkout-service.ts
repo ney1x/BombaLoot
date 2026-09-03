@@ -718,6 +718,26 @@ export async function getOrderForUser(pool: Pool, userId: string, orderId: strin
   return rowToOrderView(db, row);
 }
 
+/**
+ * Sin filtro de dueño — a propósito. Solo para llamadores que ya
+ * verificaron el rol admin/support por su cuenta (`requireAdminOrSupportApi`
+ * en la ruta), nunca expuesto directo a un `orderId` que mande el cliente
+ * sin pasar por ese guard primero.
+ */
+export async function getOrderByIdAdmin(pool: Pool, orderId: string): Promise<OrderView | null> {
+  const db = createDb(pool);
+  const { rows } = (await db.execute(sql`
+    SELECT id, order_number, email, user_id, subtotal_cop, discount_cop, total_cop,
+           payment_status, delivery_status, payment_expires_at, created_at
+      FROM orders
+     WHERE id = ${orderId}::uuid
+  `)) as unknown as { rows: OrderRow[] };
+
+  const row = rows[0];
+  if (!row) return null;
+  return rowToOrderView(db, row);
+}
+
 /** Todos los pedidos del usuario logueado, para `/cuenta/pedidos`. */
 export async function listOrdersForUser(pool: Pool, userId: string): Promise<OrderView[]> {
   const db = createDb(pool);

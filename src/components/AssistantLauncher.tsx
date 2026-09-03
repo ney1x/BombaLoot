@@ -8,7 +8,7 @@ import { ChevronRightIcon, CloseIcon, HeadsetIcon } from "./icons";
 import { SUPPORT_CATEGORIES, type SupportCategory } from "@/lib/support";
 
 /** Subconjunto de motivos más comunes — el resto sigue disponible en /ayuda vía "Otro motivo". */
-const QUICK_ACTIONS: SupportCategory[] = ["NO_CODE", "ORDER_ISSUE", "CODE_INVALID", "REFUND_REQUEST"];
+const QUICK_ACTIONS: SupportCategory[] = ["NO_CODE", "ORDER_ISSUE", "CODE_INVALID", "LOST_ORDER_NUMBER"];
 
 /**
  * Lanzador flotante presente en todo el storefront — saludo fijo + accesos
