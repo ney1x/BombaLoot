@@ -6,6 +6,7 @@ import { Suspense, useState } from "react";
 import { SecureAuthShell } from "@/components/SecureAuthShell";
 import { PasswordField } from "@/components/PasswordField";
 import styles from "@/components/AuthForm.module.css";
+import loginStyles from "./login.module.css";
 import { AlertIcon, GoogleIcon } from "@/components/icons";
 import { useSession } from "@/lib/session-context";
 
@@ -84,7 +85,11 @@ function LoginForm() {
           <Link href="/cuenta/recuperar">¿Olvidaste tu contraseña?</Link>
         </div>
 
-        <button type="submit" className="btn btnPrimary" disabled={submitting}>
+        <button
+          type="submit"
+          className={`btn btnPrimary ${loginStyles.submitButton}`}
+          disabled={submitting}
+        >
           {submitting ? "Ingresando…" : "Iniciar sesión"}
         </button>
       </form>

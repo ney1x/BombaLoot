@@ -6,10 +6,16 @@
   --ink: #14161b;
   --ink-soft: #5b6068;
   --ink-faint: #8a8f97;
-  --accent: #2f4fe0;
-  --accent-2: #7c5cff;
+  /* --accent-2 va MÁS OSCURO que --accent (no más claro): con blanco
+     encima (los tres botones con gradiente accent→accent-2) el naranja
+     aclara luminancia mucho más rápido que el azul que reemplaza — un
+     naranja "brillante" tipo #fb923c da 2.26:1 con texto blanco, muy por
+     debajo de AA. Verificado con la fórmula de contraste WCAG: ambos
+     extremos del gradiente ≥4.5:1 contra blanco. */
+  --accent: #c2410c;
+  --accent-2: #9a3412;
   --accent-ink: #ffffff;
-  --accent-soft: #e4e8fd;
+  --accent-soft: #ffedd5;
   /* Oscurecidos desde #1b8a5a/#a3690c/#c6432b — esos fallaban AA (3.80-4.13:1)
      contra su propio -soft, que es donde se usan siempre (StatusPill,
      InlineBanner, ReservationTimer). Ahora ≥4.5:1 contra -soft, blanco y
@@ -47,10 +53,10 @@
   --ink: #ece9e1;
   --ink-soft: #a3a8b4;
   --ink-faint: #6d7280;
-  --accent: #7c93ff;
-  --accent-2: #a48bff;
-  --accent-ink: #0d1220;
-  --accent-soft: #232a52;
+  --accent: #fb923c;
+  --accent-2: #fdba74;
+  --accent-ink: #2b1204;
+  --accent-soft: #4a2a12;
   --confirm: #4fd68c;
   --confirm-soft: #123328;
   --warn: #e0ac4a;

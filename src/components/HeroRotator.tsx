@@ -149,11 +149,12 @@ export function HeroRotator({
               <span className={styles.unit}>{product.unit}</span>
             </div>
             <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
-            <Link href={`/catalogo/${product.gameId}?select=${product.id}`} className={styles.cta}>
-              Comprar ahora
-              <ChevronRight />
-            </Link>
           </div>
+
+          <Link href={`/catalogo/${product.gameId}?select=${product.id}`} className={styles.cta}>
+            Comprar ahora
+            <ChevronRight />
+          </Link>
 
           <div className={styles.footer}>
             <div className={styles.dots} role="tablist" aria-label="Elegir producto destacado">

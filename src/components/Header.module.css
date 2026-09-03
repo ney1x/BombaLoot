@@ -15,11 +15,10 @@
   --nav-ink-soft: #8b96ac;
   --nav-ink-faint: #5c667c;
   --brand-ink: #f4f6fa;
-  --brand-cyan: #7c93ff;
-  /* Dorado del "loot" — hermano del --mark-spark-2 del isotipo, para que
-     la chispa de la mecha y la palabra lean como la misma idea. Token
-     propio en vez de reusar --brand-cyan: ese sigue siendo el foco/estado
-     del buscador y el badge del carrito, ajeno al wordmark. */
+  /* Dorado del "loot" — hermano del --mark-spark del isotipo. Antes el
+     buscador y el badge del carrito tenían su propio azul (--brand-cyan);
+     con el sitio pasado a naranja, todo el acento del navbar (siempre
+     oscuro, no sigue el tema) se unificó en este mismo dorado. */
   --brand-gold: #f2a53d;
 
   background: var(--nav-bg);
@@ -206,12 +205,12 @@
 .searchInput:focus-visible {
   outline: none;
   background: var(--nav-bg);
-  border-color: var(--brand-cyan);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-cyan) 18%, transparent);
+  border-color: var(--brand-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-gold) 18%, transparent);
 }
 
 .searchWrap:focus-within .searchIcon {
-  color: var(--brand-cyan);
+  color: var(--brand-gold);
 }
 
 .actions {
@@ -292,8 +291,11 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: linear-gradient(100deg, var(--brand-cyan), #a48bff);
-  color: #0d1220;
+  /* Mismo naranja con brillo leve que .ctaPrimary/.cta del hero y el botón
+     de login en modo oscuro — la barra es siempre oscura, así que este es
+     el único tratamiento que necesita (no sigue el tema de la página). */
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%);
+  color: #2b1204;
   font-family: var(--font-mono);
   font-size: 9.5px;
   line-height: 16px;

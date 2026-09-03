@@ -67,12 +67,28 @@
   height: 52px;
   padding: 0 24px;
   border-radius: 12px;
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  /* Fijo, no --accent/--accent-2: esos tokens en modo oscuro se aclaran
+     de más (fb923c/fdba74, "pálido") — acá cada tema tiene su propio
+     degradé chico, sutil, calibrado a mano en vez de heredar el token. */
+  background: linear-gradient(100deg, #c2410c 0%, #b23c0e 100%);
   color: #fff;
   font-weight: 600;
   font-size: 15px;
-  box-shadow: 0 16px 32px -14px color-mix(in srgb, var(--accent) 65%, transparent);
+  box-shadow: 0 16px 32px -14px rgba(178, 60, 14, 0.65);
   transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+/*
+ * Modo oscuro: el mismo degradé oscuro leía "muy oscuro" sobre --paper
+ * oscuro — acá un naranja más claro, brillo leve, sin llegar al pálido
+ * original. Más claro exige texto oscuro para AA (blanco cae a ~2.8:1
+ * contra este naranja); mismo #2b1204 que usa --accent-ink en modo
+ * oscuro en el resto del sitio.
+ */
+:root[data-theme="dark"] .ctaPrimary {
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%);
+  color: #2b1204;
+  box-shadow: 0 16px 32px -14px rgba(242, 118, 15, 0.55);
 }
 
 .ctaPrimary:hover {
@@ -231,15 +247,32 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Antes vivía dentro de .info (max-width: 420px, anclado a la izquierda
+     por el stretch del overlay) — heredaba ese ancho pero no el centrado.
+     Ahora es hijo directo de .overlay: mismo ancho máximo que el bloque
+     de texto de arriba, pero centrado contra el overlay completo. */
   width: 100%;
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  max-width: 420px;
+  align-self: center;
+  margin-bottom: 22px;
+  /* Mismo tratamiento que .ctaPrimary y el botón de login: fijo por tema,
+     no --accent/--accent-2 (esos se aclaran de más en modo oscuro). */
+  background: linear-gradient(100deg, #c2410c 0%, #b23c0e 100%);
   color: #fff;
   font-weight: 600;
   font-size: 15px;
   height: 50px;
   border-radius: 11px;
-  box-shadow: 0 14px 28px -12px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 14px 28px -12px rgba(178, 60, 14, 0.6);
   transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+/* Modo oscuro: mismo naranja claro con brillo leve que .ctaPrimary y el
+   botón de login, texto oscuro para mantener el contraste AA. */
+:root[data-theme="dark"] .cta {
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%);
+  color: #2b1204;
+  box-shadow: 0 14px 28px -12px rgba(242, 118, 15, 0.5);
 }
 
 .cta:hover {
@@ -305,6 +338,10 @@
   }
 
   .info {
+    max-width: none;
+  }
+
+  .cta {
     max-width: none;
   }
 
