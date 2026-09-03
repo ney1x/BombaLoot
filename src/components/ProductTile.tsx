@@ -4,7 +4,14 @@ import { StockBadge } from "./StockBadge";
 import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAME_COLORS, formatCop, type Product } from "@/lib/products";
 
-export function ProductTile({ product }: { product: Product }) {
+export function ProductTile({
+  product,
+  prefetch,
+}: {
+  product: Product;
+  /** Ver el mismo comentario en `GameShowcase` — la home pasa `false`. */
+  prefetch?: boolean;
+}) {
   const isOut = product.stock === "out";
   const color = GAME_COLORS[product.gameId];
   const Mark = GAME_MARKS[product.gameId];
@@ -48,6 +55,7 @@ export function ProductTile({ product }: { product: Product }) {
   return (
     <Link
       href={`/catalogo/${product.gameId}?select=${product.id}`}
+      prefetch={prefetch}
       className={`${styles.tile} ${styles.linked}`}
       aria-label={`${product.gameLabel} ${product.denomination} ${product.unit}, ${formatCop(product.priceCop)}`}
     >

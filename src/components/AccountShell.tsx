@@ -56,10 +56,19 @@ export function AccountShell({ children, user }: { children: ReactNode; user: Ac
           </div>
 
           <nav className={styles.nav}>
+            {/*
+             * `prefetch={false}`: los 5 tabs son rutas dinámicas (cada una
+             * corre `requireUser()` + su propia consulta) — sin esto, CADA
+             * página bajo /cuenta dispara los 5 RSC prefetch a la vez apenas
+             * carga, mismo patrón medido y confirmado en la home (ver
+             * `GameShowcase`/`ProductTile`). Acá pega más seguido: es el
+             * shell de TODA la sección de cuenta, no una sola página.
+             */}
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={styles.navLink}
                 aria-current={pathname === item.href ? "page" : undefined}
               >

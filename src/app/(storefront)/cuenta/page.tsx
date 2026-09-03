@@ -69,7 +69,7 @@ export default async function AccountSummaryPage() {
         </div>
         <div className={styles.orderList}>
           {recentOrders.map((order) => (
-            <OrderRow order={order} key={order.orderId} />
+            <OrderRow order={order} prefetch={false} key={order.orderId} />
           ))}
         </div>
       </div>

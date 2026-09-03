@@ -75,7 +75,7 @@ export function CatalogGrid({
       {filtered.length > 0 ? (
         <div className={styles.grid}>
           {filtered.map((product) => (
-            <CatalogProductCard product={product} key={product.id} />
+            <CatalogProductCard product={product} prefetch={false} key={product.id} />
           ))}
         </div>
       ) : (

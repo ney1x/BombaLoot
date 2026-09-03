@@ -5,7 +5,22 @@ import { GameImageSlot } from "./GameImageSlot";
 import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAMES, GAME_COLORS, formatCop, startingPrice } from "@/lib/products";
 
-export function GameShowcase({ gameImages }: { gameImages: Record<string, string> }) {
+export function GameShowcase({
+  gameImages,
+  prefetch,
+}: {
+  gameImages: Record<string, string>;
+  /**
+   * `undefined` deja el default de Next (prefetch al entrar en viewport).
+   * La home pasa `false`: con las 4 tarjetas + el resto de la página
+   * disparando prefetch a la vez, esa ráfaga de fetches RSC concurrentes
+   * (uno por juego, cada uno pegándole a la base) competía por el hilo
+   * principal justo cuando el navegador intentaba pintar por primera vez —
+   * medido: ~2.4s de FCP en un DOM que ya estaba listo en 22ms. En
+   * `/catalogo/[game]`, donde este mismo componente no se usa, no aplica.
+   */
+  prefetch?: boolean;
+}) {
   return (
     <div className={styles.grid}>
       {GAMES.map((game) => {
@@ -14,6 +29,7 @@ export function GameShowcase({ gameImages }: { gameImages: Record<string, string
         return (
           <Link
             href={`/catalogo/${game.id}`}
+            prefetch={prefetch}
             className={styles.panel}
             style={{ "--game-tint": color.deep } as CSSProperties}
             key={game.id}

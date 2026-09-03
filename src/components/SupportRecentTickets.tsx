@@ -24,6 +24,10 @@ export function SupportRecentTickets() {
           <Link
             key={t.id}
             href={`/ayuda/ticket/${t.id}?token=${encodeURIComponent(t.token)}`}
+            // Mismo motivo que ProductTile/CatalogProductCard/OrderRow: cada
+            // ticket guardado dispara su propio prefetch RSC (ruta dinámica,
+            // token de invitado) apenas se renderiza la lista.
+            prefetch={false}
             style={{
               fontSize: 13.5,
               fontFamily: "var(--font-mono)",

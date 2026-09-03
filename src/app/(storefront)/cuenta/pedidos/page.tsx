@@ -32,7 +32,7 @@ export default async function OrdersPage() {
       ) : (
         <div className={styles.orderList}>
           {orders.map((order) => (
-            <OrderRow order={order} key={order.orderId} />
+            <OrderRow order={order} prefetch={false} key={order.orderId} />
           ))}
         </div>
       )}

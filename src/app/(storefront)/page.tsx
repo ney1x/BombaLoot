@@ -32,7 +32,7 @@ export default async function Home() {
               <h2>Elegí tu juego</h2>
             </div>
           </div>
-          <GameShowcase gameImages={Object.fromEntries(showcaseMap)} />
+          <GameShowcase gameImages={Object.fromEntries(showcaseMap)} prefetch={false} />
         </section>
 
         <section className={styles.section}>
@@ -47,7 +47,7 @@ export default async function Home() {
           </div>
           <div className={styles.productGrid}>
             {catalogPreview.map((product) => (
-              <ProductTile product={product} key={product.id} />
+              <ProductTile product={product} prefetch={false} key={product.id} />
             ))}
           </div>
         </section>

@@ -5,7 +5,21 @@ import { StockBadge } from "./StockBadge";
 import { GAME_MARKS } from "./icons";
 import { formatCop, type Product } from "@/lib/products";
 
-export function CatalogProductCard({ product }: { product: Product }) {
+export function CatalogProductCard({
+  product,
+  prefetch,
+}: {
+  product: Product;
+  /**
+   * `undefined` deja el default de Next (prefetch al entrar en viewport).
+   * `CatalogGrid` pasa `false`: con toda la grilla renderizando de una
+   * (nada de paginación ni virtualización todavía), cada tarjeta dispara su
+   * propio prefetch RSC a `/catalogo/[game]` — medido en producción: 1.86s
+   * de DOMContentLoaded en una página cuyo TTFB es 16ms. Mismo patrón que
+   * `ProductTile`/`GameShowcase` en la home.
+   */
+  prefetch?: boolean;
+}) {
   const isOut = product.stock === "out";
   const Mark = GAME_MARKS[product.gameId];
 
@@ -62,6 +76,7 @@ export function CatalogProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/catalogo/${product.gameId}?select=${product.id}`}
+      prefetch={prefetch}
       className={`${styles.card} ${styles.linked}`}
       aria-label={`${product.gameLabel} ${product.denomination} ${product.unit}, ${formatCop(product.priceCop)}`}
     >

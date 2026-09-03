@@ -40,11 +40,18 @@ function itemsSummary(items: OrderRowData["items"]): string {
   return items.map((i) => `${i.gameLabel} ${i.denomination} ${i.unit} ×${i.quantity}`).join(", ");
 }
 
-export function OrderRow({ order }: { order: OrderRowData }) {
+export function OrderRow({
+  order,
+  prefetch,
+}: {
+  order: OrderRowData;
+  /** Ver el mismo comentario en `CatalogProductCard`/`ProductTile` — listas de varios pedidos pasan `false`. */
+  prefetch?: boolean;
+}) {
   const delivered = DELIVERED_STATUSES.includes(order.orderStatus);
 
   return (
-    <Link href={`/cuenta/pedidos/${order.orderId}`} className={styles.row}>
+    <Link href={`/cuenta/pedidos/${order.orderId}`} prefetch={prefetch} className={styles.row}>
       <div className={styles.main}>
         <div className={styles.top}>
           <span className={styles.id}>#{order.orderNumber}</span>
