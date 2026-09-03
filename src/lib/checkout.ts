@@ -1,4 +1,5 @@
 import type { GameId } from "./products";
+import type { PaymentProviderId } from "./payment-session";
 
 /**
  * Mock checkout state — no real payment/backend yet. Shapes mirror what the
@@ -6,10 +7,21 @@ import type { GameId } from "./products";
  * components read totals/status as data instead of hardcoded copy.
  */
 
-export type PaymentMethodId = "wompi" | "paypal";
+/**
+ * Lo que el comprador ELIGE en el checkout — cuatro tarjetas con su propio
+ * logo, no un solo botón "Wompi". `provider` es a quién se le pega
+ * realmente al confirmar (`POST /api/payments/[provider]/init`): Nequi,
+ * PSE y Tarjeta comparten el mismo checkout alojado de Wompi (ver
+ * `wompi-client.ts` — es Wompi quien arma su propia pantalla de método),
+ * así que las tres apuntan a `provider: "wompi"`. Separar "método visible"
+ * de "proveedor real" es lo que permite mostrar los tres logos sin
+ * necesitar tres rutas de backend distintas.
+ */
+export type PaymentMethodId = "nequi" | "pse" | "card" | "paypal";
 
 export interface PaymentMethodMeta {
   id: PaymentMethodId;
+  provider: PaymentProviderId;
   name: string;
   region: string;
   sublabel: string;
@@ -18,14 +30,32 @@ export interface PaymentMethodMeta {
 
 export const PAYMENT_METHODS: PaymentMethodMeta[] = [
   {
-    id: "wompi",
-    name: "Wompi",
+    id: "nequi",
+    provider: "wompi",
+    name: "Nequi",
     region: "Colombia",
-    sublabel: "Nequi · PSE · Tarjetas",
-    description: "Pagá con tu método favorito, procesado en Colombia.",
+    sublabel: "Pagá desde la app",
+    description: "Confirmás el pago desde tu app de Nequi.",
+  },
+  {
+    id: "pse",
+    provider: "wompi",
+    name: "PSE",
+    region: "Colombia",
+    sublabel: "Débito desde tu banco",
+    description: "Pagá directo desde tu cuenta bancaria.",
+  },
+  {
+    id: "card",
+    provider: "wompi",
+    name: "Tarjeta débito o crédito",
+    region: "Colombia",
+    sublabel: "Visa, Mastercard y más",
+    description: "Pagá con tu tarjeta, procesado en Colombia.",
   },
   {
     id: "paypal",
+    provider: "paypal",
     name: "PayPal",
     region: "Internacional",
     sublabel: "Cuenta o tarjeta PayPal",

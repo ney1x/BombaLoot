@@ -69,6 +69,14 @@ export const discountKind = pgEnum("discount_kind", ["PERCENT", "FIXED"]);
 export const discountScope = pgEnum("discount_scope", ["ORDER", "GAME", "PRODUCT"]);
 
 /**
+ * `TIER_REACHED`: se otorga una vez por (usuario, nivel) al cruzar su
+ * `min_purchases`. `REPEAT_INTERVAL`: solo para quien ya está en el nivel
+ * más alto activo — uno nuevo cada `repeat_every_purchases` compras
+ * adicionales, ver `loyalty_tiers.repeat_every_purchases`.
+ */
+export const loyaltyCouponReason = pgEnum("loyalty_coupon_reason", ["TIER_REACHED", "REPEAT_INTERVAL"]);
+
+/**
  * REFUND_REQUEST se mantiene por los tickets viejos que ya lo tienen —
  * Postgres no deja borrar valores de un enum sin recrear el tipo. Ya no es
  * elegible al crear un ticket nuevo (ver `SUPPORT_CATEGORIES` en
@@ -249,10 +257,46 @@ export const loyaltyTiers = pgTable(
     benefits: jsonb("benefits").notNull().default(sql`'[]'::jsonb`),
     sortOrder: integer("sort_order").notNull(),
     isActive: boolean("is_active").notNull().default(true),
+    /**
+     * Solo tiene efecto en el nivel activo de `min_purchases` más alto: cada
+     * tantas compras adicionales por encima de ese umbral, se otorga un
+     * cupón de fidelización más — ver `ensureLoyaltyCoupons` en loyalty.ts.
+     * NULL = no repite (el cliente deja de ganar cupones nuevos al quedarse
+     * en el tope, aunque siga comprando).
+     */
+    repeatEveryPurchases: integer("repeat_every_purchases"),
   },
   (t) => [
     check("loyalty_min_purchases_positive", sql`${t.minPurchases} >= 0`),
     check("loyalty_discount_range", sql`${t.discountPct} >= 0 AND ${t.discountPct} <= 100`),
+    check("loyalty_repeat_every_purchases_positive", sql`${t.repeatEveryPurchases} IS NULL OR ${t.repeatEveryPurchases} > 0`),
+  ],
+);
+
+export const loyaltyCoupons = pgTable(
+  "loyalty_coupons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tierId: text("tier_id")
+      .notNull()
+      .references(() => loyaltyTiers.id),
+    /** Snapshot al momento de otorgarlo — un cambio de nombre/% en el nivel no debe alterar un cupón ya en la cuenta del cliente. */
+    tierName: text("tier_name").notNull(),
+    discountPct: numeric("discount_pct", { precision: 5, scale: 2 }).notNull(),
+    reason: loyaltyCouponReason("reason").notNull(),
+    /** El `purchases_count` exacto que ganó este cupón — la clave de dedupe contra `ensureLoyaltyCoupons` corriendo dos veces para el mismo hito. */
+    milestonePurchases: integer("milestone_purchases").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    redeemedOrderId: uuid("redeemed_order_id").references((): AnyPgColumn => orders.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    uniqueIndex("loyalty_coupons_milestone_key").on(t.userId, t.tierId, t.reason, t.milestonePurchases),
+    index("loyalty_coupons_user_available_idx").on(t.userId).where(sql`redeemed_at IS NULL`),
+    check("loyalty_coupons_discount_range", sql`${t.discountPct} > 0 AND ${t.discountPct} <= 100`),
   ],
 );
 
@@ -688,6 +732,7 @@ export const schema = {
   productImages,
   gameVisuals,
   loyaltyTiers,
+  loyaltyCoupons,
   discountRules,
   orders,
   orderItems,

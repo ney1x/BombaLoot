@@ -7,7 +7,7 @@ import { createDb, withTransaction } from "../db/client";
 import { createOpaqueToken, generateOrderNumber, hashToken } from "../auth/tokens";
 import type { AuditActor } from "./inventory";
 import { attachCodesToOrderItem, createReservation, PAYMENT_WINDOW_SECONDS } from "./inventory";
-import { resolveLoyaltyTier } from "./loyalty";
+import { attachLoyaltyCouponOrder, ensureLoyaltyCoupons, redeemLoyaltyCoupon, resolveLoyaltyTier } from "./loyalty";
 import { redeemDiscountCode } from "./admin-discounts";
 import { writeAudit } from "./audit";
 import { checkRateLimit } from "./rate-limit";
@@ -17,6 +17,7 @@ import {
   EmptyCartError,
   InvalidProductError,
   InvalidQuantityError,
+  LoyaltyCouponInvalidError,
   QuantityNotAllowedError,
 } from "./errors";
 
@@ -201,8 +202,7 @@ async function findOrderRowByIdempotencyKey(
 ): Promise<CheckoutResult | undefined> {
   const { rows } = (await db.execute(sql`
     SELECT id, order_number, email, subtotal_cop, discount_cop, total_cop,
-           payment_status, delivery_status, payment_expires_at,
-           loyalty_tier_id
+           payment_status, delivery_status, payment_expires_at
       FROM orders
      WHERE idempotency_key = ${idempotencyKey}
   `)) as unknown as {
@@ -216,7 +216,6 @@ async function findOrderRowByIdempotencyKey(
       payment_status: string;
       delivery_status: string;
       payment_expires_at: string;
-      loyalty_tier_id: string | null;
     }>;
   };
 
@@ -238,13 +237,14 @@ async function findOrderRowByIdempotencyKey(
     }>;
   };
 
-  let discountLabel: string | null = null;
-  if (row.loyalty_tier_id) {
-    const { rows: tierRows } = (await db.execute(
-      sql`SELECT name, discount_pct FROM loyalty_tiers WHERE id = ${row.loyalty_tier_id}`,
-    )) as unknown as { rows: Array<{ name: string; discount_pct: string }> };
-    if (tierRows[0]) discountLabel = `${tierRows[0].name} · ${Number(tierRows[0].discount_pct)}%`;
-  }
+  // `loyalty_tier_id` ya no implica descuento — queda seteado en TODO pedido
+  // de un usuario logueado, sea o no que haya canjeado algo (ver
+  // `checkoutCart`). La etiqueta real vive en `order_discounts`, la única
+  // fuente de verdad de qué se descontó de verdad en este pedido puntual.
+  const { rows: discountRows } = (await db.execute(
+    sql`SELECT label FROM order_discounts WHERE order_id = ${row.id}::uuid LIMIT 1`,
+  )) as unknown as { rows: Array<{ label: string }> };
+  const discountLabel = discountRows[0]?.label ?? null;
 
   return {
     orderId: row.id,
@@ -296,15 +296,29 @@ export interface CheckoutParams {
   owner: CheckoutOwner;
   /** Código de cupón opcional, tal como lo escribió el comprador (se normaliza acá). */
   discountCode?: string;
+  /**
+   * Cupón de fidelización opcional, de la cuenta del comprador — nunca
+   * automático, es la elección activa de con qué pedido lo usa. Mutuamente
+   * excluyente con `discountCode` (ver el guard más abajo): un pedido usa
+   * como mucho un descuento.
+   */
+  loyaltyCouponId?: string;
   rateLimitKey?: string;
   ip?: string | null;
   userAgent?: string | null;
 }
 
 export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<CheckoutResult> {
-  const { lines, idempotencyKey, owner, discountCode, rateLimitKey, ip, userAgent } = params;
+  const { lines, idempotencyKey, owner, discountCode, loyaltyCouponId, rateLimitKey, ip, userAgent } = params;
 
   await assertIpNotBlocked(pool, ip, { userAgent, action: "checkout" });
+
+  if (loyaltyCouponId && discountCode) {
+    throw new LoyaltyCouponInvalidError("No podés usar un cupón de fidelización junto con un código de descuento.");
+  }
+  if (loyaltyCouponId && owner.type !== "user") {
+    throw new LoyaltyCouponInvalidError("Iniciá sesión para usar un cupón de fidelización.");
+  }
 
   if (!idempotencyKey || idempotencyKey.trim().length < 8) {
     throw new RangeError("idempotencyKey inválida");
@@ -360,13 +374,23 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
 
       const subtotalCop = priced.reduce((sum, l) => sum + l.product.priceCop * l.quantity, 0);
 
+      // Ya no es un % automático de fondo — la fidelización solo entra al
+      // total si el comprador eligió canjear un cupón suyo (más abajo).
+      // `tier` se sigue resolviendo para dejarlo en `orders.loyalty_tier_id`
+      // (reporting: en qué nivel estaba al comprar) y, sobre todo, para
+      // reconciliar qué cupones le corresponden hasta ahora.
       const tier = owner.type === "user" ? await resolveLoyaltyTier(tx, owner.purchasesCount) : null;
-      const loyaltyDiscountCop = tier ? Math.round((subtotalCop * tier.discountPct) / 100) : 0;
+      if (owner.type === "user") {
+        await ensureLoyaltyCoupons(tx, owner.userId, owner.purchasesCount);
+      }
 
-      // Cupón opcional: vive en la misma transacción que el resto del
-      // checkout — si algo más adelante falla (sin stock, reserva
-      // perdida), el ROLLBACK deshace también el incremento de uses_count,
-      // así que un cupón nunca se "gasta" en un pedido que no se creó.
+      // Cupón opcional (código escrito o cupón de fidelización de la
+      // cuenta) — vive en la misma transacción que el resto del checkout:
+      // si algo más adelante falla (sin stock, reserva perdida), el
+      // ROLLBACK deshace también el canje, así que un cupón nunca se
+      // "gasta" en un pedido que no se creó. Son mutuamente excluyentes
+      // (ver el guard al entrar a `checkoutCart`) — un pedido usa como
+      // mucho un descuento, nunca los dos combinados.
       const redeemed = discountCode
         ? await redeemDiscountCode(tx, {
             code: discountCode,
@@ -380,12 +404,12 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
           })
         : null;
 
-      // Sin cupón: solo lealtad. Con cupón apilable: los dos suman. Con
-      // cupón no apilable: el cupón reemplaza a lealtad — es la elección
-      // activa del comprador sobre un descuento automático de fondo.
-      const couponDiscountCop = redeemed?.amountCop ?? 0;
-      const discountCop =
-        redeemed && !redeemed.stackable ? couponDiscountCop : loyaltyDiscountCop + couponDiscountCop;
+      const redeemedCoupon =
+        loyaltyCouponId && owner.type === "user"
+          ? await redeemLoyaltyCoupon(tx, { couponId: loyaltyCouponId, userId: owner.userId, subtotalCop })
+          : null;
+
+      const discountCop = redeemed?.amountCop ?? redeemedCoupon?.amountCop ?? 0;
       const totalCop = subtotalCop - discountCop;
 
       const reservationOwner =
@@ -436,18 +460,19 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
 
       // Cada fuente de descuento queda como su propia fila — nunca solo la
       // suma en `orders.discount_cop` — para poder auditar de dónde salió
-      // cada peso descontado (lealtad vs. cupón) sin adivinar.
-      if (tier && (redeemed?.stackable !== false || !redeemed)) {
-        await tx.execute(sql`
-          INSERT INTO order_discounts (order_id, rule_id, source, label, amount_cop)
-          VALUES (${orderRow.id}::uuid, NULL, 'LOYALTY', ${`${tier.name} · ${tier.discountPct}%`}, ${loyaltyDiscountCop})
-        `);
-      }
+      // cada peso descontado sin adivinar.
       if (redeemed) {
         await tx.execute(sql`
           INSERT INTO order_discounts (order_id, rule_id, source, label, amount_cop)
           VALUES (${orderRow.id}::uuid, ${redeemed.ruleId}::uuid, 'COUPON', ${redeemed.label}, ${redeemed.amountCop})
         `);
+      }
+      if (redeemedCoupon) {
+        await tx.execute(sql`
+          INSERT INTO order_discounts (order_id, rule_id, source, label, amount_cop)
+          VALUES (${orderRow.id}::uuid, NULL, 'LOYALTY_COUPON', ${redeemedCoupon.label}, ${redeemedCoupon.amountCop})
+        `);
+        await attachLoyaltyCouponOrder(tx, redeemedCoupon.couponId, orderRow.id);
       }
 
       const items: CheckoutItemResult[] = [];
@@ -507,9 +532,7 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
         userAgent: actor.userAgent,
       });
 
-      const labelParts: string[] = [];
-      if (tier && (!redeemed || redeemed.stackable)) labelParts.push(`${tier.name} · ${tier.discountPct}%`);
-      if (redeemed) labelParts.push(redeemed.label);
+      const discountLabel = redeemed?.label ?? redeemedCoupon?.label ?? null;
 
       return {
         orderId: orderRow.id,
@@ -519,7 +542,7 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
         subtotalCop,
         discountCop,
         totalCop,
-        discountLabel: labelParts.length > 0 ? labelParts.join(" + ") : null,
+        discountLabel,
         paymentStatus: orderRow.payment_status,
         deliveryStatus: orderRow.delivery_status,
         paymentExpiresAt: new Date(orderRow.payment_expires_at),

@@ -8,15 +8,11 @@ import { EmptyState } from "./EmptyState";
 import { CartEmptyIcon, ChevronRightIcon } from "./icons";
 import { useCart } from "@/lib/cart-context";
 import { useCatalog } from "@/lib/use-catalog";
-import { useSession } from "@/lib/session-context";
 import { maxAddableQuantity, formatCop } from "@/lib/products";
-import { tierForPurchases } from "@/lib/user";
 
 export function CartView() {
   const { lines, updateQuantity, removeItem } = useCart();
   const products = useCatalog();
-  const { user } = useSession();
-  const tier = tierForPurchases(user?.purchasesCount ?? 0);
 
   const resolved = useMemo(
     () =>
@@ -29,8 +25,7 @@ export function CartView() {
   );
 
   const subtotal = resolved.reduce((sum, { line, product }) => sum + product.priceCop * line.quantity, 0);
-  const discount = Math.round(subtotal * (tier.discountPct / 100));
-  const total = subtotal - discount;
+  const total = subtotal;
 
   /*
    * El carrito vacío no depende del catálogo — `lines` (localStorage) ya
@@ -94,10 +89,6 @@ export function CartView() {
           <span>Subtotal</span>
           <span className={`${styles.value} num-display`}>{formatCop(subtotal)}</span>
         </div>
-        <div className={`${styles.summaryRow} ${discount > 0 ? styles.discount : ""}`}>
-          <span>Descuento{discount > 0 ? ` (${tier.name} · ${tier.discountPct}%)` : ""}</span>
-          <span className={`${styles.value} num-display`}>{discount > 0 ? `−${formatCop(discount)}` : formatCop(0)}</span>
-        </div>
         <div className={styles.summaryDivider} />
         <div className={styles.totalRow}>
           <span className={styles.totalLabel}>Total</span>
@@ -110,6 +101,7 @@ export function CartView() {
           Continuar comprando
         </Link>
         <p className={styles.guestNote}>Podés pagar como invitado, sin crear cuenta.</p>
+        <p className={styles.guestNote}>¿Tenés un cupón de fidelización o un código de descuento? Se aplican en el checkout.</p>
       </aside>
 
       <div className={styles.mobileBar}>

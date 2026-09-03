@@ -7,7 +7,7 @@ import { OrderRow } from "@/components/OrderRow";
 import { requireUser } from "@/server/auth/guards";
 import { getPool } from "@/server/db/client";
 import { listOrdersForUser } from "@/server/services/checkout-service";
-import { formatCop } from "@/lib/products";
+import { getAccountLoyaltyCoupons } from "@/server/services/loyalty";
 import { tierForPurchases } from "@/lib/user";
 
 export const metadata: Metadata = { title: "Mi cuenta — BombaLoot" };
@@ -17,10 +17,10 @@ export default async function AccountSummaryPage() {
   const tier = tierForPurchases(user.purchasesCount);
   const displayName = user.name?.trim() || user.email;
 
-  const orders = await listOrdersForUser(getPool(), user.userId);
-  const totalSpent = orders
-    .filter((o) => o.orderStatus === "COMPLETED" || o.orderStatus === "PAID_PENDING_DELIVERY")
-    .reduce((s, o) => s + o.totalCop, 0);
+  const [orders, coupons] = await Promise.all([
+    listOrdersForUser(getPool(), user.userId),
+    getAccountLoyaltyCoupons(getPool(), user.userId, user.purchasesCount),
+  ]);
   const recentOrders = orders.slice(0, 3);
 
   return (
@@ -39,13 +39,11 @@ export default async function AccountSummaryPage() {
           <div className={styles.statCard}>
             <div className={styles.statLabel}>Nivel actual</div>
             <div className={styles.statValue}>{tier.name}</div>
-            {tier.discountPct > 0 && (
-              <div className={styles.statNote}>{tier.discountPct}% de descuento activo</div>
+            {coupons.available.length > 0 && (
+              <div className={styles.statNote}>
+                {coupons.available.length} cupón{coupons.available.length === 1 ? "" : "es"} sin usar
+              </div>
             )}
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statLabel}>Gasto total</div>
-            <div className={`${styles.statValue} num-display`}>{formatCop(totalSpent)}</div>
           </div>
         </div>
       </div>
@@ -57,7 +55,7 @@ export default async function AccountSummaryPage() {
             Ver detalle →
           </Link>
         </div>
-        <LoyaltyProgress tier={tier} purchasesCount={user.purchasesCount} />
+        <LoyaltyProgress tier={tier} purchasesCount={user.purchasesCount} availableCoupons={coupons.available.length} />
       </div>
 
       <div className={styles.section}>

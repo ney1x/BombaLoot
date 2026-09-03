@@ -46,3 +46,53 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.couponList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.couponCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--confirm-soft);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.couponCard.redeemed {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.couponName {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.couponMeta {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.couponStatus {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--confirm);
+  white-space: nowrap;
+}
+
+.couponCard.redeemed .couponStatus {
+  color: var(--ink-faint);
+}
+
+.couponEmpty {
+  font-size: 13.5px;
+  color: var(--ink-faint);
+}

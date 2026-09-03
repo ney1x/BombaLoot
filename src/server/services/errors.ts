@@ -178,6 +178,14 @@ export class DuplicateLoyaltyTierError extends Error {
   }
 }
 
+export class LoyaltyCouponInvalidError extends Error {
+  readonly code = "LOYALTY_COUPON_INVALID";
+  constructor(message: string) {
+    super(message);
+    this.name = "LoyaltyCouponInvalidError";
+  }
+}
+
 export class DiscountRuleNotFoundError extends Error {
   readonly code = "DISCOUNT_RULE_NOT_FOUND";
   constructor(readonly discountId: string) {

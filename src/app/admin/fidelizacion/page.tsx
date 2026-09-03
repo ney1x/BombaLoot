@@ -21,7 +21,8 @@ export default async function AdminLoyaltyPage() {
         <div>
           <h1 className={shared.title}>Fidelización</h1>
           <p className={shared.subtitle}>
-            Niveles por cantidad de compras — el checkout usa esta misma tabla para calcular el descuento.
+            Niveles por cantidad de compras — al cruzar un umbral, el cliente gana un cupón de un solo uso en su
+            cuenta (nunca un descuento automático). El checkout usa esta misma tabla para saber cuándo otorgarlo.
           </p>
         </div>
       </div>

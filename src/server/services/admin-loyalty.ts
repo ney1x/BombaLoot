@@ -23,12 +23,20 @@ export const tierIdSchema = z
   .max(64)
   .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "Usar minúsculas, números y guiones (slug)");
 
+/**
+ * Solo tiene efecto real mientras este nivel sea el activo de mayor
+ * `min_purchases` (ver `ensureLoyaltyCoupons` en loyalty.ts) — el admin
+ * puede setearlo en cualquier nivel, se ignora en los que no son el tope.
+ */
+const repeatEveryPurchasesSchema = z.number().int().min(1).max(100_000).nullable().optional();
+
 export const createTierSchema = z.object({
   id: tierIdSchema,
   name: z.string().trim().min(1).max(120),
   minPurchases: z.number().int().min(0).max(100_000),
   discountPct: z.number().min(0).max(100),
   sortOrder: z.number().int().min(0).max(1000).default(0),
+  repeatEveryPurchases: repeatEveryPurchasesSchema,
 });
 
 export const updateTierSchema = z.object({
@@ -36,6 +44,7 @@ export const updateTierSchema = z.object({
   minPurchases: z.number().int().min(0).max(100_000).optional(),
   discountPct: z.number().min(0).max(100).optional(),
   sortOrder: z.number().int().min(0).max(1000).optional(),
+  repeatEveryPurchases: repeatEveryPurchasesSchema,
 });
 
 export type CreateTierInput = z.infer<typeof createTierSchema>;
@@ -48,6 +57,7 @@ export interface AdminLoyaltyTier {
   discountPct: number;
   sortOrder: number;
   isActive: boolean;
+  repeatEveryPurchases: number | null;
 }
 
 interface TierRow {
@@ -57,6 +67,7 @@ interface TierRow {
   discount_pct: string;
   sort_order: number;
   is_active: boolean;
+  repeat_every_purchases: number | null;
 }
 
 function toAdminTier(row: TierRow): AdminLoyaltyTier {
@@ -67,12 +78,13 @@ function toAdminTier(row: TierRow): AdminLoyaltyTier {
     discountPct: Number(row.discount_pct),
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    repeatEveryPurchases: row.repeat_every_purchases,
   };
 }
 
 export async function listLoyaltyTiers(db: Db): Promise<AdminLoyaltyTier[]> {
   const { rows } = (await db.execute(
-    sql`SELECT id, name, min_purchases, discount_pct, sort_order, is_active FROM loyalty_tiers ORDER BY sort_order`,
+    sql`SELECT id, name, min_purchases, discount_pct, sort_order, is_active, repeat_every_purchases FROM loyalty_tiers ORDER BY sort_order`,
   )) as unknown as { rows: TierRow[] };
   return rows.map(toAdminTier);
 }
@@ -107,8 +119,11 @@ export async function createLoyaltyTier(
     await assertThresholdFree(tx, input.minPurchases);
     try {
       await tx.execute(sql`
-        INSERT INTO loyalty_tiers (id, name, min_purchases, discount_pct, sort_order)
-        VALUES (${input.id}, ${input.name}, ${input.minPurchases}, ${input.discountPct}, ${input.sortOrder})
+        INSERT INTO loyalty_tiers (id, name, min_purchases, discount_pct, sort_order, repeat_every_purchases)
+        VALUES (
+          ${input.id}, ${input.name}, ${input.minPurchases}, ${input.discountPct}, ${input.sortOrder},
+          ${input.repeatEveryPurchases ?? null}
+        )
       `);
     } catch (error) {
       if ((error as { code?: string }).code === "23505") throw new DuplicateLoyaltyTierError();
@@ -137,8 +152,16 @@ export async function updateLoyaltyTier(
 ): Promise<void> {
   await withTransaction(pool, async (tx) => {
     const { rows: before } = (await tx.execute(
-      sql`SELECT name, min_purchases, discount_pct, sort_order FROM loyalty_tiers WHERE id = ${tierId} FOR UPDATE`,
-    )) as unknown as { rows: Array<{ name: string; min_purchases: number; discount_pct: string; sort_order: number }> };
+      sql`SELECT name, min_purchases, discount_pct, sort_order, repeat_every_purchases FROM loyalty_tiers WHERE id = ${tierId} FOR UPDATE`,
+    )) as unknown as {
+      rows: Array<{
+        name: string;
+        min_purchases: number;
+        discount_pct: string;
+        sort_order: number;
+        repeat_every_purchases: number | null;
+      }>;
+    };
     const previous = before[0];
     if (!previous) throw new LoyaltyTierNotFoundError(tierId);
 
@@ -147,6 +170,10 @@ export async function updateLoyaltyTier(
       minPurchases: input.minPurchases ?? previous.min_purchases,
       discountPct: input.discountPct ?? Number(previous.discount_pct),
       sortOrder: input.sortOrder ?? previous.sort_order,
+      // `undefined` = campo no mandado, se conserva el valor previo.
+      // `null` explícito SÍ debe pasar (borra el intervalo) — por eso no es `??`.
+      repeatEveryPurchases:
+        input.repeatEveryPurchases === undefined ? previous.repeat_every_purchases : input.repeatEveryPurchases,
     };
 
     if (next.minPurchases !== previous.min_purchases) {
@@ -157,7 +184,8 @@ export async function updateLoyaltyTier(
       await tx.execute(sql`
         UPDATE loyalty_tiers
            SET name = ${next.name}, min_purchases = ${next.minPurchases},
-               discount_pct = ${next.discountPct}, sort_order = ${next.sortOrder}
+               discount_pct = ${next.discountPct}, sort_order = ${next.sortOrder},
+               repeat_every_purchases = ${next.repeatEveryPurchases}
          WHERE id = ${tierId}
       `);
     } catch (error) {

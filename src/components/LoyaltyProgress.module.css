@@ -58,6 +58,19 @@
   border-radius: 999px;
 }
 
+.couponNote {
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--confirm-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.couponNote b {
+  color: var(--confirm);
+}
+
 .track {
   height: 8px;
   border-radius: 999px;

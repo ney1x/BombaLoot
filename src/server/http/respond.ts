@@ -40,6 +40,7 @@ import {
   InvalidQuantityError,
   IpBlockedError,
   IpBlockNotFoundError,
+  LoyaltyCouponInvalidError,
   LoyaltyTierNotFoundError,
   MissingOwnerError,
   NoDeliveredCodesError,
@@ -198,7 +199,7 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   if (error instanceof MissingOwnerError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  if (error instanceof DiscountCodeInvalidError) {
+  if (error instanceof DiscountCodeInvalidError || error instanceof LoyaltyCouponInvalidError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof SupportOrderNotFoundError) {

@@ -3,7 +3,16 @@ import styles from "./LoyaltyProgress.module.css";
 import { AwardIcon } from "./icons";
 import { nextTier, type LoyaltyTier } from "@/lib/user";
 
-export function LoyaltyProgress({ tier, purchasesCount }: { tier: LoyaltyTier; purchasesCount: number }) {
+export function LoyaltyProgress({
+  tier,
+  purchasesCount,
+  availableCoupons = 0,
+}: {
+  tier: LoyaltyTier;
+  purchasesCount: number;
+  /** Cuántos cupones de fidelización sin canjear tiene la cuenta ahora mismo. */
+  availableCoupons?: number;
+}) {
   const next = nextTier(tier);
   const progressPct = next
     ? Math.min(100, Math.round(((purchasesCount - tier.minPurchases) / (next.minPurchases - tier.minPurchases)) * 100))
@@ -23,9 +32,16 @@ export function LoyaltyProgress({ tier, purchasesCount }: { tier: LoyaltyTier; p
           </div>
         </div>
         {tier.discountPct > 0 && (
-          <span className={styles.discountPill}>{tier.discountPct}% de descuento</span>
+          <span className={styles.discountPill}>cupón de {tier.discountPct}%</span>
         )}
       </div>
+
+      {availableCoupons > 0 && (
+        <p className={styles.couponNote}>
+          Tenés <b>{availableCoupons}</b> cupón{availableCoupons === 1 ? "" : "es"} de fidelización sin usar — elegís
+          cuándo aplicarlo en el checkout.
+        </p>
+      )}
 
       <div className={styles.track}>
         <div className={styles.fill} style={{ "--progress": progressPct / 100 } as CSSProperties} />

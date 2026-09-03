@@ -13,12 +13,19 @@ export interface LoyaltyTier {
   benefits: string[];
 }
 
-/** Example tier config — the admin panel will own these values later. */
+/**
+ * Example tier config — the admin panel owns the real values (min
+ * purchases, %, repeat interval) in `loyalty_tiers`; esto solo alimenta el
+ * texto de progreso/beneficios en la cuenta. La fidelización ya no
+ * descuenta sola en cada compra: al cruzar el umbral gana un cupón de un
+ * solo uso, propio de su cuenta, que el cliente elige cuándo canjear (ver
+ * `ensureLoyaltyCoupons` en server/services/loyalty.ts).
+ */
 export const LOYALTY_TIERS: LoyaltyTier[] = [
   { id: "bronze", name: "Bronze", minPurchases: 0, discountPct: 0, benefits: ["Historial de compras", "Soporte estándar"] },
-  { id: "silver", name: "Silver", minPurchases: 5, discountPct: 3, benefits: ["3% de descuento en cada compra", "Soporte prioritario"] },
-  { id: "gold", name: "Gold", minPurchases: 10, discountPct: 5, benefits: ["5% de descuento en cada compra", "Acceso anticipado a promociones"] },
-  { id: "vip", name: "VIP", minPurchases: 20, discountPct: 8, benefits: ["8% de descuento en cada compra", "Soporte dedicado", "Regalos por temporada"] },
+  { id: "silver", name: "Silver", minPurchases: 5, discountPct: 3, benefits: ["Cupón de 3% de un solo uso al llegar", "Soporte prioritario"] },
+  { id: "gold", name: "Gold", minPurchases: 10, discountPct: 5, benefits: ["Cupón de 5% de un solo uso al llegar", "Acceso anticipado a promociones"] },
+  { id: "vip", name: "VIP", minPurchases: 20, discountPct: 8, benefits: ["Cupón de 8% de un solo uso al llegar", "Cupón nuevo cada ciertas compras", "Soporte dedicado", "Regalos por temporada"] },
 ];
 
 export function tierForPurchases(purchases: number): LoyaltyTier {

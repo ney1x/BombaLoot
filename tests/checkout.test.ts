@@ -21,6 +21,7 @@ import {
   QuantityNotAllowedError,
 } from "@/server/services/errors";
 import { registerUser } from "@/server/services/auth-service";
+import { getAccountLoyaltyCoupons } from "@/server/services/loyalty";
 import { resetRateLimits } from "@/server/services/rate-limit";
 import {
   TEST_PRODUCT_ID,
@@ -92,7 +93,7 @@ describe("checkout de invitado", () => {
 });
 
 describe("checkout autenticado", () => {
-  it("asocia el pedido al user_id y aplica el descuento de fidelización real", async () => {
+  it("cruzar el umbral de Silver otorga un cupón, pero no descuenta solo (ya no es automático)", async () => {
     await seedProduct(pool, { codeCount: 5, priceCop: 100_000 });
 
     // Silver arranca en 5 compras (ver seed real de loyalty_tiers).
@@ -109,17 +110,51 @@ describe("checkout autenticado", () => {
       owner: { type: "user", userId: user.id, email: user.email, name: user.name, purchasesCount: 5 },
     });
 
-    expect(result.discountCop).toBeGreaterThan(0);
-    expect(result.discountLabel).toMatch(/Silver/);
-    expect(result.totalCop).toBe(result.subtotalCop - result.discountCop);
+    // Sin elegir un cupón, un pedido de un Silver no descuenta nada — la
+    // fidelización dejó de ser un % automático de fondo.
+    expect(result.discountCop).toBe(0);
+    expect(result.discountLabel).toBeNull();
 
     const { rows } = await pool.query<{ user_id: string }>("SELECT user_id FROM orders WHERE id = $1", [
       result.orderId,
     ]);
     expect(rows[0].user_id).toBe(user.id);
+
+    // Pero `checkoutCart` sí reconcilió y le otorgó su cupón de Silver.
+    const coupons = await getAccountLoyaltyCoupons(pool, user.id, 5);
+    expect(coupons.available).toHaveLength(1);
+    expect(coupons.available[0].tierName).toBe("Silver");
   });
 
-  it("un usuario sin compras previas (Bronze) no tiene descuento", async () => {
+  it("canjear el cupón de fidelización sí descuenta, y lo deja usado", async () => {
+    await seedProduct(pool, { codeCount: 5, priceCop: 100_000 });
+    const { user } = await registerUser(pool, {
+      name: "Compradora Fiel Dos",
+      email: "fiel2@test.local",
+      password: "clave-larga-cualquiera-1",
+    }, {});
+    await pool.query("UPDATE users SET purchases_count = 5 WHERE id = $1", [user.id]);
+
+    const before = await getAccountLoyaltyCoupons(pool, user.id, 5);
+    const coupon = before.available[0];
+
+    const result = await checkoutCart(pool, {
+      lines: [{ productId: TEST_PRODUCT_ID, quantity: 1 }],
+      idempotencyKey: uuid(),
+      owner: { type: "user", userId: user.id, email: user.email, name: user.name, purchasesCount: 5 },
+      loyaltyCouponId: coupon.id,
+    });
+
+    expect(result.discountCop).toBeGreaterThan(0);
+    expect(result.discountLabel).toMatch(/Silver/);
+    expect(result.totalCop).toBe(result.subtotalCop - result.discountCop);
+
+    const after = await getAccountLoyaltyCoupons(pool, user.id, 5);
+    expect(after.available).toHaveLength(0);
+    expect(after.redeemed).toHaveLength(1);
+  });
+
+  it("un usuario sin compras previas (Bronze) no tiene descuento ni cupón", async () => {
     await seedProduct(pool, { codeCount: 5 });
     const { user } = await registerUser(
       pool,
@@ -133,12 +168,14 @@ describe("checkout autenticado", () => {
       owner: { type: "user", userId: user.id, email: user.email, name: user.name, purchasesCount: 0 },
     });
 
-    // Bronze (0 compras mínimas, 0% descuento) SÍ se resuelve como nivel —
-    // todo comprador tiene un nivel, igual que ya lo muestra /cuenta — pero
-    // no descuenta nada.
+    // Bronze (0 compras mínimas, 0% descuento) no otorga cupón — no hay
+    // nada que canjear, y el pedido no descuenta nada.
     expect(result.discountCop).toBe(0);
-    expect(result.discountLabel).toBe("Bronze · 0%");
+    expect(result.discountLabel).toBeNull();
     expect(result.totalCop).toBe(result.subtotalCop);
+
+    const coupons = await getAccountLoyaltyCoupons(pool, user.id, 0);
+    expect(coupons.available).toHaveLength(0);
   });
 });
 

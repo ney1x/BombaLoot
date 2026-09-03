@@ -7,7 +7,12 @@ import { AlertIcon } from "@/components/icons";
 import { PaymentStatusLayout } from "@/components/PaymentStatusLayout";
 import { Spinner } from "@/components/Spinner";
 import { PAYMENT_METHODS } from "@/lib/checkout";
-import { loadRealCheckoutSession, type RealCheckoutSession } from "@/lib/payment-session";
+import {
+  loadRealCheckoutSession,
+  markCheckoutRedirectStarted,
+  wasCheckoutRedirectStarted,
+  type RealCheckoutSession,
+} from "@/lib/payment-session";
 
 /**
  * Sin tarjeta ni borde a propósito — es un tránsito, no un mensaje que
@@ -42,9 +47,34 @@ export default function PagoPendientePage() {
     // `loadRealCheckoutSession` lee sessionStorage — client-only, difiere
     // la lectura hasta después de la hidratación (mismo motivo que en
     // `OrderDeliveryView`).
+    const loaded = loadRealCheckoutSession();
+    // Si ya se marcó el redirect a este pedido como iniciado, esta visita
+    // es un regreso (atrás, bfcache, recarga) al tránsito hacia el
+    // proveedor — no de un `/checkout` nuevo. No hay que reintentar el
+    // pago: `window.location.replace` es una navegación dura, no depende
+    // del router de Next ni de que la página no haya quedado congelada por
+    // bfcache justo antes.
+    if (loaded && wasCheckoutRedirectStarted(loaded.orderId)) {
+      window.location.replace("/checkout");
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSession(loadRealCheckoutSession());
+    setSession(loaded);
     setReady(true);
+  }, []);
+
+  useEffect(() => {
+    // Respaldo para el caso en que el navegador restaura esta página desde
+    // bfcache tal cual estaba congelada (con la marca de "ya iniciado"
+    // puesta pero sin que el efecto de arriba llegue a correr de nuevo):
+    // `pageshow`/`persisted` es la única señal que sí dispara ahí.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.replace("/checkout");
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
   useEffect(() => {
@@ -69,6 +99,7 @@ export default function PagoPendientePage() {
         }
         const redirectUrl = body.checkoutUrl ?? body.approvalUrl;
         if (!redirectUrl) throw new Error("El proveedor no devolvió una URL de pago.");
+        markCheckoutRedirectStarted(session.orderId);
         window.location.href = redirectUrl;
       } catch (err) {
         setError(err instanceof Error ? err.message : "No pudimos iniciar el pago. Intentá de nuevo.");
@@ -80,7 +111,7 @@ export default function PagoPendientePage() {
     return <RedirectingToPayment />;
   }
 
-  const method = PAYMENT_METHODS.find((m) => m.id === session.provider);
+  const method = PAYMENT_METHODS.find((m) => m.id === session.methodId);
 
   if (error) {
     return (

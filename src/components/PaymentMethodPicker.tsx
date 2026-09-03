@@ -1,10 +1,13 @@
 import styles from "./PaymentMethodPicker.module.css";
-import { BankIcon, CheckIcon, GlobeIcon } from "./icons";
+import { CheckIcon } from "./icons";
+import { CardMark, NequiMark, PayPalMark, PseMark } from "./PaymentMethodIcons";
 import { PAYMENT_METHODS, type PaymentMethodId } from "@/lib/checkout";
 
-const METHOD_ICON: Record<PaymentMethodId, typeof BankIcon> = {
-  wompi: BankIcon,
-  paypal: GlobeIcon,
+const METHOD_ICON: Record<PaymentMethodId, typeof NequiMark> = {
+  nequi: NequiMark,
+  pse: PseMark,
+  card: CardMark,
+  paypal: PayPalMark,
 };
 
 export function PaymentMethodPicker({

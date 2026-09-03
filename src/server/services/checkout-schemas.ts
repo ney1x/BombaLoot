@@ -28,6 +28,8 @@ export const checkoutSchema = z.object({
   buyerName: z.string().trim().max(120).optional(),
   /** Código de cupón opcional, tal como lo escribió el comprador. */
   discountCode: z.string().trim().min(1).max(40).optional(),
+  /** Cupón de fidelización opcional, de la cuenta del comprador. Mutuamente excluyente con `discountCode`. */
+  loyaltyCouponId: z.string().uuid().optional(),
 });
 
 export type CheckoutRequestBody = z.infer<typeof checkoutSchema>;

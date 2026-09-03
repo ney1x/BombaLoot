@@ -27,26 +27,21 @@
   background: var(--accent-soft);
 }
 
+/* Sin fondo propio a propósito: cada logo (NequiMark/PseMark/CardMark/
+   PayPalMark) ya trae su insignia de color — un fondo acá atrás duplicaría
+   el badge en vez de enmarcarlo. */
 .iconWrap {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--ink-soft);
-}
-
-.card.active .iconWrap {
-  background: var(--surface);
-  color: var(--accent);
 }
 
 .iconWrap svg {
-  width: 20px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
 }
 
 .body {

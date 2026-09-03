@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       idempotencyKey: body.idempotencyKey,
       owner,
       discountCode: body.discountCode,
+      loyaltyCouponId: body.loyaltyCouponId,
       rateLimitKey,
       ip: meta.ip,
       userAgent: meta.userAgent,

@@ -10,6 +10,7 @@ import { DiscountCodeField, type AppliedDiscount } from "./DiscountCodeField";
 import { EmailConfirmModal } from "./EmailConfirmModal";
 import { EmptyState } from "./EmptyState";
 import { InlineBanner } from "./InlineBanner";
+import { LoyaltyCouponPicker, type AppliedLoyaltyCoupon } from "./LoyaltyCouponPicker";
 import { PaymentMethodPicker } from "./PaymentMethodPicker";
 import { ReservationTimer } from "./ReservationTimer";
 import {
@@ -27,7 +28,6 @@ import { useCart } from "@/lib/cart-context";
 import { useCatalog } from "@/lib/use-catalog";
 import { useSession } from "@/lib/session-context";
 import { formatCop } from "@/lib/products";
-import { tierForPurchases } from "@/lib/user";
 
 export function CheckoutView() {
   const router = useRouter();
@@ -42,8 +42,9 @@ export function CheckoutView() {
   const demo = searchParams.get("demo");
 
   const [buyer, setBuyer] = useState<BuyerInfo>({ name: "", email: "", isGuest: true });
-  const [method, setMethod] = useState<PaymentMethodId>("wompi");
+  const [method, setMethod] = useState<PaymentMethodId>("nequi");
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
+  const [loyaltyCoupon, setLoyaltyCoupon] = useState<AppliedLoyaltyCoupon | null>(null);
   const [reservationExpired, setReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -85,24 +86,15 @@ export function CheckoutView() {
     [resolved, demo],
   );
 
-  const tier = tierForPurchases(sessionUser?.purchasesCount ?? 0);
-  const discountPct = buyer.isGuest ? 0 : tier.discountPct;
-  const tierLabel = buyer.isGuest ? undefined : `${tier.name} · ${tier.discountPct}%`;
-
   const subtotalCop = checkoutLines.reduce((sum, l) => sum + l.product.priceCop * l.quantity, 0);
-  const loyaltyDiscountCop = Math.round(subtotalCop * (discountPct / 100));
 
-  // Mismo criterio que `checkoutCart` en el backend: un cupón apilable
-  // suma al descuento por nivel; uno no apilable lo reemplaza (es la
-  // elección activa del comprador sobre el descuento automático de
-  // fondo). El backend vuelve a calcular todo esto igual al confirmar —
-  // esto es solo la vista previa antes de enviar el pedido.
-  const couponDiscountCop = discount?.amountCop ?? 0;
-  const discountCop = discount && !discount.stackable ? couponDiscountCop : loyaltyDiscountCop + couponDiscountCop;
-  const discountLabel =
-    discount && !discount.stackable
-      ? discount.code
-      : [tierLabel, discount?.code].filter(Boolean).join(" + ") || undefined;
+  // Ya no hay descuento automático de fondo por nivel — el comprador elige
+  // como mucho uno: un código de descuento escrito, o un cupón de
+  // fidelización de su cuenta (mutuamente excluyentes, ver más abajo). El
+  // backend vuelve a calcular esto igual al confirmar — esto es solo la
+  // vista previa antes de enviar el pedido.
+  const discountCop = discount?.amountCop ?? loyaltyCoupon?.amountCop ?? 0;
+  const discountLabel = discount?.code ?? loyaltyCoupon?.label;
   const totalCop = subtotalCop - discountCop;
 
   const hasStockIssue = checkoutLines.some((l) => l.flag);
@@ -155,6 +147,7 @@ export function CheckoutView() {
           buyerEmail: buyer.email.trim(),
           buyerName: buyer.name.trim() || undefined,
           discountCode: discount?.code,
+          loyaltyCouponId: loyaltyCoupon?.id,
         }),
       });
 
@@ -179,7 +172,11 @@ export function CheckoutView() {
         email: order.email,
         totalCop: order.totalCop,
         paymentExpiresAt: order.paymentExpiresAt,
-        provider: method,
+        // A quién se le pega de verdad — Nequi/PSE/Tarjeta comparten el
+        // mismo checkout alojado de Wompi (ver PAYMENT_METHODS en
+        // lib/checkout.ts), `method` es solo cuál tarjeta se mostró elegida.
+        provider: selectedMethod.provider,
+        methodId: method,
       });
 
       router.push("/checkout/pago");
@@ -235,12 +232,20 @@ export function CheckoutView() {
 
         {!expired && checkoutLines.length > 0 && (
           <section className={styles.section}>
-            <DiscountCodeField
-              lines={checkoutLines.map(({ product, quantity }) => ({ productId: product.id, quantity }))}
-              buyerEmail={buyer.email.trim()}
-              applied={discount}
-              onApplied={setDiscount}
-            />
+            {!loyaltyCoupon && (
+              <DiscountCodeField
+                lines={checkoutLines.map(({ product, quantity }) => ({ productId: product.id, quantity }))}
+                buyerEmail={buyer.email.trim()}
+                applied={discount}
+                onApplied={setDiscount}
+              />
+            )}
+            {/* Sin cuenta no hay cupón que ofrecer — el picker se esconde solo (ver LoyaltyCouponPicker). */}
+            {!buyer.isGuest && !discount && (
+              <div style={{ marginTop: 10 }}>
+                <LoyaltyCouponPicker subtotalCop={subtotalCop} applied={loyaltyCoupon} onApplied={setLoyaltyCoupon} />
+              </div>
+            )}
           </section>
         )}
 

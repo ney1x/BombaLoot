@@ -85,7 +85,7 @@ export function BuyerInfoForm({
           </p>
           {!sessionUser && (
             <p className={styles.hint}>
-              ¿Ya tenés cuenta? <Link href="/cuenta/login">Iniciá sesión</Link> para sumar esta compra a tu historial y tu descuento.
+              ¿Ya tenés cuenta? <Link href="/cuenta/login">Iniciá sesión</Link> para sumar esta compra a tu historial y tus cupones de fidelización.
             </p>
           )}
         </div>

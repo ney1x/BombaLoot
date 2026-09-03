@@ -11,6 +11,8 @@ export interface AdminTier {
   discountPct: number;
   sortOrder: number;
   isActive: boolean;
+  /** Solo tiene efecto mientras este sea el nivel activo de compras mínimas más alto — ver columna "Nivel actual" en la tabla. */
+  repeatEveryPurchases: number | null;
 }
 
 function fieldErrorText(data: { error?: string; fields?: Record<string, string[]> }, fallback: string): string {
@@ -52,12 +54,14 @@ export function LoyaltyTiersManager({
     // Capturado ANTES del await — ver el mismo comentario en DiscountsManager.
     const formEl = event.currentTarget;
     const form = new FormData(formEl);
+    const repeatRaw = String(form.get("repeatEveryPurchases") ?? "").trim();
     const body = {
       id: String(form.get("id") ?? "").trim(),
       name: String(form.get("name") ?? "").trim(),
       minPurchases: Number(form.get("minPurchases")),
       discountPct: Number(form.get("discountPct")),
       sortOrder: Number(form.get("sortOrder") || tiers.length),
+      repeatEveryPurchases: repeatRaw ? Number(repeatRaw) : null,
     };
     try {
       const res = await fetch("/api/admin/loyalty-tiers", {
@@ -82,11 +86,13 @@ export function LoyaltyTiersManager({
     setError(null);
     setSavingEdit(true);
     const form = new FormData(event.currentTarget);
+    const repeatRaw = String(form.get("repeatEveryPurchases") ?? "").trim();
     const body = {
       name: String(form.get("name") ?? "").trim(),
       minPurchases: Number(form.get("minPurchases")),
       discountPct: Number(form.get("discountPct")),
       sortOrder: Number(form.get("sortOrder")),
+      repeatEveryPurchases: repeatRaw ? Number(repeatRaw) : null,
     };
     try {
       const res = await fetch(`/api/admin/loyalty-tiers/${tierId}`, {
@@ -127,6 +133,14 @@ export function LoyaltyTiersManager({
     }
   }
 
+  // Único nivel donde "repite cada" hace algo — mismo criterio que
+  // `ensureLoyaltyCoupons` en el backend (el activo de compras mínimas más
+  // alto). Se lo marcamos al admin para que no cargue el campo en un nivel
+  // donde no tiene efecto y se quede esperando que pase algo.
+  const topActiveTierId = tiers
+    .filter((t) => t.isActive)
+    .reduce((top: AdminTier | null, t) => (!top || t.minPurchases > top.minPurchases ? t : top), null)?.id;
+
   function requestToggle(tier: AdminTier) {
     setError(null);
     // Activar no tiene efecto retroactivo peligroso — solo desactivar (nadie sigue calificando
@@ -166,8 +180,12 @@ export function LoyaltyTiersManager({
       )}
 
       <p className={shared.subtitle}>
-        La tabla ordena por precedencia real de descuento (compras mínimas, de mayor a menor) — así es como el
-        checkout decide qué nivel gana. &quot;Orden&quot; es solo un campo propio, no cambia esa precedencia.
+        La tabla ordena por precedencia real de nivel (compras mínimas, de mayor a menor) — así decide el sistema en
+        qué nivel está cada cliente. &quot;Orden&quot; es solo un campo propio, no cambia esa precedencia. La
+        fidelización ya no descuenta sola en cada compra: al cruzar el umbral de un nivel, el cliente gana un cupón
+        de un solo uso en su cuenta, que elige cuándo canjear. &quot;Repite cada&quot; solo aplica al nivel activo
+        marcado como <b>tope</b> — mientras el cliente siga ahí (no hay nivel más arriba), sigue ganando un cupón más
+        cada esa cantidad de compras.
       </p>
 
       <div className={shared.tableWrap}>
@@ -178,6 +196,7 @@ export function LoyaltyTiersManager({
               <th>Nombre</th>
               <th>Compras mínimas</th>
               <th>Descuento</th>
+              <th>Repite cada</th>
               <th>Orden</th>
               <th>Clientes</th>
               <th>Estado</th>
@@ -190,7 +209,7 @@ export function LoyaltyTiersManager({
               .map((t) =>
               editingId === t.id ? (
                 <tr key={t.id}>
-                  <td colSpan={canEdit ? 8 : 7}>
+                  <td colSpan={canEdit ? 9 : 8}>
                     <form
                       onSubmit={(e) => void handleEditSubmit(e, t.id)}
                       style={{ display: "flex", flexDirection: "column", gap: 10, padding: "8px 0" }}
@@ -235,6 +254,17 @@ export function LoyaltyTiersManager({
                             required
                           />
                         </div>
+                        <div className={shared.field}>
+                          <label htmlFor={`edit-repeat-${t.id}`}>Repite cada (solo si es tope)</label>
+                          <input
+                            id={`edit-repeat-${t.id}`}
+                            name="repeatEveryPurchases"
+                            type="number"
+                            min={1}
+                            placeholder="Sin repetición"
+                            defaultValue={t.repeatEveryPurchases ?? ""}
+                          />
+                        </div>
                       </div>
                       {(counts[t.id] ?? 0) > 0 && (
                         <span className={shared.subtitle}>
@@ -262,12 +292,23 @@ export function LoyaltyTiersManager({
                   <td>{t.name}</td>
                   <td className="num-display">{t.minPurchases}</td>
                   <td className="num-display">{t.discountPct}%</td>
+                  <td className="num-display">
+                    {t.repeatEveryPurchases ? `cada ${t.repeatEveryPurchases}` : "—"}
+                    {t.repeatEveryPurchases && t.id !== topActiveTierId && (
+                      <span className={shared.subtitle}> (sin efecto, no es el tope)</span>
+                    )}
+                  </td>
                   <td className="num-display">{t.sortOrder}</td>
                   <td className="num-display">{counts[t.id] ?? 0}</td>
                   <td>
                     <span className={shared.badge} data-tone={t.isActive ? "good" : undefined}>
                       {t.isActive ? "ACTIVO" : "INACTIVO"}
                     </span>
+                    {t.id === topActiveTierId && (
+                      <span className={shared.badge} style={{ marginLeft: 6 }}>
+                        TOPE
+                      </span>
+                    )}
                   </td>
                   {canEdit && (
                     <td>
@@ -291,7 +332,7 @@ export function LoyaltyTiersManager({
             )}
             {tiers.length === 0 && (
               <tr>
-                <td colSpan={canEdit ? 8 : 7} className={shared.empty}>
+                <td colSpan={canEdit ? 9 : 8} className={shared.empty}>
                   Sin niveles configurados.
                 </td>
               </tr>
@@ -322,6 +363,10 @@ export function LoyaltyTiersManager({
             <div className={shared.field}>
               <label htmlFor="tier-sortOrder">Orden</label>
               <input id="tier-sortOrder" name="sortOrder" type="number" min={0} defaultValue={tiers.length} />
+            </div>
+            <div className={shared.field}>
+              <label htmlFor="tier-repeat">Repite cada (solo si es tope)</label>
+              <input id="tier-repeat" name="repeatEveryPurchases" type="number" min={1} placeholder="Sin repetición" />
             </div>
           </div>
           <div className={shared.actions}>
