@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import styles from "./dashboard.module.css";
 import { getDb, getPool } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
@@ -23,37 +24,64 @@ export default async function AdminDashboardPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>Dashboard</h1>
 
-      <section className={styles.metricsGrid}>
-        <MetricCard label="Ventas hoy" value={formatCop(metrics.salesTodayCop)} />
-        <MetricCard label="Ventas del mes" value={formatCop(metrics.salesMonthCop)} />
-        <MetricCard label="Pedidos pendientes" value={metrics.ordersPending} />
-        <MetricCard label="Pedidos pagados hoy" value={metrics.ordersPaidToday} />
-        <MetricCard
-          label="Con problema de entrega"
-          value={metrics.ordersDeliveryProblems}
-          tone={metrics.ordersDeliveryProblems > 0 ? "warn" : undefined}
-        />
-        <MetricCard
-          label="Reembolsos pendientes"
-          value={metrics.refundsPending}
-          tone={metrics.refundsPending > 0 ? "warn" : undefined}
-        />
-        <MetricCard
-          label="Requieren revisión manual"
-          value={metrics.refundsManualReview}
-          tone={metrics.refundsManualReview > 0 ? "alert" : undefined}
-        />
-        <MetricCard
-          label="Stock bajo"
-          value={metrics.productsLowStock}
-          tone={metrics.productsLowStock > 0 ? "warn" : undefined}
-        />
-        <MetricCard
-          label="Agotados"
-          value={metrics.productsOutOfStock}
-          tone={metrics.productsOutOfStock > 0 ? "alert" : undefined}
-        />
-      </section>
+      <div className={styles.metricGroups}>
+        <section className={styles.metricGroup}>
+          <h2 className={styles.sectionTitle}>Ventas</h2>
+          <div className={styles.metricsGrid}>
+            <MetricCard label="Ventas hoy" value={formatCop(metrics.salesTodayCop)} />
+            <MetricCard label="Ventas del mes" value={formatCop(metrics.salesMonthCop)} />
+          </div>
+        </section>
+
+        <section className={styles.metricGroup}>
+          <h2 className={styles.sectionTitle}>Pedidos</h2>
+          <div className={styles.metricsGrid}>
+            <MetricCard label="Pedidos pendientes" value={metrics.ordersPending} />
+            <MetricCard label="Pedidos pagados hoy" value={metrics.ordersPaidToday} />
+            <MetricCard
+              label="Con problema de entrega"
+              value={metrics.ordersDeliveryProblems}
+              tone={metrics.ordersDeliveryProblems > 0 ? "warn" : undefined}
+              href="/admin/pedidos"
+            />
+          </div>
+        </section>
+
+        <section className={styles.metricGroup}>
+          <h2 className={styles.sectionTitle}>Reembolsos</h2>
+          <div className={styles.metricsGrid}>
+            <MetricCard
+              label="Reembolsos pendientes"
+              value={metrics.refundsPending}
+              tone={metrics.refundsPending > 0 ? "warn" : undefined}
+            />
+            <MetricCard
+              label="Requieren revisión manual"
+              value={metrics.refundsManualReview}
+              tone={metrics.refundsManualReview > 0 ? "alert" : undefined}
+              href="/admin/reembolsos?status=MANUAL_REVIEW_REQUIRED"
+            />
+          </div>
+        </section>
+
+        <section className={styles.metricGroup}>
+          <h2 className={styles.sectionTitle}>Inventario</h2>
+          <div className={styles.metricsGrid}>
+            <MetricCard
+              label="Stock bajo"
+              value={metrics.productsLowStock}
+              tone={metrics.productsLowStock > 0 ? "warn" : undefined}
+              href="/admin/inventario"
+            />
+            <MetricCard
+              label="Agotados"
+              value={metrics.productsOutOfStock}
+              tone={metrics.productsOutOfStock > 0 ? "alert" : undefined}
+              href="/admin/inventario"
+            />
+          </div>
+        </section>
+      </div>
 
       <section className={styles.healthSection}>
         <h2 className={styles.sectionTitle}>Health / Operación</h2>
@@ -74,15 +102,32 @@ function MetricCard({
   label,
   value,
   tone,
+  href,
 }: {
   label: string;
   value: string | number;
   tone?: "warn" | "alert";
+  /** Cards con tone (algo que requiere atención) llevan a la vista relevante — nunca un dead end. */
+  href?: string;
 }) {
-  return (
-    <div className={styles.metricCard} data-tone={tone}>
+  const content = (
+    <>
       <div className={styles.metricLabel}>{label}</div>
       <div className={`${styles.metricValue} num-display`}>{value}</div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={styles.metricCard} data-tone={tone}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={styles.metricCard} data-tone={tone}>
+      {content}
     </div>
   );
 }

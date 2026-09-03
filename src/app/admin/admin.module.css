@@ -53,6 +53,10 @@
 }
 
 .navLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 9px 10px;
   border-radius: var(--radius-md);
   font-size: 14px;
@@ -60,9 +64,30 @@
   text-decoration: none;
 }
 
+.navBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--alert);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .navLink:hover {
   background: var(--surface-2);
   color: var(--ink);
+}
+
+.navLink[data-active] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .sidebarFoot {

@@ -4,18 +4,30 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
 
-/** Solo se renderiza para pedidos PENDING (ver página de detalle) — uno ya pagado va por reembolsos. */
-export function CancelFraudAction({ orderId }: { orderId: string }) {
+/**
+ * Solo se renderiza para pedidos `payment_status = PENDING` (ver página de
+ * detalle) — uno ya pagado va por reembolsos. Pero "sigue PENDING" cubre
+ * dos casos muy distintos: `PAYMENT_EXPIRED` (el carrito venció solo, caso
+ * rutinario) y `PENDING_PAYMENT` todavía dentro de ventana (más
+ * plausiblemente sospechoso si un admin lo está mirando). Antes la copy
+ * decía "Cancelar por fraude" para los dos casos por igual.
+ */
+export function CancelFraudAction({ orderId, expired }: { orderId: string; expired: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const buttonLabel = expired ? "Cancelar (carrito vencido)" : "Cancelar por fraude";
+  const placeholder = expired
+    ? "Ej. limpieza de carrito abandonado"
+    : "Ej. tarjeta reportada, patrón de compra sospechoso";
+
   if (!open) {
     return (
       <button type="button" className={`${shared.btnSmall} ${shared.btnSmallDanger}`} onClick={() => setOpen(true)}>
-        Cancelar por fraude
+        {buttonLabel}
       </button>
     );
   }
@@ -58,7 +70,7 @@ export function CancelFraudAction({ orderId }: { orderId: string }) {
           id="cancel-reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Ej. tarjeta reportada, patrón de compra sospechoso"
+          placeholder={placeholder}
           required
           minLength={5}
         />

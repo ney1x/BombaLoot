@@ -1,5 +1,18 @@
 /* Estilos compartidos entre las vistas de listado/detalle del admin. */
 
+/* Texto solo para lectores de pantalla — p.ej. el header de una columna de acciones sin label visible. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page {
   display: flex;
   flex-direction: column;
@@ -87,6 +100,16 @@ table.table {
   background: var(--surface-2);
 }
 
+/* Refuerzo visual del orden por severidad — sin esto, la única forma de
+   notar que una fila es urgente es leer el badge de la última columna. */
+.table tr[data-tone="warn"] td {
+  background: color-mix(in srgb, var(--warn-soft) 45%, transparent);
+}
+
+.table tr[data-tone="bad"] td {
+  background: color-mix(in srgb, var(--alert-soft) 45%, transparent);
+}
+
 .empty {
   padding: 32px 14px;
   text-align: center;
@@ -129,6 +152,16 @@ table.table {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px 20px;
+}
+
+/* Solo las cards que son enlaces (soporte) necesitan avisar que son clicables. */
+a.card {
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+a.card:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-faint);
 }
 
 .formGrid {
@@ -217,6 +250,11 @@ table.table {
 .formMsg[data-tone="good"] {
   background: var(--confirm-soft);
   color: var(--confirm);
+}
+
+.formMsg[data-tone="warn"] {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 .mono {

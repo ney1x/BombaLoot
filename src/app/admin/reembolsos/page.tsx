@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import shared from "../shared.module.css";
+import { STATUS_LABEL, STATUS_TONE } from "../refund-status-labels";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
@@ -8,24 +9,6 @@ import { listRefundsAdmin } from "@/server/services/admin-refunds";
 import { ManualRefundAction } from "@/components/admin/ManualRefundAction";
 
 export const metadata: Metadata = { title: "Reembolsos — Admin bombaloot" };
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING_REFUND: "PENDIENTE",
-  REFUND_INITIATED: "INICIADO",
-  REFUND_COMPLETED: "COMPLETADO",
-  REFUND_FAILED: "FALLIDO",
-  MANUAL_REVIEW_REQUIRED: "REVISIÓN MANUAL",
-  CANCELLED: "CANCELADO",
-};
-
-const STATUS_TONE: Record<string, string | undefined> = {
-  PENDING_REFUND: "warn",
-  REFUND_INITIATED: "warn",
-  REFUND_COMPLETED: "good",
-  REFUND_FAILED: "bad",
-  MANUAL_REVIEW_REQUIRED: "bad",
-  CANCELLED: undefined,
-};
 
 export default async function AdminRefundsPage({
   searchParams,
@@ -66,43 +49,58 @@ export default async function AdminRefundsPage({
       </form>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {refunds.map((r) => (
-          <div key={r.id} className={shared.card}>
-            <div className={shared.headRow}>
-              <div>
-                <Link href={`/admin/pedidos/${r.orderId}`} className={shared.mono}>
-                  {r.orderNumber}
-                </Link>
-                <p className={shared.subtitle}>
-                  {r.email} · {r.provider} · {r.amountCop ? formatCop(r.amountCop) : "—"} {r.currency} ·{" "}
-                  solicitado {r.requestedAt.toLocaleString("es-CO")}
-                </p>
-                {r.errorMessage && <p className={shared.subtitle}>Motivo: {r.errorMessage}</p>}
+        {refunds.map((r) => {
+          const needsAction = r.status === "MANUAL_REVIEW_REQUIRED";
+          return (
+            <div
+              key={r.id}
+              className={shared.card}
+              style={
+                needsAction
+                  ? { borderColor: "var(--alert)", background: "color-mix(in srgb, var(--alert-soft) 35%, var(--surface))" }
+                  : undefined
+              }
+            >
+              <div className={shared.headRow}>
+                <div>
+                  <Link href={`/admin/pedidos/${r.orderId}`} className={shared.mono}>
+                    {r.orderNumber}
+                  </Link>
+                  <p className={shared.subtitle}>
+                    {r.email} · {r.provider} · {r.amountCop ? formatCop(r.amountCop) : "—"} {r.currency} ·{" "}
+                    solicitado {r.requestedAt.toLocaleString("es-CO")}
+                  </p>
+                  {r.errorMessage && (
+                    <p className={shared.formMsg} data-tone="bad" style={{ marginTop: 6 }}>
+                      Por qué necesita revisión manual: {r.errorMessage}
+                    </p>
+                  )}
+                </div>
+                <span className={shared.badge} data-tone={STATUS_TONE[r.status]}>
+                  {STATUS_LABEL[r.status] ?? r.status}
+                </span>
               </div>
-              <span className={shared.badge} data-tone={STATUS_TONE[r.status]}>
-                {STATUS_LABEL[r.status] ?? r.status}
-              </span>
-            </div>
 
-            {r.status === "MANUAL_REVIEW_REQUIRED" && (
-              <div style={{ marginTop: 12 }}>
-                <ManualRefundAction
-                  canExecute={canExecute}
-                  refund={{
-                    id: r.id,
-                    orderId: r.orderId,
-                    orderNumber: r.orderNumber,
-                    email: r.email,
-                    provider: r.provider,
-                    amountCop: r.amountCop,
-                    currency: r.currency,
-                    formattedAmount: r.amountCop ? formatCop(r.amountCop) : `? ${r.currency}`,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ))}
+              {needsAction && (
+                <div style={{ marginTop: 12 }}>
+                  <ManualRefundAction
+                    canExecute={canExecute}
+                    refund={{
+                      id: r.id,
+                      orderId: r.orderId,
+                      orderNumber: r.orderNumber,
+                      email: r.email,
+                      provider: r.provider,
+                      amountCop: r.amountCop,
+                      currency: r.currency,
+                      formattedAmount: r.amountCop ? formatCop(r.amountCop) : null,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {refunds.length === 0 && <div className={shared.empty}>Sin solicitudes de reembolso.</div>}
       </div>

@@ -14,8 +14,14 @@ import type { Db } from "../db/client";
 
 export const auditFiltersSchema = z.object({
   entityType: z.string().trim().max(64).optional(),
+  entityId: z.string().trim().max(200).optional(),
   action: z.string().trim().max(64).optional(),
   actorId: z.string().uuid().optional(),
+  /** Filtro de rango, "YYYY-MM-DD" desde inputs `type="date"` del form. */
+  from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Cursor de paginación: solo eventos anteriores a este timestamp (keyset, no OFFSET). */
+  before: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
@@ -47,9 +53,16 @@ interface AuditQueryRow {
 
 export async function listAuditLogsAdmin(db: Db, filters: AuditFilters): Promise<AdminAuditRow[]> {
   const conditions = [sql`1=1`];
-  if (filters.entityType) conditions.push(sql`al.entity_type = ${filters.entityType}`);
-  if (filters.action) conditions.push(sql`al.action = ${filters.action}`);
+  /* ILIKE case-insensitive + substring en type/action — antes era `=` exacto y
+     sensible a mayúsculas, así que "product" vs "Product" o "updated" (sin el
+     prefijo "product.") devolvían 0 filas indistinguible de "no pasó nada". */
+  if (filters.entityType) conditions.push(sql`al.entity_type ILIKE ${"%" + filters.entityType + "%"}`);
+  if (filters.entityId) conditions.push(sql`al.entity_id ILIKE ${filters.entityId}`);
+  if (filters.action) conditions.push(sql`al.action ILIKE ${"%" + filters.action + "%"}`);
   if (filters.actorId) conditions.push(sql`al.actor_id = ${filters.actorId}::uuid`);
+  if (filters.from) conditions.push(sql`al.occurred_at >= ${filters.from}::date`);
+  if (filters.to) conditions.push(sql`al.occurred_at < (${filters.to}::date + interval '1 day')`);
+  if (filters.before) conditions.push(sql`al.occurred_at < ${filters.before}::timestamptz`);
   const where = conditions.reduce((acc, c) => sql`${acc} AND ${c}`);
 
   const { rows } = (await db.execute(sql`

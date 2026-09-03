@@ -220,10 +220,29 @@ export async function deleteProductImage(
 ): Promise<void> {
   await withTransaction(pool, async (tx) => {
     const { rows } = (await tx.execute(
-      sql`DELETE FROM product_images WHERE id = ${imageId}::uuid RETURNING product_id`,
-    )) as unknown as { rows: Array<{ product_id: string }> };
+      sql`DELETE FROM product_images WHERE id = ${imageId}::uuid RETURNING product_id, is_primary`,
+    )) as unknown as { rows: Array<{ product_id: string; is_primary: boolean }> };
     const deleted = rows[0];
     if (!deleted) throw new ImageNotFoundError(imageId);
+
+    // Borrar la principal no debe dejar el producto sin ninguna — promueve
+    // automáticamente la siguiente activa (mismo orden que `listProductImages`).
+    // Si no queda ninguna imagen activa, el producto simplemente se queda sin
+    // principal hasta que se agregue una nueva.
+    let promotedImageId: string | null = null;
+    if (deleted.is_primary) {
+      const { rows: promoted } = (await tx.execute(sql`
+        UPDATE product_images SET is_primary = true, updated_at = now()
+         WHERE id = (
+           SELECT id FROM product_images
+            WHERE product_id = ${deleted.product_id} AND is_active
+            ORDER BY sort_order, created_at
+            LIMIT 1
+         )
+        RETURNING id
+      `)) as unknown as { rows: Array<{ id: string }> };
+      promotedImageId = promoted[0]?.id ?? null;
+    }
 
     await writeAudit(tx, {
       actorType: actor.role,
@@ -231,7 +250,7 @@ export async function deleteProductImage(
       action: "product_image.deleted",
       entityType: "product",
       entityId: deleted.product_id,
-      metadata: { imageId },
+      metadata: { imageId, wasPrimary: deleted.is_primary, promotedImageId },
       ip: context.ip,
       userAgent: context.userAgent,
     });

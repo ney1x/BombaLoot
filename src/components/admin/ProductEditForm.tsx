@@ -56,6 +56,12 @@ export function ProductEditForm({ product, canEdit }: { product: Product; canEdi
   }
 
   async function toggleActive() {
+    if (
+      product.isActive &&
+      !window.confirm("¿Desactivar este producto? Esto lo oculta de la tienda de inmediato.")
+    ) {
+      return;
+    }
     setTogglingActive(true);
     setError(null);
     try {

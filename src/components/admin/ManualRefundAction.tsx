@@ -12,7 +12,8 @@ export interface RefundForAction {
   provider: string;
   amountCop: number | null;
   currency: string;
-  formattedAmount: string;
+  /** null cuando el pedido no tiene importe registrado — el sistema no puede afirmar cuánto se devolvió. */
+  formattedAmount: string | null;
 }
 
 /**
@@ -26,8 +27,16 @@ export function ManualRefundAction({ refund, canExecute }: { refund: RefundForAc
   const [providerRefundId, setProviderRefundId] = useState("");
   const [comment, setComment] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [reentryInput, setReentryInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const amountKnown = refund.formattedAmount !== null;
+  const amountText = refund.formattedAmount ?? `SIN IMPORTE REGISTRADO (${refund.currency})`;
+  /* Re-entry: reescribir el importe a mano frena el click automático en un flujo que
+     dispara dinero real e irreversible — nada de esto llama a un proveedor, así que la
+     única defensa contra un misclick es que el admin vuelva a leer y tipear el número. */
+  const reentryMatches = reentryInput.trim() === amountText;
 
   if (!canExecute) {
     return <span className={shared.subtitle}>Solo ADMIN puede confirmar este reembolso</span>;
@@ -44,6 +53,10 @@ export function ManualRefundAction({ refund, canExecute }: { refund: RefundForAc
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!reentryMatches) {
+      setError(`Escribí exactamente "${amountText}" para confirmar.`);
+      return;
+    }
     if (!confirmed) {
       setError("Marcá la confirmación explícita antes de continuar.");
       return;
@@ -74,13 +87,28 @@ export function ManualRefundAction({ refund, canExecute }: { refund: RefundForAc
     >
       <div className={shared.formMsg} data-tone="bad">
         Esto registra que <b>ya ejecutaste</b> un reembolso real fuera del sistema (consola del
-        proveedor, transferencia manual). No llama a ningún proveedor — solo deja constancia.
+        proveedor, transferencia manual). No llama a ningún proveedor — solo deja constancia, y
+        esto no se puede deshacer.
         <br />
         Pedido <b>{refund.orderNumber}</b> ({refund.email}) · Proveedor <b>{refund.provider}</b> · Importe{" "}
-        <b>{refund.formattedAmount}</b>
+        <b>{amountText}</b>
+        {!amountKnown && " — verificá el importe real en la consola del proveedor antes de continuar."}
       </div>
 
       {error && <div className={shared.formMsg} data-tone="bad">{error}</div>}
+
+      <div className={shared.field}>
+        <label htmlFor={`reentry-${refund.id}`}>
+          Para confirmar, reescribí el importe exacto: <b>{amountText}</b>
+        </label>
+        <input
+          id={`reentry-${refund.id}`}
+          value={reentryInput}
+          onChange={(e) => setReentryInput(e.target.value)}
+          placeholder={amountText}
+          autoComplete="off"
+        />
+      </div>
 
       <div className={shared.field}>
         <label htmlFor={`ref-${refund.id}`}>Referencia real del proveedor (obligatoria)</label>
@@ -106,13 +134,22 @@ export function ManualRefundAction({ refund, canExecute }: { refund: RefundForAc
       </div>
 
       <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
-        <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-        Confirmo que el reembolso de {refund.formattedAmount} a {refund.email} ya se ejecutó realmente y
+        <input
+          type="checkbox"
+          checked={confirmed}
+          disabled={!reentryMatches}
+          onChange={(e) => setConfirmed(e.target.checked)}
+        />
+        Confirmo que el reembolso de {amountText} a {refund.email} ya se ejecutó realmente y
         quedó verificado.
       </label>
 
       <div className={shared.actions}>
-        <button type="submit" className={`${shared.btnSmall} ${shared.btnSmallDanger}`} disabled={submitting}>
+        <button
+          type="submit"
+          className={`${shared.btnSmall} ${shared.btnSmallDanger}`}
+          disabled={submitting || !reentryMatches || !confirmed}
+        >
           {submitting ? "Confirmando…" : "Confirmar reembolso"}
         </button>
         <button type="button" className={shared.btnSmall} onClick={() => setOpen(false)}>

@@ -41,7 +41,7 @@ export const SUPPORT_STATUS_LABEL: Record<string, string> = {
 };
 
 export const SUPPORT_STATUS_TONE: Record<string, "good" | "warn" | "bad" | undefined> = {
-  OPEN: "warn",
+  OPEN: "bad",
   IN_PROGRESS: "warn",
   RESOLVED: "good",
   CLOSED: undefined,

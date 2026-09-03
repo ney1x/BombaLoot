@@ -81,6 +81,18 @@ body {
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  /* Sticky footer: sin esto, cualquier página corta (un skeleton de carga,
+     un empty state, un error) deja al Footer subiendo a mitad de viewport
+     en vez de pegado abajo — y cuando el contenido real carga y crece, el
+     salto del Footer hacia abajo es un layout shift feo. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.siteMain {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 h1,

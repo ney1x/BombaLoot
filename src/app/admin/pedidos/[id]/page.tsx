@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import shared from "../../shared.module.css";
+import { STATUS_LABEL, STATUS_TONE } from "../../order-status-labels";
+import { STATUS_LABEL as CODE_STATUS_LABEL, STATUS_TONE as CODE_STATUS_TONE } from "../../code-status-labels";
+import {
+  STATUS_LABEL as PAYMENT_STATUS_LABEL,
+  STATUS_TONE as PAYMENT_STATUS_TONE,
+} from "../../payment-intent-status-labels";
+import { STATUS_LABEL as REFUND_STATUS_LABEL, STATUS_TONE as REFUND_STATUS_TONE } from "../../refund-status-labels";
 import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { getOrderDetailAdmin } from "@/server/services/admin-orders";
@@ -9,10 +16,52 @@ import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
 
 export const metadata: Metadata = { title: "Detalle de pedido — Admin bombaloot" };
 
+const AUDIT_LOG_CAP = 100;
+
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const order = await getOrderDetailAdmin(getDb(), id);
   if (!order) notFound();
+
+  const refundsSection = order.refundRequests.length > 0 && (
+    <div className={shared.card}>
+      <h2 className={shared.title} style={{ fontSize: 15 }}>
+        Reembolsos
+      </h2>
+      <div className={shared.tableWrap} style={{ marginTop: 10 }}>
+        <table className={shared.table}>
+          <thead>
+            <tr>
+              <th scope="col">Estado</th>
+              <th scope="col">Proveedor</th>
+              <th scope="col">Monto</th>
+              <th scope="col">Solicitado</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.refundRequests.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  <span className={shared.badge} data-tone={REFUND_STATUS_TONE[r.status]}>
+                    {REFUND_STATUS_LABEL[r.status] ?? r.status}
+                  </span>
+                </td>
+                <td>{r.provider}</td>
+                <td className="num-display">{r.amountCop ? formatCop(r.amountCop) : "—"}</td>
+                <td>{r.requestedAt.toLocaleString("es-CO")}</td>
+                <td>
+                  <Link href="/admin/reembolsos" className={shared.btnSmall}>
+                    Ver en Reembolsos
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className={shared.page}>
@@ -24,20 +73,33 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         <div>
           <h1 className={shared.title}>Pedido {order.orderNumber}</h1>
           <p className={shared.subtitle}>
-            {order.email} · {order.userId ? "cuenta registrada" : "invitado"} ·{" "}
-            {order.createdAt.toLocaleString("es-CO")}
+            {order.buyerName ?? order.email} · {order.email} ·{" "}
+            {order.userId ? "cuenta registrada" : "invitado"} · pedido el {order.createdAt.toLocaleString("es-CO")}
+          </p>
+          <p className={shared.subtitle}>
+            {order.paidAt ? `Pagado el ${order.paidAt.toLocaleString("es-CO")}` : "Sin pagar todavía"}
+            {" · "}
+            {order.deliveredAt ? `Entregado el ${order.deliveredAt.toLocaleString("es-CO")}` : "Código no entregado todavía"}
           </p>
         </div>
-        <span className={shared.badge} data-tone="accent">
-          {order.orderStatus}
+        <span className={shared.badge} data-tone={STATUS_TONE[order.orderStatus]}>
+          {STATUS_LABEL[order.orderStatus] ?? order.orderStatus}
         </span>
       </div>
 
-      {order.paymentStatus === "PENDING" && (
-        <div style={{ marginBottom: 20 }}>
-          <CancelFraudAction orderId={order.orderId} />
+      {order.lastPaymentError && (
+        <div className={shared.formMsg} data-tone="bad">
+          Último error de pago: {order.lastPaymentError}
         </div>
       )}
+
+      {order.paymentStatus === "PENDING" && (
+        <div style={{ marginBottom: 20 }}>
+          <CancelFraudAction orderId={order.orderId} expired={order.orderStatus === "PAYMENT_EXPIRED"} />
+        </div>
+      )}
+
+      {refundsSection}
 
       <div className={shared.card}>
         <h2 className={shared.title} style={{ fontSize: 15 }}>
@@ -47,10 +109,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <table className={shared.table}>
             <thead>
               <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio unitario</th>
-                <th>Total</th>
+                <th scope="col">Producto</th>
+                <th scope="col">Cantidad</th>
+                <th scope="col">Precio unitario</th>
+                <th scope="col">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -82,9 +144,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <table className={shared.table}>
             <thead>
               <tr>
-                <th>Producto</th>
-                <th>Fingerprint</th>
-                <th>Estado</th>
+                <th scope="col">Producto</th>
+                <th scope="col">Fingerprint</th>
+                <th scope="col">Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -95,7 +157,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   </td>
                   <td className={shared.mono}>{c.fingerprint}</td>
                   <td>
-                    <span className={shared.badge}>{c.status}</span>
+                    <span className={shared.badge} data-tone={CODE_STATUS_TONE[c.status]}>
+                      {CODE_STATUS_LABEL[c.status] ?? c.status}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -119,11 +183,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <table className={shared.table}>
             <thead>
               <tr>
-                <th>Proveedor</th>
-                <th>Referencia</th>
-                <th>Estado</th>
-                <th>Monto</th>
-                <th>Fecha</th>
+                <th scope="col">Proveedor</th>
+                <th scope="col">Referencia</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Monto</th>
+                <th scope="col">Fecha</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +195,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 <tr key={p.id}>
                   <td>{p.provider}</td>
                   <td className={shared.mono}>{p.providerRef ?? "—"}</td>
-                  <td>{p.status}</td>
+                  <td>
+                    <span className={shared.badge} data-tone={PAYMENT_STATUS_TONE[p.status]}>
+                      {PAYMENT_STATUS_LABEL[p.status] ?? p.status}
+                    </span>
+                  </td>
                   <td className="num-display">{formatCop(p.amountCop)}</td>
                   <td>{p.createdAt.toLocaleString("es-CO")}</td>
                 </tr>
@@ -148,51 +216,20 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         </div>
       </div>
 
-      {order.refundRequests.length > 0 && (
-        <div className={shared.card}>
-          <h2 className={shared.title} style={{ fontSize: 15 }}>
-            Reembolsos
-          </h2>
-          <div className={shared.tableWrap} style={{ marginTop: 10 }}>
-            <table className={shared.table}>
-              <thead>
-                <tr>
-                  <th>Estado</th>
-                  <th>Proveedor</th>
-                  <th>Monto</th>
-                  <th>Solicitado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.refundRequests.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <Link href="/admin/reembolsos" className={shared.badge}>
-                        {r.status}
-                      </Link>
-                    </td>
-                    <td>{r.provider}</td>
-                    <td className="num-display">{r.amountCop ? formatCop(r.amountCop) : "—"}</td>
-                    <td>{r.requestedAt.toLocaleString("es-CO")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       <div className={shared.card}>
         <h2 className={shared.title} style={{ fontSize: 15 }}>
           Timeline / auditoría
         </h2>
+        {order.auditLog.length === AUDIT_LOG_CAP && (
+          <p className={shared.subtitle}>Mostrando los últimos {AUDIT_LOG_CAP} eventos — puede haber más.</p>
+        )}
         <div className={shared.tableWrap} style={{ marginTop: 10 }}>
           <table className={shared.table}>
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Actor</th>
-                <th>Acción</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Actor</th>
+                <th scope="col">Acción</th>
               </tr>
             </thead>
             <tbody>

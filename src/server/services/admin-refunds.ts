@@ -102,6 +102,14 @@ export async function listRefundsAdmin(db: Db, status?: string): Promise<AdminRe
   return rows.map(toAdminRefundRow);
 }
 
+/** Para el badge del sidebar — cuántos reembolsos están esperando que un ADMIN los revise a mano. */
+export async function countPendingManualReviews(db: Db): Promise<number> {
+  const { rows } = (await db.execute(sql`
+    SELECT count(*)::int AS count FROM refund_requests WHERE status = 'MANUAL_REVIEW_REQUIRED'
+  `)) as unknown as { rows: { count: number }[] };
+  return rows[0]?.count ?? 0;
+}
+
 export async function getRefundAdmin(db: Db, refundId: string): Promise<AdminRefundRow | null> {
   const { rows } = (await db.execute(sql`
     SELECT rr.id, rr.order_id, o.order_number, o.email, rr.provider, rr.status, rr.reason,

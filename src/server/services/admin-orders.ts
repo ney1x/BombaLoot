@@ -69,6 +69,27 @@ interface OrderSummaryRow {
   created_at: string;
 }
 
+/**
+ * Mismo cálculo que `deriveOrderStatus` (checkout-service.ts), pero en SQL
+ * — necesario para poder filtrar por `status` ANTES del `LIMIT`. Filtrar
+ * en JS después de traer solo los últimos `limit` pedidos (como hacía esta
+ * función antes) podía devolver "0 resultados" con matches reales fuera de
+ * esa ventana — verificado: una tienda con más de `limit` pedidos recientes
+ * podía esconder un `PAID_AWAITING_REFUND` real. Si `deriveOrderStatus`
+ * cambia, este CASE tiene que cambiar con ella.
+ */
+const ORDER_STATUS_SQL = sql`
+  CASE
+    WHEN payment_status = 'REFUNDED' THEN 'REFUNDED'
+    WHEN payment_status = 'FAILED' THEN 'FAILED'
+    WHEN payment_status = 'PAID' AND delivery_status = 'DELIVERED' THEN 'COMPLETED'
+    WHEN payment_status = 'PAID' AND delivery_status = 'UNAVAILABLE' THEN 'PAID_AWAITING_REFUND'
+    WHEN payment_status = 'PAID' THEN 'PAID_PENDING_DELIVERY'
+    WHEN payment_expires_at IS NOT NULL AND payment_expires_at < now() THEN 'PAYMENT_EXPIRED'
+    ELSE 'PENDING_PAYMENT'
+  END
+`;
+
 export async function listOrdersAdmin(db: Db, filters: OrderFilters): Promise<AdminOrderSummary[]> {
   const conditions = [sql`1=1`];
   if (filters.orderNumber) conditions.push(sql`order_number ILIKE ${"%" + filters.orderNumber + "%"}`);
@@ -78,6 +99,7 @@ export async function listOrdersAdmin(db: Db, filters: OrderFilters): Promise<Ad
   if (filters.owner === "guest") conditions.push(sql`user_id IS NULL`);
   if (filters.dateFrom) conditions.push(sql`created_at >= ${filters.dateFrom}::timestamptz`);
   if (filters.dateTo) conditions.push(sql`created_at <= ${filters.dateTo}::timestamptz`);
+  if (filters.status) conditions.push(sql`(${ORDER_STATUS_SQL}) = ${filters.status}`);
 
   const where = conditions.reduce((acc, c) => sql`${acc} AND ${c}`);
 
@@ -90,7 +112,7 @@ export async function listOrdersAdmin(db: Db, filters: OrderFilters): Promise<Ad
      LIMIT ${filters.limit}
   `)) as unknown as { rows: OrderSummaryRow[] };
 
-  const summaries = rows.map((row) => {
+  return rows.map((row) => {
     const paymentExpiresAt = row.payment_expires_at ? new Date(row.payment_expires_at) : null;
     return {
       orderId: row.id,
@@ -109,10 +131,6 @@ export async function listOrdersAdmin(db: Db, filters: OrderFilters): Promise<Ad
       createdAt: new Date(row.created_at),
     };
   });
-
-  // `status` es derivado, no una columna — se filtra acá, después de
-  // calcularlo con la misma función que usa el resto del sistema.
-  return filters.status ? summaries.filter((o) => o.orderStatus === filters.status) : summaries;
 }
 
 /* ────────────────────────── detalle ────────────────────────── */

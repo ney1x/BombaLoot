@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import shared from "../../shared.module.css";
+import { STOCK_LABEL, STOCK_TONE } from "../../stock-labels";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { getAdminProduct } from "@/server/services/admin-products";
@@ -13,8 +14,15 @@ import { ImagesManager } from "@/components/admin/ImagesManager";
 
 export const metadata: Metadata = { title: "Producto — Admin bombaloot" };
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
+}) {
   const { id } = await params;
+  const { created } = await searchParams;
   const [session, product] = await Promise.all([getCurrentSession(), getAdminProduct(getDb(), id)]);
   if (!product) notFound();
 
@@ -26,6 +34,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       <Link href="/admin/productos" className={shared.backLink}>
         ← Productos
       </Link>
+      {created === "1" && (
+        <div className={shared.formMsg} data-tone="good">
+          Producto creado{product.isActive ? "." : " — queda como borrador hasta que lo actives."}
+        </div>
+      )}
       <div className={shared.headRow}>
         <div>
           <h1 className={shared.title}>
@@ -33,8 +46,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </h1>
           <p className={shared.subtitle}>
             {product.available} disponibles · {product.reserved} reservados · {product.paid + product.delivered} vendidos
+            {" · "}umbral {product.lowStockAt}
           </p>
         </div>
+        <span className={shared.badge} data-tone={STOCK_TONE[product.stock]}>
+          {STOCK_LABEL[product.stock]}
+        </span>
       </div>
 
       <ProductEditForm

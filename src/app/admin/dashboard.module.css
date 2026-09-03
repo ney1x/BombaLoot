@@ -11,6 +11,18 @@
   margin: 0;
 }
 
+.metricGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.metricGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .metricsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -18,10 +30,20 @@
 }
 
 .metricCard {
+  display: block;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 14px 16px;
+}
+
+a.metricCard {
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+a.metricCard:hover,
+a.metricCard:focus-visible {
+  border-color: var(--ink-faint);
 }
 
 .metricCard[data-tone="warn"] {
@@ -29,9 +51,21 @@
   background: var(--warn-soft);
 }
 
+a.metricCard[data-tone="warn"]:hover,
+a.metricCard[data-tone="warn"]:focus-visible {
+  border-color: var(--warn);
+  filter: brightness(0.97);
+}
+
 .metricCard[data-tone="alert"] {
   border-color: var(--alert);
   background: var(--alert-soft);
+}
+
+a.metricCard[data-tone="alert"]:hover,
+a.metricCard[data-tone="alert"]:focus-visible {
+  border-color: var(--alert);
+  filter: brightness(0.97);
 }
 
 .metricLabel {

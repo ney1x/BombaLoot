@@ -42,13 +42,17 @@
 }
 
 .email {
+  /* Mono se mantiene a propósito: distingue 0/O, 1/l/I — justo lo que
+     este modal existe para que el usuario detecte antes de confirmar. */
   font-family: var(--font-mono);
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
   color: var(--ink);
   background: var(--surface-2);
   border-radius: 9px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   margin: 0 0 14px;
   word-break: break-all;
 }

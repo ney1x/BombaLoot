@@ -116,7 +116,11 @@ export function ImagesManager({
   }
 
   async function removeImage(imageId: string) {
-    if (!window.confirm("¿Eliminar esta imagen?")) return;
+    const isPrimary = images.find((img) => img.id === imageId)?.isPrimary ?? false;
+    const message = isPrimary
+      ? "¿Eliminar esta imagen? Es la principal — se promueve otra automáticamente si hay una activa."
+      : "¿Eliminar esta imagen?";
+    if (!window.confirm(message)) return;
     setError(null);
     try {
       const res = await fetch(`/api/admin/images/${imageId}`, { method: "DELETE" });

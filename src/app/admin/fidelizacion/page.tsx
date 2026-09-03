@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import shared from "../shared.module.css";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
-import { listLoyaltyTiers } from "@/server/services/admin-loyalty";
+import { countCustomersByTier, listLoyaltyTiers } from "@/server/services/admin-loyalty";
 import { LoyaltyTiersManager } from "@/components/admin/LoyaltyTiersManager";
 
 export const metadata: Metadata = { title: "Fidelización — Admin bombaloot" };
 
 export default async function AdminLoyaltyPage() {
-  const [session, tiers] = await Promise.all([getCurrentSession(), listLoyaltyTiers(getDb())]);
+  const [session, tiers, customerCounts] = await Promise.all([
+    getCurrentSession(),
+    listLoyaltyTiers(getDb()),
+    countCustomersByTier(getDb()),
+  ]);
   const canEdit = session?.role === "ADMIN";
 
   return (
@@ -21,7 +25,7 @@ export default async function AdminLoyaltyPage() {
           </p>
         </div>
       </div>
-      <LoyaltyTiersManager initialTiers={tiers} canEdit={canEdit} />
+      <LoyaltyTiersManager initialTiers={tiers} canEdit={canEdit} customerCounts={customerCounts} />
     </div>
   );
 }

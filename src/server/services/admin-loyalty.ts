@@ -77,6 +77,26 @@ export async function listLoyaltyTiers(db: Db): Promise<AdminLoyaltyTier[]> {
   return rows.map(toAdminTier);
 }
 
+/**
+ * Chequeo previo del umbral, además de la unique constraint en DB
+ * (`min_purchases`): la constraint sigue siendo la garantía real contra
+ * condiciones de carrera, pero por sí sola solo da un 23505 genérico que no
+ * dice CUÁL nivel ya usa ese umbral. Esto da el mensaje específico en el
+ * caso común (sin carrera); la constraint cubre el resto.
+ */
+async function assertThresholdFree(tx: Db, minPurchases: number, excludeId?: string): Promise<void> {
+  const exclude = excludeId ? sql`AND id <> ${excludeId}` : sql``;
+  const { rows } = (await tx.execute(sql`
+    SELECT id, name FROM loyalty_tiers WHERE min_purchases = ${minPurchases} ${exclude}
+  `)) as unknown as { rows: Array<{ id: string; name: string }> };
+  const conflict = rows[0];
+  if (conflict) {
+    throw new DuplicateLoyaltyTierError(
+      `El nivel "${conflict.name}" (${conflict.id}) ya usa ${minPurchases} compras mínimas — elegí otro umbral.`,
+    );
+  }
+}
+
 export async function createLoyaltyTier(
   pool: Pool,
   actor: ValidatedSession,
@@ -84,6 +104,7 @@ export async function createLoyaltyTier(
   context: { ip?: string | null; userAgent?: string | null } = {},
 ): Promise<void> {
   await withTransaction(pool, async (tx) => {
+    await assertThresholdFree(tx, input.minPurchases);
     try {
       await tx.execute(sql`
         INSERT INTO loyalty_tiers (id, name, min_purchases, discount_pct, sort_order)
@@ -128,6 +149,10 @@ export async function updateLoyaltyTier(
       sortOrder: input.sortOrder ?? previous.sort_order,
     };
 
+    if (next.minPurchases !== previous.min_purchases) {
+      await assertThresholdFree(tx, next.minPurchases, tierId);
+    }
+
     try {
       await tx.execute(sql`
         UPDATE loyalty_tiers
@@ -154,6 +179,26 @@ export async function updateLoyaltyTier(
       userAgent: context.userAgent,
     });
   });
+}
+
+/**
+ * "El nivel mejor que aplica gana, no es acumulativo" (ver `checkout-service.ts`) —
+ * por eso cada usuario cuenta para exactamente un nivel: el de mayor
+ * `min_purchases` que no supere sus compras, entre los niveles activos.
+ * Para el admin de fidelización, así sabe a cuánta gente afecta antes de
+ * tocar o desactivar un nivel.
+ */
+export async function countCustomersByTier(db: Db): Promise<Record<string, number>> {
+  const { rows } = (await db.execute(sql`
+    WITH best AS (
+      SELECT DISTINCT ON (u.id) u.id AS user_id, t.id AS tier_id
+        FROM users u
+        JOIN loyalty_tiers t ON t.is_active AND t.min_purchases <= u.purchases_count
+       ORDER BY u.id, t.min_purchases DESC
+    )
+    SELECT tier_id, count(*)::int AS count FROM best GROUP BY tier_id
+  `)) as unknown as { rows: Array<{ tier_id: string; count: number }> };
+  return Object.fromEntries(rows.map((r) => [r.tier_id, r.count]));
 }
 
 export async function setLoyaltyTierActive(

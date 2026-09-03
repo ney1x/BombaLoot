@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Public_Sans, Roboto_Mono } from "next/font/google";
-import Link from "next/link";
 import "../globals.css";
 import styles from "./admin.module.css";
 import { requireAdminOrSupport } from "@/server/auth/guards";
+import { getDb } from "@/server/db/client";
+import { countPendingManualReviews } from "@/server/services/admin-refunds";
+import { AdminNav } from "@/components/admin/AdminNav";
 import { ThemeInit } from "@/components/admin/ThemeInit";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -50,7 +52,9 @@ const NAV_ITEMS = [
   { href: "/admin/fidelizacion", label: "Fidelización" },
   { href: "/admin/descuentos", label: "Descuentos" },
   { href: "/admin/auditoria", label: "Auditoría" },
-  { href: "/admin/configuracion", label: "Configuración" },
+  // "Configuración" vivía acá sin página detrás — 404 en cada carga del
+  // admin (hallazgo repetido en varias críticas de diseño). Sacado hasta
+  // que exista una página real; no inventar una de settings vacía.
 ];
 
 /**
@@ -63,6 +67,10 @@ const NAV_ITEMS = [
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAdminOrSupport();
+  const pendingReviews = await countPendingManualReviews(getDb());
+  const navItems = NAV_ITEMS.map((item) =>
+    item.href === "/admin/reembolsos" && pendingReviews > 0 ? { ...item, badge: pendingReviews } : item,
+  );
 
   return (
     <html
@@ -78,13 +86,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <span className={styles.brandMark}>BOMBALOOT</span>
               <span className={styles.brandSub}>admin</span>
             </div>
-            <nav className={styles.nav}>
-              {NAV_ITEMS.map((item) => (
-                <Link key={item.href} href={item.href} className={styles.navLink}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <AdminNav items={navItems} />
             <div className={styles.sidebarFoot}>
               <div className={styles.sessionRole} data-role={session.role}>
                 {session.role}

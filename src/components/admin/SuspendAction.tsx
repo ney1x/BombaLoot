@@ -40,7 +40,10 @@ export function SuspendAction({
         body: JSON.stringify({ reason }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "No se pudo suspender");
+      if (!res.ok) {
+        const fieldMsgs = data.fields ? Object.values(data.fields).flat().join(" ") : "";
+        throw new Error([data.error, fieldMsgs].filter(Boolean).join(" — ") || "No se pudo suspender");
+      }
       setOpen(false);
       setReason("");
       router.refresh();
@@ -57,7 +60,10 @@ export function SuspendAction({
     try {
       const res = await fetch(`/api/admin/users/${userId}/suspend`, { method: "DELETE" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "No se pudo reactivar");
+      if (!res.ok) {
+        const fieldMsgs = data.fields ? Object.values(data.fields).flat().join(" ") : "";
+        throw new Error([data.error, fieldMsgs].filter(Boolean).join(" — ") || "No se pudo reactivar");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");

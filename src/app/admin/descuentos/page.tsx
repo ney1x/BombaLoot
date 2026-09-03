@@ -19,7 +19,25 @@ export default async function AdminDiscountsPage() {
           <p className={shared.subtitle}>Reglas activas — el checkout las aplica en tiempo real, nunca desde acá directamente.</p>
         </div>
       </div>
-      <DiscountsManager initialDiscounts={discounts} canEdit={canEdit} />
+      <DiscountsManager
+        initialDiscounts={discounts.map((d) => ({
+          id: d.id,
+          code: d.code,
+          kind: d.kind,
+          value: d.value,
+          scope: d.scope,
+          scopeRef: d.scopeRef,
+          minSubtotalCop: d.minSubtotalCop,
+          startsAt: d.startsAt ? d.startsAt.toISOString() : null,
+          endsAt: d.endsAt ? d.endsAt.toISOString() : null,
+          maxUses: d.maxUses,
+          usesCount: d.usesCount,
+          maxUsesPerUser: d.maxUsesPerUser,
+          stackable: d.stackable,
+          isActive: d.isActive,
+        }))}
+        canEdit={canEdit}
+      />
     </div>
   );
 }

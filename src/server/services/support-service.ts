@@ -82,6 +82,8 @@ export interface SupportTicketView {
   createdAt: Date;
   updatedAt: Date;
   lastMessageAt: Date;
+  /** Quién escribió el último mensaje — si es el cliente y el ticket sigue abierto, está esperando respuesta. */
+  lastMessageSender: "CUSTOMER" | "ADMIN" | null;
 }
 
 interface TicketRow {
@@ -99,6 +101,7 @@ interface TicketRow {
   created_at: string;
   updated_at: string;
   last_message_at: string;
+  last_message_sender: "CUSTOMER" | "ADMIN" | null;
 }
 
 function toTicketView(row: TicketRow): SupportTicketView {
@@ -117,6 +120,7 @@ function toTicketView(row: TicketRow): SupportTicketView {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     lastMessageAt: new Date(row.last_message_at),
+    lastMessageSender: row.last_message_sender,
   };
 }
 
@@ -124,10 +128,14 @@ const TICKET_SELECT = sql`
     SELECT t.id, t.ticket_number, t.email, t.user_id, t.category, t.status,
            t.order_id, o.order_number, t.order_number_input,
            t.assigned_to, au.email AS assigned_to_email,
-           t.created_at, t.updated_at, t.last_message_at
+           t.created_at, t.updated_at, t.last_message_at, lm.sender_type AS last_message_sender
       FROM support_tickets t
       LEFT JOIN orders o ON o.id = t.order_id
       LEFT JOIN users au ON au.id = t.assigned_to
+      LEFT JOIN LATERAL (
+        SELECT m.sender_type FROM support_messages m
+         WHERE m.ticket_id = t.id ORDER BY m.created_at DESC LIMIT 1
+      ) lm ON true
 `;
 
 /**
@@ -312,7 +320,12 @@ export async function addAdminMessage(pool: Pool, ticketId: string, adminUserId:
       VALUES (${row.id}::uuid, 'ADMIN', ${adminUserId}::uuid, ${body})
     `);
 
-    const nextStatus = row.status === "OPEN" ? sql`'IN_PROGRESS'` : sql`status`;
+    /* Igual que appendCustomerReply: responder a un ticket RESOLVED/CLOSED lo reabre — quedaba
+       en ese estado silenciosamente, el admin creía que seguía cerrado. */
+    const nextStatus =
+      row.status === "OPEN" || row.status === "RESOLVED" || row.status === "CLOSED"
+        ? sql`'IN_PROGRESS'`
+        : sql`status`;
     const nextAssignee = row.assigned_to ? sql`assigned_to` : sql`${adminUserId}::uuid`;
     await tx.execute(sql`
       UPDATE support_tickets
@@ -368,8 +381,20 @@ export async function listTicketsAdmin(db: Db, filters: AdminTicketListFilters):
   }
   const where = conditions.reduce((acc, c) => sql`${acc} AND ${c}`);
 
+  /* Los que esperan respuesta nuestra van primero (más viejo primero, para
+     atender al que lleva más tiempo colgado); el resto ordenado por
+     actividad reciente como antes. */
+  /* `last_message_sender` es un alias de salida del SELECT (viene de `lm.sender_type`
+     vía el LATERAL join) — Postgres solo resuelve alias de salida en ORDER BY cuando
+     aparecen solos, no dentro de una expresión compuesta. Referenciar `lm.sender_type`
+     directo evita el "column does not exist". */
   const { rows } = (await db.execute(
-    sql`${TICKET_SELECT} WHERE ${where} ORDER BY t.last_message_at DESC LIMIT 200`,
+    sql`${TICKET_SELECT} WHERE ${where}
+        ORDER BY (t.status IN ('OPEN', 'IN_PROGRESS') AND lm.sender_type = 'CUSTOMER') DESC,
+                 CASE WHEN t.status IN ('OPEN', 'IN_PROGRESS') AND lm.sender_type = 'CUSTOMER'
+                      THEN t.last_message_at END ASC,
+                 t.last_message_at DESC
+        LIMIT 200`,
   )) as unknown as { rows: TicketRow[] };
   return rows.map(toTicketView);
 }

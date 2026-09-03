@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
+import { STATUS_LABEL, STATUS_TONE } from "@/app/admin/code-status-labels";
 import { EyeIcon, EyeOffIcon } from "@/components/icons";
 
 export interface AdminCode {
@@ -15,14 +16,6 @@ export interface AdminCode {
   uploadedById: string | null;
   uploadedByName: string | null;
 }
-
-const STATUS_TONE: Record<string, string> = {
-  AVAILABLE: "good",
-  RESERVED: "warn",
-  PAID: "accent",
-  DELIVERED: "accent",
-  VOID: "bad",
-};
 
 const STATUS_OPTIONS = ["AVAILABLE", "RESERVED", "PAID", "DELIVERED", "VOID"];
 
@@ -75,6 +68,7 @@ export function CodesManager({
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [loadedDateFilter, setLoadedDateFilter] = useState("");
   const [deliveredDateFilter, setDeliveredDateFilter] = useState("");
+  const [page, setPage] = useState(0);
 
   const hasActiveFilters =
     search || statusFilter || sortOrder !== "desc" || loadedDateFilter || deliveredDateFilter;
@@ -94,6 +88,21 @@ export function CodesManager({
       return sortOrder === "desc" ? -diff : diff;
     });
   }, [codes, search, statusFilter, sortOrder, loadedDateFilter, deliveredDateFilter]);
+
+  // Una tabla sin paginar de hasta 500 filas (el tope del alta masiva) no es
+  // escaneable. 50 por página; cualquier cambio de filtro vuelve a la 1.
+  const PAGE_SIZE = 50;
+  const totalPages = Math.max(1, Math.ceil(visibleCodes.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pagedCodes = visibleCodes.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  /** Cualquier cambio de filtro invalida la página actual — mismo `setState`, sin efecto aparte. */
+  function updateFilter<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(0);
+    };
+  }
 
   async function refresh() {
     const res = await fetch(`/api/admin/products/${productId}/codes`);
@@ -179,7 +188,7 @@ export function CodesManager({
   }
 
   async function removeCode(codeId: string) {
-    if (!window.confirm("¿Eliminar este código? Solo funciona si sigue AVAILABLE.")) return;
+    if (!window.confirm(`¿Eliminar este código? Solo funciona si sigue ${STATUS_LABEL.AVAILABLE}.`)) return;
     setError(null);
     try {
       const res = await fetch(`/api/admin/codes/${codeId}`, { method: "DELETE" });
@@ -226,26 +235,26 @@ export function CodesManager({
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => updateFilter(setSearch)(e.target.value)}
           placeholder="Buscar fingerprint…"
           aria-label="Buscar por fingerprint"
           style={{ minWidth: 200 }}
         />
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => updateFilter(setStatusFilter)(e.target.value)}
           aria-label="Filtrar por estado"
         >
           <option value="">Todos los estados</option>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {STATUS_LABEL[s]}
             </option>
           ))}
         </select>
         <select
           value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+          onChange={(e) => updateFilter(setSortOrder)(e.target.value as "desc" | "asc")}
           aria-label="Ordenar por fecha de carga"
         >
           <option value="desc">Más reciente primero</option>
@@ -259,7 +268,7 @@ export function CodesManager({
             id="loadedDate"
             type="date"
             value={loadedDateFilter}
-            onChange={(e) => setLoadedDateFilter(e.target.value)}
+            onChange={(e) => updateFilter(setLoadedDateFilter)(e.target.value)}
           />
         </div>
         <div className={shared.field} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -270,7 +279,7 @@ export function CodesManager({
             id="deliveredDate"
             type="date"
             value={deliveredDateFilter}
-            onChange={(e) => setDeliveredDateFilter(e.target.value)}
+            onChange={(e) => updateFilter(setDeliveredDateFilter)(e.target.value)}
           />
         </div>
         {hasActiveFilters && (
@@ -283,6 +292,7 @@ export function CodesManager({
               setSortOrder("desc");
               setLoadedDateFilter("");
               setDeliveredDateFilter("");
+              setPage(0);
             }}
           >
             Limpiar
@@ -306,7 +316,7 @@ export function CodesManager({
             </tr>
           </thead>
           <tbody>
-            {visibleCodes.map((c) => {
+            {pagedCodes.map((c) => {
               const isOwner = !c.uploadedById || c.uploadedById === currentUserId;
               const canReveal = canEdit && isOwner && c.status === "AVAILABLE";
               return (
@@ -335,7 +345,7 @@ export function CodesManager({
                 </td>
                 <td>
                   <span className={shared.badge} data-tone={STATUS_TONE[c.status]}>
-                    {c.status}
+                    {STATUS_LABEL[c.status] ?? c.status}
                   </span>
                 </td>
                 <td>{c.uploadedByName ?? "—"}</td>
@@ -351,10 +361,15 @@ export function CodesManager({
                           <input
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            placeholder="Código correcto"
+                            placeholder="Reemplazar por…"
                             style={{ fontSize: 12, padding: "4px 6px" }}
                           />
-                          <button type="button" className={shared.btnSmall} onClick={() => saveEdit(c.id)}>
+                          <button
+                            type="button"
+                            className={shared.btnSmall}
+                            onClick={() => saveEdit(c.id)}
+                            disabled={!editValue.trim()}
+                          >
                             OK
                           </button>
                           <button type="button" className={shared.btnSmall} onClick={() => setEditingId(null)}>
@@ -396,6 +411,30 @@ export function CodesManager({
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className={shared.actions} style={{ alignItems: "center" }}>
+          <button
+            type="button"
+            className={shared.btnSmall}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+          >
+            ← Anterior
+          </button>
+          <span className={shared.subtitle}>
+            Página {currentPage + 1} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className={shared.btnSmall}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={currentPage >= totalPages - 1}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -31,6 +31,14 @@ export const createProductSchema = z.object({
   priceCop: z.number().int().positive().max(100_000_000),
   maxPerOrder: z.number().int().positive().max(1000).default(10),
   lowStockAt: z.number().int().min(0).max(1000).default(5),
+  /**
+   * `false` por default a propósito — a diferencia del `DEFAULT true` de la
+   * columna en la base. Un producto recién creado no tiene códigos ni
+   * imágenes todavía; publicarlo activo de entrada lo pone en el catálogo
+   * público vacío y "agotado" antes de que el admin termine de cargarlo
+   * (verificado en vivo). El admin lo activa a mano cuando ya está listo.
+   */
+  isActive: z.boolean().default(false),
 });
 
 export const updateProductSchema = z.object({
@@ -82,6 +90,24 @@ interface ProductQueryRow {
   delivered: string;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Drizzle envuelve el error real de `pg` en su propio `DrizzleQueryError` —
+ * `code`/`constraint` viven en `error.cause`, no en el error de arriba.
+ * Chequear solo el error de arriba (como hacía antes esta función) hace que
+ * la colisión de `products_pkey`/`products_variant_key` nunca se detecte y
+ * se cuele como un 500 genérico — verificado en vivo. Mismo bug, mismo
+ * fix, que `isIdempotencyKeyConflict` en `checkout-service.ts`.
+ */
+function isDuplicateProductConflict(error: unknown): boolean {
+  const withPgCode = (candidate: unknown): candidate is { code?: string } =>
+    typeof candidate === "object" && candidate !== null;
+
+  for (const candidate of [error, (error as { cause?: unknown } | undefined)?.cause]) {
+    if (withPgCode(candidate) && candidate.code === "23505") return true;
+  }
+  return false;
 }
 
 function stockStateFor(available: number, lowStockAt: number): AdminProductRow["stock"] {
@@ -181,12 +207,12 @@ export async function createProduct(
 
     try {
       await tx.execute(sql`
-        INSERT INTO products (id, game_id, denomination, unit, description, price_cop, max_per_order, low_stock_at)
+        INSERT INTO products (id, game_id, denomination, unit, description, price_cop, max_per_order, low_stock_at, is_active)
         VALUES (${input.id}, ${input.gameId}, ${input.denomination}, ${input.unit}, ${input.description ?? null},
-                ${input.priceCop}, ${input.maxPerOrder}, ${input.lowStockAt})
+                ${input.priceCop}, ${input.maxPerOrder}, ${input.lowStockAt}, ${input.isActive})
       `);
     } catch (error) {
-      if ((error as { code?: string }).code === "23505") {
+      if (isDuplicateProductConflict(error)) {
         throw new DuplicateProductError(
           `Ya existe un producto con id "${input.id}" o con la misma combinación juego/denominación/unidad`,
         );
@@ -200,7 +226,13 @@ export async function createProduct(
       action: "product.created",
       entityType: "product",
       entityId: input.id,
-      metadata: { gameId: input.gameId, denomination: input.denomination, unit: input.unit, priceCop: input.priceCop },
+      metadata: {
+        gameId: input.gameId,
+        denomination: input.denomination,
+        unit: input.unit,
+        priceCop: input.priceCop,
+        isActive: input.isActive,
+      },
       ip: context.ip,
       userAgent: context.userAgent,
     });

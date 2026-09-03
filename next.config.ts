@@ -21,7 +21,13 @@ const CSP_DIRECTIVES = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' https://*.public.blob.vercel-storage.com data:",
+  // `blob:` — GameVisualsManager/ImagesManager leen ancho/alto real del
+  // archivo elegido con `URL.createObjectURL(file)` antes de subirlo (aviso
+  // de aspect-ratio equivocado); sin esto el propio navegador bloquea esa
+  // lectura por la CSP (verificado en vivo: "Loading the image 'blob:...'
+  // violates... img-src"), rompiendo la validación que se agregó para
+  // arreglar justo ese problema.
+  "img-src 'self' https://*.public.blob.vercel-storage.com blob: data:",
   "font-src 'self'",
   "connect-src 'self'",
   "form-action 'self'",

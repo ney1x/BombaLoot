@@ -45,24 +45,60 @@ export default async function AdminSupportPage({
       </form>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {tickets.map((t) => (
-          <Link key={t.id} href={`/admin/soporte/${t.id}`} className={shared.card} style={{ display: "block" }}>
-            <div className={shared.headRow}>
-              <div>
-                <span className={shared.mono}>{t.ticketNumber}</span>
-                <p className={shared.subtitle}>
-                  {t.email} · {SUPPORT_CATEGORY_LABEL[t.category as SupportCategory] ?? t.category}
-                  {t.orderNumber ? ` · Pedido ${t.orderNumber}` : ""} · última actividad{" "}
-                  {t.lastMessageAt.toLocaleString("es-CO")}
-                  {t.assignedToEmail ? ` · asignado a ${t.assignedToEmail}` : ""}
-                </p>
+        {tickets.map((t) => {
+          const waiting = t.lastMessageSender === "CUSTOMER" && (t.status === "OPEN" || t.status === "IN_PROGRESS");
+          const category = SUPPORT_CATEGORY_LABEL[t.category as SupportCategory] ?? t.category;
+          const statusLabel = SUPPORT_STATUS_LABEL[t.status] ?? t.status;
+          const ariaLabel = [
+            `Ticket ${t.ticketNumber}`,
+            `estado ${statusLabel}`,
+            waiting ? "esperando nuestra respuesta" : null,
+            `cliente ${t.email}`,
+            `motivo ${category}`,
+            t.orderNumber ? `pedido ${t.orderNumber}` : null,
+            `última actividad ${t.lastMessageAt.toLocaleString("es-CO")}`,
+            t.assignedToEmail ? `asignado a ${t.assignedToEmail}` : null,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          return (
+            <Link
+              key={t.id}
+              href={`/admin/soporte/${t.id}`}
+              className={shared.card}
+              style={{ display: "block" }}
+              aria-label={ariaLabel}
+            >
+              <div className={shared.headRow}>
+                <div>
+                  <span className={shared.mono}>{t.ticketNumber}</span>
+                  <div
+                    aria-hidden="true"
+                    style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginTop: 4 }}
+                    className={shared.subtitle}
+                  >
+                    <span>{t.email}</span>
+                    <span>{category}</span>
+                    {t.orderNumber && <span>Pedido {t.orderNumber}</span>}
+                    <span>Actividad: {t.lastMessageAt.toLocaleString("es-CO")}</span>
+                    {t.assignedToEmail && <span>Asignado a {t.assignedToEmail}</span>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {waiting && (
+                    <span className={shared.badge} data-tone="bad">
+                      Esperando respuesta
+                    </span>
+                  )}
+                  <span className={shared.badge} data-tone={SUPPORT_STATUS_TONE[t.status]}>
+                    {statusLabel}
+                  </span>
+                </div>
               </div>
-              <span className={shared.badge} data-tone={SUPPORT_STATUS_TONE[t.status]}>
-                {SUPPORT_STATUS_LABEL[t.status] ?? t.status}
-              </span>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
 
         {tickets.length === 0 && <div className={shared.empty}>Sin tickets de soporte.</div>}
       </div>

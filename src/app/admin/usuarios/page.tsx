@@ -6,6 +6,7 @@ import { getDb } from "@/server/db/client";
 import { listUsersAdmin } from "@/server/services/admin-users";
 import { SupportRoleAction } from "@/components/admin/SupportRoleAction";
 import { SuspendAction } from "@/components/admin/SuspendAction";
+import { UserDetailToggle } from "@/components/admin/UserDetailToggle";
 
 export const metadata: Metadata = { title: "Usuarios — Admin bombaloot" };
 
@@ -58,19 +59,36 @@ export default async function AdminUsersPage({
           <thead>
             <tr>
               <th>Email</th>
+              {canManageRoles && <th>Cambiar rol</th>}
+              {canSuspend && <th>Cuenta</th>}
               <th>Nombre</th>
               <th>Rol</th>
               <th>Estado</th>
               <th>Compras</th>
               <th>Desde</th>
-              {canManageRoles && <th>Rol</th>}
-              {canSuspend && <th>Cuenta</th>}
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>{u.email}</td>
+                <td>
+                  <UserDetailToggle userId={u.id} email={u.email} />
+                </td>
+                {canManageRoles && (
+                  <td>
+                    <SupportRoleAction userId={u.id} role={u.role} />
+                  </td>
+                )}
+                {canSuspend && (
+                  <td>
+                    <SuspendAction
+                      userId={u.id}
+                      role={u.role}
+                      suspended={Boolean(u.suspendedAt)}
+                      isSelf={session?.userId === u.id}
+                    />
+                  </td>
+                )}
                 <td>{u.name ?? "—"}</td>
                 <td>
                   <span className={shared.badge} data-tone={ROLE_TONE[u.role]}>
@@ -90,21 +108,6 @@ export default async function AdminUsersPage({
                 </td>
                 <td className="num-display">{u.purchasesCount}</td>
                 <td>{u.createdAt.toLocaleDateString("es-CO")}</td>
-                {canManageRoles && (
-                  <td>
-                    <SupportRoleAction userId={u.id} role={u.role} />
-                  </td>
-                )}
-                {canSuspend && (
-                  <td>
-                    <SuspendAction
-                      userId={u.id}
-                      role={u.role}
-                      suspended={Boolean(u.suspendedAt)}
-                      isSelf={session?.userId === u.id}
-                    />
-                  </td>
-                )}
               </tr>
             ))}
             {users.length === 0 && (

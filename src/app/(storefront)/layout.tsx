@@ -56,7 +56,7 @@ export default function RootLayout({
         <SessionProvider>
           <CartProvider>
             <Header />
-            {children}
+            <div className="siteMain">{children}</div>
             <Footer />
           </CartProvider>
         </SessionProvider>

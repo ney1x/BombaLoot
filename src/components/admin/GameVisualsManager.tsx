@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import shared from "@/app/admin/shared.module.css";
+import { GAME_COLORS, type GameId } from "@/lib/products";
 
 /**
  * Sube el archivo a /api/admin/upload (Vercel Blob) y devuelve la URL del
@@ -17,6 +18,23 @@ async function uploadFile(file: File, scope: string): Promise<string> {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "No se pudo subir la imagen");
   return data.url as string;
+}
+
+/** Ancho/alto reales del archivo elegido, leídos en el browser antes de subir nada. */
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
 }
 
 export type GameVisualPlacement = "hero" | "showcase";
@@ -35,6 +53,33 @@ const PLACEMENT_LABEL: Record<GameVisualPlacement, string> = {
   showcase: "Elegí tu juego (600×800)",
 };
 
+/** Ancho/alto de referencia por lugar — de acá sale la relación de aspecto esperada y el thumbnail. */
+const PLACEMENT_DIMENSIONS: Record<GameVisualPlacement, { width: number; height: number }> = {
+  hero: { width: 1600, height: 670 },
+  showcase: { width: 600, height: 800 },
+};
+
+/** Cuánto puede desviarse la relación de aspecto real antes de avisar — recorte leve es normal, uno grosero no. */
+const ASPECT_RATIO_TOLERANCE = 0.15;
+
+function aspectRatioWarning(
+  placement: GameVisualPlacement,
+  dims: { width: number; height: number },
+): string | null {
+  const expected = PLACEMENT_DIMENSIONS[placement];
+  const expectedRatio = expected.width / expected.height;
+  const actualRatio = dims.width / dims.height;
+  const deviation = Math.abs(actualRatio - expectedRatio) / expectedRatio;
+  if (deviation <= ASPECT_RATIO_TOLERANCE) return null;
+  return `La imagen es ${dims.width}×${dims.height} — ${PLACEMENT_LABEL[placement]} espera una relación de aspecto de ~${expected.width}×${expected.height}. Se va a recortar distinto a como se ve acá.`;
+}
+
+/** Thumbnail con la forma real del lugar — un box 72×30 miente sobre cómo se ve un showcase (0.75:1, retrato). */
+const THUMBNAIL_SIZE: Record<GameVisualPlacement, { width: number; height: number }> = {
+  hero: { width: 72, height: 30 },
+  showcase: { width: 45, height: 60 },
+};
+
 function VisualRow({
   visual,
   onToggle,
@@ -44,15 +89,19 @@ function VisualRow({
   onToggle: () => void;
   onRemove: () => void;
 }) {
+  const thumb = THUMBNAIL_SIZE[visual.placement];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span className={shared.mono} style={{ fontSize: 11, color: "var(--ink-faint)", width: 18, textAlign: "right" }}>
+        {visual.sortOrder}
+      </span>
       {/* eslint-disable-next-line @next/next/no-img-element -- thumbnail admin, no next/image optimization needed */}
       <img
         src={visual.imageUrl}
         alt={visual.title ?? ""}
-        width={72}
-        height={30}
-        style={{ objectFit: "cover", borderRadius: 4 }}
+        width={thumb.width}
+        height={thumb.height}
+        style={{ objectFit: "cover", borderRadius: 4, flexShrink: 0 }}
       />
       <span
         className={shared.mono}
@@ -87,19 +136,26 @@ export function GameVisualsManager({
   const [imageUrl, setImageUrl] = useState("");
   const [title, setTitle] = useState("");
   const [placement, setPlacement] = useState<GameVisualPlacement>("hero");
+  const [sortOrder, setSortOrder] = useState(0);
+  const [uploadedDims, setUploadedDims] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const dimensionWarning = uploadedDims ? aspectRatioWarning(placement, uploadedDims) : null;
+  const accent = GAME_COLORS[gameId as GameId]?.base;
+
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     setError(null);
+    setUploadedDims(null);
     setUploading(true);
     try {
-      const url = await uploadFile(file, `games/${gameId}`);
+      const [url, dims] = await Promise.all([uploadFile(file, `games/${gameId}`), readImageDimensions(file)]);
       setImageUrl(url);
+      setUploadedDims(dims);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo subir la imagen");
     } finally {
@@ -123,12 +179,14 @@ export function GameVisualsManager({
       const res = await fetch(`/api/admin/games/${gameId}/visuals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: imageUrl.trim(), placement, title: title.trim() || undefined }),
+        body: JSON.stringify({ imageUrl: imageUrl.trim(), placement, title: title.trim() || undefined, sortOrder }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo cargar el banner");
       setImageUrl("");
       setTitle("");
+      setSortOrder(0);
+      setUploadedDims(null);
       await refresh();
       router.refresh();
     } catch (err) {
@@ -170,8 +228,16 @@ export function GameVisualsManager({
   }
 
   return (
-    <div className={shared.card} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3 style={{ fontSize: 15, margin: 0 }}>{gameLabel}</h3>
+    <div className={shared.card} style={{ display: "flex", flexDirection: "column", gap: 12, borderLeft: accent ? `3px solid ${accent}` : undefined }}>
+      <h2 className={shared.title} style={{ fontSize: 15, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+        {accent && (
+          <span
+            aria-hidden="true"
+            style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: accent }}
+          />
+        )}
+        {gameLabel}
+      </h2>
       {error && <div className={shared.formMsg} data-tone="bad">{error}</div>}
 
       <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -207,6 +273,17 @@ export function GameVisualsManager({
           <label htmlFor={`title-${gameId}`}>Título (opcional)</label>
           <input id={`title-${gameId}`} value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
+        <div className={shared.field} style={{ flex: "0 1 90px" }}>
+          <label htmlFor={`order-${gameId}`}>Orden</label>
+          <input
+            id={`order-${gameId}`}
+            type="number"
+            min={0}
+            max={10000}
+            value={sortOrder}
+            onChange={(e) => setSortOrder(Number(e.target.value))}
+          />
+        </div>
         <button
           type="submit"
           className={`${shared.btnSmall} ${shared.btnSmallPrimary}`}
@@ -215,6 +292,11 @@ export function GameVisualsManager({
           {submitting ? "Guardando…" : "Agregar banner"}
         </button>
       </form>
+      {dimensionWarning && (
+        <div className={shared.formMsg} data-tone="warn">
+          {dimensionWarning}
+        </div>
+      )}
       <details>
         <summary className={shared.subtitle} style={{ cursor: "pointer" }}>
           O pegar una URL ya alojada
@@ -223,7 +305,10 @@ export function GameVisualsManager({
           <input
             aria-label="URL de imagen"
             value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
+            onChange={(e) => {
+              setImageUrl(e.target.value);
+              setUploadedDims(null);
+            }}
             placeholder="https://…"
           />
         </div>
