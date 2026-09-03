@@ -567,8 +567,13 @@ describe("Refund — Wompi fuera de la ventana de void", () => {
       currency: "COP",
     });
 
+    // `markManualReview` manda un email real (Resend) al caer a revisión manual —
+    // eso SÍ pasa por `fetch` (mismo `RESEND_API_KEY` de `.env.local`) y es
+    // esperado. `networkCalled` debe reflejar solo si se llamó al proveedor de
+    // pago (Wompi), que es lo que este test verifica que nunca pasa.
     let networkCalled = false;
-    fetchImpl = async () => {
+    fetchImpl = async (url) => {
+      if (url.includes("api.resend.com")) return jsonResponse({ id: "email-test" }, 200);
       networkCalled = true;
       return jsonResponse({}, 500);
     };
@@ -653,8 +658,12 @@ describe("Refund — tope de reintentos automáticos", () => {
     const claimed = await claimNextRefundRequest(pool);
     expect(claimed!.attemptCount).toBeGreaterThan(10);
 
+    // Mismo motivo que en el test de la ventana de void de Wompi: el email de
+    // revisión manual sí pasa por `fetch` (Resend) y no debe contar como
+    // "llamó al proveedor de pago".
     let networkCalled = false;
-    fetchImpl = async () => {
+    fetchImpl = async (url) => {
+      if (url.includes("api.resend.com")) return jsonResponse({ id: "email-test" }, 200);
       networkCalled = true;
       return jsonResponse({}, 500);
     };

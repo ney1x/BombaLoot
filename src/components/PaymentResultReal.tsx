@@ -55,6 +55,19 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   const paypalToken = searchParams.get("token"); // PayPal reenvía `?token=<paypalOrderId>` en el return_url
   const [retryTick, setRetryTick] = useState(0);
 
+  /*
+   * El token va en la URL a propósito: si el comprador cierra la pestaña
+   * (Ctrl+W) justo acá, `sessionStorage` se pierde con ella y "Ver mi
+   * pedido" sería la única forma de volver a entrar sin cuenta. Con el
+   * token en el link, ese link sigue funcionando desde el historial del
+   * navegador — la página de destino (`/pedido/[id]`) pide confirmar el
+   * email de la compra antes de mostrar nada cuando llega así, "en frío"
+   * (sin la sesión de checkout todavía viva).
+   */
+  function orderHref(orderId: string): string {
+    return accessToken ? `/pedido/${orderId}?accessToken=${encodeURIComponent(accessToken)}` : `/pedido/${orderId}`;
+  }
+
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -124,7 +137,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
             Reintentar
           </button>
           {session && (
-            <Link href={`/pedido/${session.orderId}`} className="btn btnSecondary">
+            <Link href={orderHref(session.orderId)} className="btn btnSecondary">
               Ver mi pedido
             </Link>
           )}
@@ -169,7 +182,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
           </div>
         </div>
         <div className={styles.ctaRow}>
-          <Link href={`/pedido/${order.orderId}`} className="btn btnPrimary">
+          <Link href={orderHref(order.orderId)} className="btn btnPrimary">
             Ver mi pedido
           </Link>
           <Link href="/catalogo" className="btn btnSecondary">

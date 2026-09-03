@@ -54,6 +54,10 @@ export function OrderDeliveryReal({ id }: { id: string }) {
   const searchParams = useSearchParams();
   const [order, setOrder] = useState<RealOrder | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   // Varios códigos por producto — comprar quantity=4 del mismo producto
   // entrega 4 códigos distintos, no uno solo. Antes esto era
   // Record<string, string>: la API devuelve un objeto por código
@@ -69,10 +73,24 @@ export function OrderDeliveryReal({ id }: { id: string }) {
   // URL y mostraba (y entregaba los códigos de) el pedido de la sesión,
   // no el pedido pedido. En una compu compartida eso filtra códigos de
   // un comprador a quien visita el link de otro.
-  const accessToken =
-    searchParams.get("accessToken") ?? (session?.orderId === id ? session.accessToken : undefined) ?? undefined;
+  const warmSession = session?.orderId === id ? session : null;
+  const tokenFromUrl = searchParams.get("accessToken");
+  const accessToken = tokenFromUrl ?? warmSession?.accessToken ?? undefined;
+  /*
+   * "En frío": el token llegó por la URL (recuperado del historial, no del
+   * flujo recién pagado) y no hay sesión de checkout viva que lo respalde.
+   * Justo después de pagar, `warmSession` sigue existiendo aunque el link
+   * ya lleve el token — ahí no se pide nada, cero fricción extra. Solo
+   * quien vuelve con el link solo (pestaña cerrada, historial) pasa por acá.
+   */
+  const coldRecovery = Boolean(tokenFromUrl) && !warmSession;
 
   useEffect(() => {
+    // En frío, el fetch inicial lo hace `handleEmailSubmit` recién cuando el
+    // email queda confirmado — nunca antes, así no se filtra nada del
+    // pedido (ni siquiera el email real para comparar) antes del gate.
+    if (coldRecovery) return;
+
     let cancelled = false;
 
     (async () => {
@@ -96,7 +114,34 @@ export function OrderDeliveryReal({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, accessToken]);
+  }, [id, accessToken, coldRecovery]);
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!accessToken) return;
+    setCheckingEmail(true);
+    setEmailError(null);
+    try {
+      const response = await fetch(
+        `/api/orders/token/${encodeURIComponent(accessToken)}?email=${encodeURIComponent(emailInput.trim())}`,
+      );
+      if (response.status === 403) {
+        setEmailError("Ese email no coincide con el de la compra.");
+        return;
+      }
+      if (!response.ok) {
+        setNotFound(true);
+        return;
+      }
+      const body = await response.json();
+      setOrder(body.order as RealOrder);
+      setConfirmedEmail(emailInput.trim());
+    } catch {
+      setEmailError("No pudimos verificar el email. Probá de nuevo.");
+    } finally {
+      setCheckingEmail(false);
+    }
+  }
 
   useEffect(() => {
     if (!order) return;
@@ -135,6 +180,40 @@ export function OrderDeliveryReal({ id }: { id: string }) {
           <Link href="/catalogo" className="btn btnPrimary">
             Ir al catálogo
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (coldRecovery && !confirmedEmail) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.head}>
+          <h1>Confirmá tu compra</h1>
+        </div>
+        <div className={styles.gate}>
+          <p>
+            Por seguridad, escribí el email con el que hiciste esta compra antes de mostrar tu pedido y tus
+            códigos.
+          </p>
+          <form onSubmit={handleEmailSubmit}>
+            <div className={styles.gateField}>
+              <label htmlFor="confirm-email">Email de la compra</label>
+              <input
+                id="confirm-email"
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="vos@email.com"
+                required
+                autoFocus
+              />
+            </div>
+            {emailError && <p className={styles.gateError}>{emailError}</p>}
+            <button type="submit" className="btn btnPrimary" disabled={checkingEmail || !emailInput.trim()}>
+              {checkingEmail ? "Verificando…" : "Ver mi pedido"}
+            </button>
+          </form>
         </div>
       </main>
     );

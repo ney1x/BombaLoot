@@ -52,6 +52,54 @@
   margin-bottom: 20px;
 }
 
+.gate {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 26px 24px;
+}
+
+.gate p {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+
+.gateField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.gateField label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.gateField input {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14.5px;
+}
+
+.gateField input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.gateError {
+  font-size: 13px;
+  color: var(--alert);
+  margin-bottom: 14px;
+}
+
 .item {
   display: flex;
   gap: 14px;
