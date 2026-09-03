@@ -7,7 +7,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listAdminProducts, type AdminProductRow } from "@/server/services/admin-products";
 
-export const metadata: Metadata = { title: "Inventario — Admin bombaloot" };
+export const metadata: Metadata = { title: "Inventario — Admin BombaLoot" };
 
 /**
  * Vista operativa: todo el inventario, con el desglose completo por

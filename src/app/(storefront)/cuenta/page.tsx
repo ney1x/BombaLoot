@@ -10,7 +10,7 @@ import { listOrdersForUser } from "@/server/services/checkout-service";
 import { formatCop } from "@/lib/products";
 import { tierForPurchases } from "@/lib/user";
 
-export const metadata: Metadata = { title: "Mi cuenta — bombaloot" };
+export const metadata: Metadata = { title: "Mi cuenta — BombaLoot" };
 
 export default async function AccountSummaryPage() {
   const user = await requireUser("/cuenta");

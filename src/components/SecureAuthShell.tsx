@@ -19,11 +19,11 @@ export function SecureAuthShell({ children }: { children: ReactNode }) {
           <LockIcon />
           <span>Inicio de sesión seguro</span>
         </span>
-        <Link href="/" className={styles.brand} aria-label="bombaloot — inicio">
-          <BombLootMark />
+        <Link href="/" className={styles.brand} aria-label="BombaLoot — inicio">
           <span className={styles.wordmark}>
-            bomba<span className={styles.wordmarkAccent}>loot</span>
+            Bomba<span className={styles.wordmarkAccent}>Loot</span>
           </span>
+          <BombLootMark />
         </Link>
         <span className={styles.barSpacer} aria-hidden="true" />
       </div>

@@ -12,7 +12,7 @@ import { ProductEditForm } from "@/components/admin/ProductEditForm";
 import { CodesManager } from "@/components/admin/CodesManager";
 import { ImagesManager } from "@/components/admin/ImagesManager";
 
-export const metadata: Metadata = { title: "Producto — Admin bombaloot" };
+export const metadata: Metadata = { title: "Producto — Admin BombaLoot" };
 
 export default async function ProductDetailPage({
   params,

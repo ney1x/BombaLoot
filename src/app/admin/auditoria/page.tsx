@@ -4,7 +4,7 @@ import shared from "../shared.module.css";
 import { getDb } from "@/server/db/client";
 import { auditFiltersSchema, listAuditLogsAdmin } from "@/server/services/admin-audit";
 
-export const metadata: Metadata = { title: "Auditoría — Admin bombaloot" };
+export const metadata: Metadata = { title: "Auditoría — Admin BombaLoot" };
 
 const ACTOR_TONE: Record<string, string | undefined> = {
   ADMIN: "accent",

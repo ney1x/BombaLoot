@@ -8,7 +8,7 @@ import { SupportRoleAction } from "@/components/admin/SupportRoleAction";
 import { SuspendAction } from "@/components/admin/SuspendAction";
 import { UserDetailToggle } from "@/components/admin/UserDetailToggle";
 
-export const metadata: Metadata = { title: "Usuarios — Admin bombaloot" };
+export const metadata: Metadata = { title: "Usuarios — Admin BombaLoot" };
 
 const ROLE_TONE: Record<string, string | undefined> = { ADMIN: "accent", SUPPORT: "warn", CUSTOMER: undefined };
 

@@ -4,68 +4,110 @@
  * del sitio sigue con --accent como está.
  */
 .mark {
-  --mark-1: #4a5468;
-  --mark-2: #333c4d;
-  --mark-3: #1f2531;
-  --mark-line: #f4f6fa;
-  --mark-spark: #22c3ea;
-  width: 34px;
-  height: 29px;
+  --mark-body-1: #262a35;
+  --mark-body-2: #0a0b0f;
+  --mark-rim-1: #8b5cf6;
+  --mark-rim-2: #ef4bb8;
+  --mark-rim-3: #ff8a00;
+  --mark-fuse: #454a56;
+  --mark-spark: #ffb020;
+  --mark-spark-dim: #d98f3a;
+  --mark-core: #fff6e6;
+  width: 30px;
+  height: 30px;
   overflow: visible;
+  /* El cuerpo redondo no arranca en el borde superior de su propio
+     viewBox (la mecha ocupa esa franja) — centrado por caja contra la
+     palabra, el cuerpo termina leyendo más abajo que el cap-height del
+     wordmark. Ajuste óptico medido a mano, no un cálculo de caja. */
+  transform: translateY(-3px);
 }
 
 :root[data-theme="dark"] .mark {
-  --mark-1: #9aa4b8;
-  --mark-2: #6d7891;
-  --mark-3: #4a5468;
-  --mark-line: #0e1015;
+  --mark-body-1: #2f3340;
+  --mark-body-2: #0c0d12;
+  --mark-rim-1: #a684ff;
+  --mark-rim-2: #ff64c9;
+  --mark-rim-3: #ffa430;
+  --mark-fuse: #565c6b;
+  --mark-spark: #ffc24d;
+  --mark-spark-dim: #e0a352;
+  --mark-core: #fffaf0;
 }
 
-.f1 {
-  fill: var(--mark-1);
-}
-
-.f2 {
-  fill: var(--mark-2);
-}
-
-.f3 {
-  fill: var(--mark-3);
-}
-
-.body path {
-  stroke: var(--mark-line);
-  stroke-width: 0.6;
+/* Cuerpo + tapa: relleno esférico (degradé oscuro sutil, arriba-izquierda
+   más claro) y el borde en degradé violeta→magenta→naranja — el rim-light
+   es la firma de color de la marca, hace todo el trabajo de "esto tiene
+   volumen" sin sombreado complejo. */
+.body {
+  stroke-width: 1.6;
   stroke-linejoin: round;
 }
 
-.outline {
-  fill: none;
-  stroke: var(--mark-line);
-  stroke-width: 1.3;
-  stroke-linejoin: round;
-  opacity: 0.9;
+.bodyStop1 {
+  stop-color: var(--mark-body-1);
+}
+
+.bodyStop2 {
+  stop-color: var(--mark-body-2);
+}
+
+.rimStop1 {
+  stop-color: var(--mark-rim-1);
+}
+
+.rimStop2 {
+  stop-color: var(--mark-rim-2);
+}
+
+.rimStop3 {
+  stop-color: var(--mark-rim-3);
+}
+
+/* El reflejo que vende "esfera pulida" — una sola forma, sin sombreado. */
+.gloss {
+  fill: #ffffff;
+  opacity: 0.22;
 }
 
 .fuse {
   fill: none;
-  stroke: var(--mark-2);
-  stroke-width: 2.2;
+  stroke: var(--mark-fuse);
+  stroke-width: 1.8;
   stroke-linecap: round;
 }
 
-.spark {
+.sparkMain {
   fill: var(--mark-spark);
+}
+
+.sparkCore {
+  fill: var(--mark-core);
+}
+
+.sparkDot {
+  fill: var(--mark-spark-dim);
+}
+
+.sparkFleck {
+  fill: var(--mark-spark-dim);
+  opacity: 0.8;
+}
+
+.spark {
   transform-origin: center;
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.sparkDim {
-  opacity: 0.7;
+.glow {
+  fill: var(--mark-spark);
+  opacity: 0.28;
+  transform-origin: center;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*
- * La mecha "prende": el grupo de chispas pulsa — ease-out-expo, sin
+ * La mecha "prende": chispa y brillo pulsan juntos — ease-out-expo, sin
  * overshoot elástico. `:hover` cubre pasar el mouse por el logo (CSS
  * puro); `.lit` es el mismo gesto disparado por JS al agregar al carrito.
  */
@@ -74,14 +116,19 @@
   animation: spark-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mark:hover .spark:nth-of-type(2),
-.lit .spark:nth-of-type(2) {
-  animation-delay: 0.05s;
+.mark:hover .sparkDot,
+.lit .sparkDot {
+  animation-delay: 0.06s;
 }
 
-.mark:hover .spark:nth-of-type(3),
-.lit .spark:nth-of-type(3) {
-  animation-delay: 0.1s;
+.mark:hover .sparkFleck,
+.lit .sparkFleck {
+  animation-delay: 0.03s;
+}
+
+.mark:hover .glow,
+.lit .glow {
+  animation: glow-pulse 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes spark-pop {
@@ -89,16 +136,33 @@
     transform: scale(1);
   }
   45% {
-    transform: scale(1.4);
+    transform: scale(1.35);
   }
   100% {
     transform: scale(1);
   }
 }
 
+@keyframes glow-pulse {
+  0% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.85;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mark:hover .spark,
-  .lit .spark {
+  .lit .spark,
+  .mark:hover .glow,
+  .lit .glow {
     animation: none;
   }
 }

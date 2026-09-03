@@ -15,7 +15,7 @@ import { getOrderDetailAdmin } from "@/server/services/admin-orders";
 import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
 import { ResendCodesAction } from "@/components/admin/ResendCodesAction";
 
-export const metadata: Metadata = { title: "Detalle de pedido — Admin bombaloot" };
+export const metadata: Metadata = { title: "Detalle de pedido — Admin BombaLoot" };
 
 const AUDIT_LOG_CAP = 100;
 

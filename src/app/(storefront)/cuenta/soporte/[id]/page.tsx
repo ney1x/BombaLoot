@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SupportConversation } from "@/components/SupportConversation";
 import { requireUser } from "@/server/auth/guards";
 
-export const metadata: Metadata = { title: "Tu conversación — bombaloot" };
+export const metadata: Metadata = { title: "Tu conversación — BombaLoot" };
 
 /**
  * `requireUser` solo confirma que hay sesión — la propiedad real del

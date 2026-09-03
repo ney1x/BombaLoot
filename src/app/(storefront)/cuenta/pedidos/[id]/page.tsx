@@ -9,7 +9,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Pedido #${id} — bombaloot` };
+  return { title: `Pedido #${id} — BombaLoot` };
 }
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {

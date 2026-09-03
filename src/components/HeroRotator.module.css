@@ -158,6 +158,9 @@
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
   box-shadow: var(--shadow-md), 0 0 60px -24px color-mix(in srgb, var(--accent) 45%, transparent);
+  /* Deja el scroll vertical de la página intacto; solo el gesto horizontal
+     (el swipe entre productos) lo captura el JS, nunca el navegador. */
+  touch-action: pan-y;
 }
 
 .bg {

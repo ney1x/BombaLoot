@@ -56,7 +56,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
     return;
   }
 
-  const from = process.env.EMAIL_FROM || "bombaloot <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM || "BombaLoot <onboarding@resend.dev>";
   const { error } = await client.emails.send({
     from,
     to: message.to,
@@ -75,7 +75,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
 
 export function passwordResetEmail(resetUrl: string): MailMessage["text"] {
   return [
-    "Pediste restablecer tu contraseña en bombaloot.",
+    "Pediste restablecer tu contraseña en BombaLoot.",
     "",
     `Abrí este link para elegir una nueva (vence en 30 minutos): ${resetUrl}`,
     "",
@@ -139,6 +139,6 @@ export function codesDeliveredEmail(orderNumber: string, codes: DeliveredCodeFor
     "",
     "Guardalos en un lugar seguro — cada uno es de un solo uso y no los compartas con nadie.",
     "",
-    "Podés volver a verlos cuando quieras en tu pedido, en bombaloot.",
+    "Podés volver a verlos cuando quieras en tu pedido, en BombaLoot.",
   ].join("\n");
 }

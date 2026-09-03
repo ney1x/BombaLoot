@@ -1,7 +1,7 @@
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Términos y Condiciones — bombaloot",
+  title: "Términos y Condiciones — BombaLoot",
 };
 
 export default function TerminosPage() {

@@ -9,7 +9,7 @@ import { requireUser } from "@/server/auth/guards";
 import { getPool } from "@/server/db/client";
 import { listTicketsForUser } from "@/server/services/support-service";
 
-export const metadata: Metadata = { title: "Mis solicitudes — bombaloot" };
+export const metadata: Metadata = { title: "Mis solicitudes — BombaLoot" };
 
 export default async function AccountSupportPage() {
   const user = await requireUser("/cuenta/soporte");

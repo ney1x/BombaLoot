@@ -38,7 +38,7 @@ export function Footer() {
           </ul>
         </div>
       </div>
-      <div className={styles.bottom}>© 2026 bombaloot</div>
+      <div className={styles.bottom}>© 2026 BombaLoot</div>
     </footer>
   );
 }

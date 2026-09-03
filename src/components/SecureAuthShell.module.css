@@ -35,23 +35,34 @@
   justify-self: center;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
 }
 
 .brand svg {
-  width: 24px;
-  height: 20px;
+  /* Cuadrado — el viewBox del isotipo es 32×32; el 24×20 anterior lo
+     achataba. Un poco más chico que en el header (30px) para acompañar
+     el wordmark de 17px acá contra los 23px del header. */
+  width: 22px;
+  height: 22px;
 }
 
 .wordmark {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 17px;
+  line-height: 1;
   color: var(--ink);
 }
 
 .wordmarkAccent {
-  color: var(--accent);
+  /* Mismo dorado que "Loot" en el header y el footer — más oscuro que el
+     del navbar (siempre oscuro): esta barra sigue el tema y en modo claro
+     queda sobre --paper, donde el dorado brillante no pasa AA. */
+  color: #8a5c0e;
+}
+
+:root[data-theme="dark"] .wordmarkAccent {
+  color: #ffc24d;
 }
 
 .barSpacer {
@@ -74,6 +85,41 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   padding: 32px 30px;
+}
+
+/*
+ * El resto del sitio usa el font-display (Big Shoulders) a máxima
+ * convicción para su momento más importante — el h1 del hero, los precios
+ * en `num-display`. El login lo pedía prestado hasta acá: un <h2> de 26px
+ * sin tipografía propia para el único paso de toda la sesión donde alguien
+ * decide confiarnos su contraseña. Mismo recurso del sistema, no uno nuevo.
+ */
+.card h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 5vw, 36px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+}
+
+/*
+ * Mismo motivo con el CTA: en el resto del sitio, la acción principal
+ * (`.ctaPrimary`/`.cta` en HeroRotator) lleva el degradé accent→accent-2 y
+ * la sombra de color — acá el login caía en el `.btnPrimary` plano
+ * compartido por todos los botones secundarios del sitio. Se apunta al
+ * <button type="submit"> puntual (no a `.btnPrimary` global) para no
+ * arrastrar el cambio a ningún otro botón de la app.
+ */
+.card button[type="submit"] {
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 100%);
+  box-shadow: 0 16px 32px -14px color-mix(in srgb, var(--accent) 65%, transparent);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.card button[type="submit"]:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .legal {

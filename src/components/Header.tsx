@@ -122,11 +122,11 @@ export function Header() {
     <header className={styles.bar}>
       <div className={`${styles.inner} ${mobileSearchOpen ? styles.searchMode : ""}`}>
         <div className={styles.brandGroup}>
-          <Link href="/" className={styles.logo} aria-label="bombaloot — inicio">
-            <BombLootMark lit={fuseLit} />
+          <Link href="/" className={styles.logo} aria-label="BombaLoot — inicio">
             <span className={styles.wordmark}>
-              bomba<span className={styles.wordmarkAccent}>loot</span>
+              Bomba<span className={styles.wordmarkAccent}>Loot</span>
             </span>
+            <BombLootMark lit={fuseLit} />
           </Link>
           <span className={styles.trustTag}>
             <ShieldCheckIcon />

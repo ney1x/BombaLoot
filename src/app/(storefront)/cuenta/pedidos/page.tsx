@@ -8,7 +8,7 @@ import { requireUser } from "@/server/auth/guards";
 import { getPool } from "@/server/db/client";
 import { listOrdersForUser } from "@/server/services/checkout-service";
 
-export const metadata: Metadata = { title: "Mis compras — bombaloot" };
+export const metadata: Metadata = { title: "Mis compras — BombaLoot" };
 
 export default async function OrdersPage() {
   const user = await requireUser("/cuenta/pedidos");

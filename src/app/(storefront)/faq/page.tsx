@@ -2,7 +2,7 @@ import Link from "next/link";
 import styles from "../legal.module.css";
 
 export const metadata = {
-  title: "Preguntas Frecuentes — bombaloot",
+  title: "Preguntas Frecuentes — BombaLoot",
 };
 
 const FAQS = [

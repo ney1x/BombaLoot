@@ -37,7 +37,7 @@ const robotoMono = Roboto_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = { title: "Panel admin — bombaloot" };
+export const metadata: Metadata = { title: "Panel admin — BombaLoot" };
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard" },
@@ -83,7 +83,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className={styles.shell}>
           <aside className={styles.sidebar}>
             <div className={styles.brand}>
-              <span className={styles.brandMark}>BOMBALOOT</span>
+              <span className={styles.brandMark}>BombaLoot</span>
               <span className={styles.brandSub}>admin</span>
             </div>
             <AdminNav items={navItems} />

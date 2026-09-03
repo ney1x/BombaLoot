@@ -6,7 +6,7 @@ import { LoyaltyProgress } from "@/components/LoyaltyProgress";
 import { requireUser } from "@/server/auth/guards";
 import { LOYALTY_TIERS, tierForPurchases } from "@/lib/user";
 
-export const metadata: Metadata = { title: "Fidelización — bombaloot" };
+export const metadata: Metadata = { title: "Fidelización — BombaLoot" };
 
 export default async function FidelizacionPage() {
   const user = await requireUser("/cuenta/fidelizacion");

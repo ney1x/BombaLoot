@@ -17,11 +17,21 @@
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 20px;
+  letter-spacing: 0.01em;
   margin-bottom: 10px;
+  /* Mismo dorado que "Loot" en el header y el login — acá más oscuro:
+     este texto vive sobre --surface, que sigue el tema (blanco en modo
+     claro), y el dorado brillante del navbar (siempre oscuro) no pasa
+     AA contra blanco. */
+  --brand-gold: #8a5c0e;
+}
+
+:root[data-theme="dark"] .brandCol .logo {
+  --brand-gold: #ffc24d;
 }
 
 .brandCol .logo span {
-  color: var(--accent);
+  color: var(--brand-gold);
 }
 
 .brandCol p {

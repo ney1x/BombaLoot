@@ -5,7 +5,7 @@ import { getDb } from "@/server/db/client";
 import { SUPPORT_CATEGORY_LABEL, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE, type SupportCategory } from "@/lib/support";
 import { listTicketsAdmin } from "@/server/services/support-service";
 
-export const metadata: Metadata = { title: "Soporte — Admin bombaloot" };
+export const metadata: Metadata = { title: "Soporte — Admin BombaLoot" };
 
 const STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 

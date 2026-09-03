@@ -8,7 +8,7 @@ import { formatCop } from "@/lib/products";
 import { listRefundsAdmin } from "@/server/services/admin-refunds";
 import { ManualRefundAction } from "@/components/admin/ManualRefundAction";
 
-export const metadata: Metadata = { title: "Reembolsos — Admin bombaloot" };
+export const metadata: Metadata = { title: "Reembolsos — Admin BombaLoot" };
 
 export default async function AdminRefundsPage({
   searchParams,

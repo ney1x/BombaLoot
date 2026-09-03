@@ -7,7 +7,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listAdminProducts } from "@/server/services/admin-products";
 
-export const metadata: Metadata = { title: "Productos — Admin bombaloot" };
+export const metadata: Metadata = { title: "Productos — Admin BombaLoot" };
 
 export default async function AdminProductsPage() {
   const [session, products] = await Promise.all([getCurrentSession(), listAdminProducts(getDb())]);

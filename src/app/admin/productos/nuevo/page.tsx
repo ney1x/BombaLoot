@@ -6,7 +6,7 @@ import { getDb } from "@/server/db/client";
 import { listGames } from "@/server/services/admin-products";
 import { ProductCreateForm } from "@/components/admin/ProductCreateForm";
 
-export const metadata: Metadata = { title: "Nuevo producto — Admin bombaloot" };
+export const metadata: Metadata = { title: "Nuevo producto — Admin BombaLoot" };
 
 /** Crear producto es ADMIN-only — SUPPORT nunca llega a ver este formulario. */
 export default async function NewProductPage() {

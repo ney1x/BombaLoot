@@ -6,7 +6,7 @@ import { formatCop } from "@/lib/products";
 import { getDashboardMetrics } from "@/server/services/admin-dashboard";
 import { getHealthReport, type HealthCheck, type HealthStatus } from "@/server/services/admin-health";
 
-export const metadata: Metadata = { title: "Dashboard — Admin bombaloot" };
+export const metadata: Metadata = { title: "Dashboard — Admin BombaLoot" };
 
 /**
  * Server Component: llama a los servicios directo (misma request, sin dar

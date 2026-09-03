@@ -25,6 +25,8 @@ export function HeroRotator({
 }) {
   const [index, setIndex] = useState(0);
   const pausedRef = useRef(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchDeltaX = useRef(0);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -44,6 +46,36 @@ export function HeroRotator({
 
   function resume() {
     pausedRef.current = false;
+  }
+
+  const SWIPE_THRESHOLD_PX = 40;
+
+  /*
+   * El carrusel ya pausaba en touch para no pelear con el dedo mientras se
+   * interactúa, pero nunca dejaba deslizar — en mobile la única forma de
+   * cambiar de producto era acertarle a un dot de 26×4px. Un swipe
+   * horizontal cambia de producto; uno mayormente vertical se deja pasar
+   * (así el scroll de la página nunca queda atrapado).
+   */
+  function handleTouchStart(e: React.TouchEvent) {
+    pause();
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+  }
+
+  function handleTouchEnd() {
+    if (products.length > 1 && Math.abs(touchDeltaX.current) > SWIPE_THRESHOLD_PX) {
+      const direction = touchDeltaX.current < 0 ? 1 : -1;
+      setIndex((i) => (i + direction + products.length) % products.length);
+    }
+    touchStartX.current = null;
+    touchDeltaX.current = 0;
+    resume();
   }
 
   return (
@@ -91,8 +123,9 @@ export function HeroRotator({
         className={styles.banner}
         onMouseEnter={pause}
         onMouseLeave={resume}
-        onTouchStart={pause}
-        onTouchEnd={resume}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         aria-roledescription="carrusel"
         aria-label="Productos destacados"
       >

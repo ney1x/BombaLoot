@@ -7,7 +7,7 @@ import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
 
 export const metadata: Metadata = {
-  title: "Catálogo — bombaloot",
+  title: "Catálogo — BombaLoot",
 };
 
 function parseGame(value: string | string[] | undefined): GameId | null {

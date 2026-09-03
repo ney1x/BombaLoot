@@ -4,7 +4,7 @@ import { IpBlocksManager } from "@/components/admin/IpBlocksManager";
 import { getDb } from "@/server/db/client";
 import { listBlockedIps } from "@/server/services/security-service";
 
-export const metadata: Metadata = { title: "Seguridad — Admin bombaloot" };
+export const metadata: Metadata = { title: "Seguridad — Admin BombaLoot" };
 
 export default async function AdminSecurityPage() {
   const blocks = await listBlockedIps(getDb());

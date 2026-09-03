@@ -16,6 +16,11 @@
   --nav-ink-faint: #5c667c;
   --brand-ink: #f4f6fa;
   --brand-cyan: #7c93ff;
+  /* Dorado del "loot" — hermano del --mark-spark-2 del isotipo, para que
+     la chispa de la mecha y la palabra lean como la misma idea. Token
+     propio en vez de reusar --brand-cyan: ese sigue siendo el foco/estado
+     del buscador y el badge del carrito, ajeno al wordmark. */
+  --brand-gold: #f2a53d;
 
   background: var(--nav-bg);
   border-bottom: 1px solid var(--nav-border);
@@ -56,7 +61,7 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
@@ -88,12 +93,13 @@
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 23px;
+  line-height: 1;
   letter-spacing: 0.01em;
   color: var(--brand-ink);
 }
 
 .wordmarkAccent {
-  color: var(--brand-cyan);
+  color: var(--brand-gold);
 }
 
 .searchWrap {

@@ -6,7 +6,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listOrdersAdmin, orderFiltersSchema, type OrderFilters } from "@/server/services/admin-orders";
 
-export const metadata: Metadata = { title: "Pedidos — Admin bombaloot" };
+export const metadata: Metadata = { title: "Pedidos — Admin BombaLoot" };
 
 export default async function AdminOrdersPage({
   searchParams,

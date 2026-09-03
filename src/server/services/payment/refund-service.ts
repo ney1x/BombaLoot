@@ -181,7 +181,7 @@ async function markCompleted(pool: Pool, claimed: ClaimedRefund, providerRefundI
   if (order) {
     await sendMail({
       to: order.email,
-      subject: "Reembolso procesado — bombaloot",
+      subject: "Reembolso procesado — BombaLoot",
       text: refundCompletedEmail(order.orderNumber),
     });
   }
@@ -205,7 +205,7 @@ async function markManualReview(pool: Pool, claimed: ClaimedRefund, reason: stri
   if (order) {
     await sendMail({
       to: order.email,
-      subject: "Sobre tu pedido — bombaloot",
+      subject: "Sobre tu pedido — BombaLoot",
       text: paymentManualReviewEmail(order.orderNumber),
     });
   }
