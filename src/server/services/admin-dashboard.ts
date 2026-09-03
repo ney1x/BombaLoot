@@ -90,3 +90,70 @@ export async function getDashboardMetrics(db: Db): Promise<DashboardMetrics> {
     throw new Error("No se pudieron calcular las métricas del dashboard.");
   }
 }
+
+/* ────────────────────────── ventas por admin ────────────────────────── */
+
+export interface AdminEarnings {
+  /** `null` = códigos sin lote/sin admin asignado (carga vieja, previa a este esquema) — se muestra aparte, nunca se mezcla en la fila de un admin real. */
+  adminId: string | null;
+  adminLabel: string;
+  codesSoldMonth: number;
+  revenueMonthCop: number;
+  codesSoldAllTime: number;
+  revenueAllTimeCop: number;
+}
+
+interface AdminEarningsRow {
+  admin_id: string | null;
+  admin_label: string | null;
+  codes_sold_month: string;
+  revenue_month_cop: string | null;
+  codes_sold_all_time: string;
+  revenue_all_time_cop: string | null;
+}
+
+/**
+ * A quién se le atribuye cada venta: el admin que cargó el LOTE del código
+ * concreto que se vendió (`codes.batch_id` → `code_batches.uploaded_by`),
+ * no el producto en sí — dos admins pueden cargar códigos del mismo
+ * producto, así que la unidad de atribución tiene que ser el código
+ * individual, no el pedido ni el order_item. El precio de esa unidad
+ * (`order_items.unit_price_cop`) es lo que se suma por admin.
+ *
+ * Solo cuenta lo efectivamente cobrado y no devuelto: `orders.payment_status
+ * = 'PAID'` (mismo filtro que `salesMonthCop`/`salesTodayCop` arriba —
+ * un pedido REFUNDED no es "ganancia" de nadie) y el código en
+ * PAID/DELIVERED (el estado que ya implica que su pedido se pagó).
+ */
+export async function getAdminEarnings(db: Db): Promise<AdminEarnings[]> {
+  try {
+    const { rows } = (await db.execute(sql`
+      SELECT u.id AS admin_id,
+             COALESCE(u.name, u.email) AS admin_label,
+             COUNT(*) FILTER (WHERE o.paid_at >= date_trunc('month', now())) AS codes_sold_month,
+             SUM(oi.unit_price_cop) FILTER (WHERE o.paid_at >= date_trunc('month', now())) AS revenue_month_cop,
+             COUNT(*) AS codes_sold_all_time,
+             SUM(oi.unit_price_cop) AS revenue_all_time_cop
+        FROM codes c
+        JOIN order_items oi ON oi.id = c.order_item_id
+        JOIN orders o ON o.id = oi.order_id
+        LEFT JOIN code_batches b ON b.id = c.batch_id
+        LEFT JOIN users u ON u.id = b.uploaded_by
+       WHERE o.payment_status = 'PAID' AND c.status IN ('PAID', 'DELIVERED')
+       GROUP BY u.id, u.name, u.email
+       ORDER BY revenue_all_time_cop DESC NULLS LAST
+    `)) as unknown as { rows: AdminEarningsRow[] };
+
+    return rows.map((row) => ({
+      adminId: row.admin_id,
+      adminLabel: row.admin_label ?? "Sin admin asignado",
+      codesSoldMonth: Number(row.codes_sold_month),
+      revenueMonthCop: Number(row.revenue_month_cop ?? 0),
+      codesSoldAllTime: Number(row.codes_sold_all_time),
+      revenueAllTimeCop: Number(row.revenue_all_time_cop ?? 0),
+    }));
+  } catch (error) {
+    console.error("[admin-dashboard] no se pudieron calcular las ganancias por admin:", error);
+    throw new Error("No se pudieron calcular las ganancias por admin.");
+  }
+}
