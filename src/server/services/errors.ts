@@ -220,6 +220,15 @@ export class AdminOrderNotFoundError extends Error {
   }
 }
 
+/** Reenviar códigos por soporte solo tiene sentido si ya se entregó algo — nada que reenviar antes de eso. */
+export class NoDeliveredCodesError extends Error {
+  readonly code = "NO_DELIVERED_CODES";
+  constructor() {
+    super("Este pedido todavía no tiene códigos entregados — no hay nada que reenviar.");
+    this.name = "NoDeliveredCodesError";
+  }
+}
+
 /** Solo se puede cancelar por fraude un pedido que todavía no cobró — uno ya PAID pasa por el flujo de reembolso existente, no por acá. */
 export class OrderNotCancellableError extends Error {
   readonly code = "ORDER_NOT_CANCELLABLE";

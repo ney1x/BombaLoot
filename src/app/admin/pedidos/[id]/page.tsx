@@ -13,6 +13,7 @@ import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { getOrderDetailAdmin } from "@/server/services/admin-orders";
 import { CancelFraudAction } from "@/components/admin/CancelFraudAction";
+import { ResendCodesAction } from "@/components/admin/ResendCodesAction";
 
 export const metadata: Metadata = { title: "Detalle de pedido — Admin bombaloot" };
 
@@ -119,7 +120,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               {order.items.map((i, idx) => (
                 <tr key={idx}>
                   <td>
-                    {i.gameLabel} · {i.denomination} {i.unit}
+                    <Link href={`/admin/productos/${i.productId}`}>
+                      {i.gameLabel} · {i.denomination} {i.unit}
+                    </Link>
                   </td>
                   <td className="num-display">{i.quantity}</td>
                   <td className="num-display">{formatCop(i.unitPriceCop)}</td>
@@ -140,6 +143,11 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           Códigos asociados
         </h2>
         <p className={shared.subtitle}>Solo se muestra el fingerprint — nunca el código en claro.</p>
+        {order.deliveryStatus === "DELIVERED" && (
+          <div style={{ marginTop: 10 }}>
+            <ResendCodesAction orderId={order.orderId} orderEmail={order.email} />
+          </div>
+        )}
         <div className={shared.tableWrap} style={{ marginTop: 10 }}>
           <table className={shared.table}>
             <thead>
@@ -153,7 +161,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               {order.codes.map((c) => (
                 <tr key={c.id}>
                   <td>
-                    {c.gameLabel} · {c.denomination} {c.unit}
+                    <Link href={`/admin/productos/${c.productId}`}>
+                      {c.gameLabel} · {c.denomination} {c.unit}
+                    </Link>
                   </td>
                   <td className={shared.mono}>{c.fingerprint}</td>
                   <td>

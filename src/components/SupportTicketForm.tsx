@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import styles from "./SupportTicketForm.module.css";
 import { ArrowLeftIcon, ChevronRightIcon } from "./icons";
@@ -8,10 +8,22 @@ import { useSession } from "@/lib/session-context";
 import { saveTicketRef } from "@/lib/support-session";
 import { SUPPORT_CATEGORIES, isOrderRequired, type SupportCategory } from "@/lib/support";
 
+const CATEGORY_VALUES = SUPPORT_CATEGORIES.map((c) => c.value);
+
+function isSupportCategory(value: string | null): value is SupportCategory {
+  return value !== null && (CATEGORY_VALUES as string[]).includes(value);
+}
+
 export function SupportTicketForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useSession();
-  const [category, setCategory] = useState<SupportCategory | null>(null);
+  // `?motivo=` viene del lanzador flotante (`AssistantLauncher`) — salta
+  // directo al formulario con la categoría ya elegida, en vez de hacer
+  // repetir al usuario un click que ya hizo en el panel de ayuda.
+  const motivoParam = searchParams.get("motivo");
+  const initialCategory = isSupportCategory(motivoParam) ? motivoParam : null;
+  const [category, setCategory] = useState<SupportCategory | null>(initialCategory);
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [email, setEmail] = useState(user?.email ?? "");
   const [message, setMessage] = useState("");

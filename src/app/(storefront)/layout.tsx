@@ -4,6 +4,7 @@ import Script from "next/script";
 import "../globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { AssistantLauncher } from "@/components/AssistantLauncher";
 import { CartProvider } from "@/lib/cart-context";
 import { SessionProvider } from "@/lib/session-context";
 
@@ -58,6 +59,7 @@ export default function RootLayout({
             <Header />
             <div className="siteMain">{children}</div>
             <Footer />
+            <AssistantLauncher />
           </CartProvider>
         </SessionProvider>
       </body>

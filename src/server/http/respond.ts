@@ -42,6 +42,7 @@ import {
   IpBlockNotFoundError,
   LoyaltyTierNotFoundError,
   MissingOwnerError,
+  NoDeliveredCodesError,
   OrderNotCancellableError,
   ProductNotFoundError,
   QuantityNotAllowedError,
@@ -160,7 +161,8 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     error instanceof RefundNotPendingManualReviewError ||
     error instanceof DuplicateLoyaltyTierError ||
     error instanceof DuplicateDiscountCodeError ||
-    error instanceof OrderNotCancellableError
+    error instanceof OrderNotCancellableError ||
+    error instanceof NoDeliveredCodesError
   ) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }

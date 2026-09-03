@@ -18,6 +18,7 @@ export type AuditAction =
   | "order.failed"
   | "order.refunded"
   | "code.delivered"
+  | "code.resent_by_support"
   | "payment.intent_created"
   | "payment.webhook_received"
   | "payment.webhook_duplicate"

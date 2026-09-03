@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import styles from "../legal.module.css";
 import { SupportRecentTickets } from "@/components/SupportRecentTickets";
 import { SupportTicketForm } from "@/components/SupportTicketForm";
@@ -17,7 +18,9 @@ export default function AyudaPage() {
       </p>
 
       <SupportRecentTickets />
-      <SupportTicketForm />
+      <Suspense fallback={null}>
+        <SupportTicketForm />
+      </Suspense>
 
       <h2>Otros recursos</h2>
       <ul>

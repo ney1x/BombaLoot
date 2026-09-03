@@ -2,11 +2,13 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import type { Pool } from "pg";
-import { withTransaction } from "../../db/client";
+import { createDb, withTransaction } from "../../db/client";
+import type { ValidatedSession } from "../../auth/session";
 import { decryptCode } from "../../crypto/codes";
 import { writeAudit } from "../audit";
 import { codesDeliveredEmail, sendMail } from "../mailer";
 import { loadOwnedOrder } from "./order-access";
+import { AdminOrderNotFoundError, NoDeliveredCodesError } from "../errors";
 import { OrderNotFoundError } from "./errors";
 
 /**
@@ -128,4 +130,78 @@ export async function deliverOrderCodes(
   }
 
   return result.value;
+}
+
+/**
+ * Reenvío de soporte: cuando el correo original no llegó (o el comprador
+ * nunca lo guardó) y el admin/SUPPORT necesita ayudarlo sin poder ver el
+ * código él mismo. Descifra server-side y lo manda de nuevo al email DEL
+ * PEDIDO — nunca se devuelve el texto plano al llamador ni se audita (mismo
+ * criterio que `deliverOrderCodes`: `writeAudit` rechaza cualquier clave que
+ * huela a secreto, y acá tampoco hace falta, alcanza con los ids).
+ *
+ * Solo códigos ya `DELIVERED` — si el pedido nunca llegó a entregarse, no
+ * hay nada que "reenviar" (ese es el flujo normal de `/pedido/[id]`, no
+ * este). No cambia ningún estado: es un reenvío, no una entrega nueva.
+ */
+export async function resendDeliveredCodesEmail(
+  pool: Pool,
+  actor: ValidatedSession,
+  orderId: string,
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<{ orderNumber: string; email: string; codeCount: number }> {
+  const db = createDb(pool);
+  const { rows: orderRows } = (await db.execute(
+    sql`SELECT order_number, email FROM orders WHERE id = ${orderId}::uuid`,
+  )) as unknown as { rows: Array<{ order_number: string; email: string }> };
+  const order = orderRows[0];
+  if (!order) throw new AdminOrderNotFoundError(orderId);
+
+  const { rows: codeRows } = (await db.execute(sql`
+    SELECT c.product_id, oi.game_label, oi.denomination, oi.unit,
+           c.secret_cipher, c.secret_nonce, c.secret_tag
+      FROM codes c
+      JOIN order_items oi ON oi.id = c.order_item_id
+     WHERE oi.order_id = ${orderId}::uuid AND c.status = 'DELIVERED'
+     ORDER BY oi.game_label, oi.denomination
+  `)) as unknown as {
+    rows: Array<{
+      product_id: string;
+      game_label: string;
+      denomination: string;
+      unit: string;
+      secret_cipher: Buffer;
+      secret_nonce: Buffer;
+      secret_tag: Buffer;
+    }>;
+  };
+
+  if (codeRows.length === 0) throw new NoDeliveredCodesError();
+
+  const codes: DeliveredCode[] = codeRows.map((row) => ({
+    productId: row.product_id,
+    gameLabel: row.game_label,
+    denomination: row.denomination,
+    unit: row.unit,
+    code: decryptCode({ cipher: row.secret_cipher, nonce: row.secret_nonce, tag: row.secret_tag }),
+  }));
+
+  await sendMail({
+    to: order.email,
+    subject: `Tu código — pedido #${order.order_number}`,
+    text: codesDeliveredEmail(order.order_number, codes),
+  });
+
+  await writeAudit(db, {
+    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorId: actor.userId,
+    action: "code.resent_by_support",
+    entityType: "order",
+    entityId: orderId,
+    metadata: { codeCount: codes.length },
+    ip: context.ip,
+    userAgent: context.userAgent,
+  });
+
+  return { orderNumber: order.order_number, email: order.email, codeCount: codes.length };
 }

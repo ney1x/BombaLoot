@@ -32,7 +32,11 @@ export default async function AdminSupportDetailPage({ params }: { params: Promi
             {ticket.orderNumber && (
               <>
                 {" · "}
-                <Link href={`/admin/pedidos/${ticket.orderId}`} className={shared.mono}>
+                <Link
+                  href={`/admin/pedidos/${ticket.orderId}`}
+                  className={shared.mono}
+                  style={{ color: "var(--accent)", fontWeight: 600 }}
+                >
                   {ticket.orderNumber}
                 </Link>
               </>

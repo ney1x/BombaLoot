@@ -80,7 +80,9 @@ export default async function AdminSupportPage({
                   >
                     <span>{t.email}</span>
                     <span>{category}</span>
-                    {t.orderNumber && <span>Pedido {t.orderNumber}</span>}
+                    {t.orderNumber && (
+                      <span style={{ color: "var(--accent)", fontWeight: 600 }}>Pedido {t.orderNumber}</span>
+                    )}
                     <span>Actividad: {t.lastMessageAt.toLocaleString("es-CO")}</span>
                     {t.assignedToEmail && <span>Asignado a {t.assignedToEmail}</span>}
                   </div>

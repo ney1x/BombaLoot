@@ -155,6 +155,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     id: string;
     status: string;
     fingerprint: string;
+    productId: string;
     gameLabel: string;
     denomination: string;
     unit: string;
@@ -231,7 +232,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       }>;
     }>,
     db.execute(sql`
-      SELECT c.id, c.status, c.secret_fingerprint, oi.game_label, oi.denomination, oi.unit
+      SELECT c.id, c.status, c.secret_fingerprint, oi.product_id, oi.game_label, oi.denomination, oi.unit
         FROM codes c JOIN order_items oi ON oi.id = c.order_item_id
        WHERE oi.order_id = ${orderId}::uuid
        ORDER BY oi.game_label, oi.denomination, c.created_at
@@ -240,6 +241,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
         id: string;
         status: string;
         secret_fingerprint: Buffer;
+        product_id: string;
         game_label: string;
         denomination: string;
         unit: string;
@@ -330,6 +332,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       id: c.id,
       status: c.status,
       fingerprint: c.secret_fingerprint.toString("hex").slice(0, 16),
+      productId: c.product_id,
       gameLabel: c.game_label,
       denomination: c.denomination,
       unit: c.unit,
