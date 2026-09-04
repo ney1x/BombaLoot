@@ -1,13 +1,18 @@
 import Link from "next/link";
 import styles from "../legal.module.css";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Política de Privacidad — BombaLoot",
-};
+export const metadata = pageMetadata({
+  title: "Política de Privacidad | BombaLoot",
+  description: "Cómo BombaLoot recopila, usa y protege tus datos personales.",
+  path: "/privacidad",
+});
 
 export default function PrivacidadPage() {
   return (
     <div className={styles.wrap}>
+      <Breadcrumb items={[{ name: "Home", path: "" }, { name: "Política de Privacidad", path: "/privacidad" }]} />
       <h1>Política de Privacidad</h1>
       <p className={styles.intro}>
         En BombaLoot nos comprometemos a proteger la privacidad y la información personal de

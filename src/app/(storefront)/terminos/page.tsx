@@ -1,12 +1,17 @@
 import styles from "../legal.module.css";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Términos y Condiciones — BombaLoot",
-};
+export const metadata = pageMetadata({
+  title: "Términos y Condiciones | BombaLoot",
+  description: "Términos y condiciones de compra, pago y entrega de códigos digitales en BombaLoot.",
+  path: "/terminos",
+});
 
 export default function TerminosPage() {
   return (
     <div className={styles.wrap}>
+      <Breadcrumb items={[{ name: "Home", path: "" }, { name: "Términos y Condiciones", path: "/terminos" }]} />
       <h1>Términos y Condiciones</h1>
       <p className={styles.intro}>
         Bienvenido a <strong>BombaLoot</strong>. Al acceder, registrarte o realizar una compra en

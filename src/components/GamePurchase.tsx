@@ -5,7 +5,14 @@ import { useMemo, useState } from "react";
 import styles from "./GamePurchase.module.css";
 import { GameImageSlot } from "./GameImageSlot";
 import { CheckIcon, PackageCheckIcon, ShieldCheckIcon } from "./icons";
-import { GAME_COLORS, maxAddableQuantity, formatCop, type GameId, type Product } from "@/lib/products";
+import {
+  GAME_COLORS,
+  maxAddableQuantity,
+  formatCop,
+  productImageLabel,
+  type GameId,
+  type Product,
+} from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
 
 const PAYMENT_METHODS = ["Nequi", "PSE", "Tarjetas", "PayPal"];
@@ -52,17 +59,13 @@ export function GamePurchase({
   }
 
   return (
-    <main className={styles.main}>
-      <p className={styles.crumb}>
-        <Link href="/">Home</Link> / {game.label}
-      </p>
-
+    <div className={styles.main}>
       <div className={styles.grid}>
         <div className={styles.visual}>
           <div className={styles.visualPanel}>
             <GameImageSlot
               gameId={game.id}
-              label={game.label}
+              label={selected ? productImageLabel(selected) : game.label}
               sizeHint="680×680"
               sizes="(max-width: 860px) 320px, 340px"
               priority
@@ -70,7 +73,7 @@ export function GamePurchase({
             />
           </div>
           <div className={styles.calloutCard}>
-            <h3>Entrega automática</h3>
+            <p className={styles.calloutTitle}>Entrega automática</p>
             <p>Apenas confirmamos el pago con el proveedor, el código queda disponible en tu pedido.</p>
           </div>
         </div>
@@ -198,6 +201,6 @@ export function GamePurchase({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

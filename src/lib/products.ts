@@ -28,6 +28,37 @@ export const GAMES: { id: GameId; label: string }[] = [
 ];
 
 /**
+ * Copy de SEO por juego (`/catalogo/[game]`, `generateMetadata`) — términos
+ * verificados contra `ProductCreateForm.tsx` (`UNIT_HINTS`), la tabla real
+ * de denominación/unidad que usa el admin al cargar productos: VP para
+ * Valorant, Robux para Roblox, RP para League of Legends, "de saldo" para
+ * Overwatch (no tiene nombre de moneda propio, así que el título no inventa
+ * uno — dice "Saldo", como en todo el resto del sitio).
+ */
+export const GAME_SEO: Record<GameId, { title: string; description: string }> = {
+  valorant: {
+    title: "Valorant Points (VP) | Compra VP en Colombia | BombaLoot",
+    description:
+      "Comprá Valorant Points (VP) en Colombia con entrega automática apenas se confirma el pago. Recargá tu cuenta de Valorant de forma segura.",
+  },
+  roblox: {
+    title: "Robux | Compra Robux en Colombia | BombaLoot",
+    description:
+      "Comprá Robux en Colombia con entrega automática apenas se confirma el pago. Recargá tu cuenta de Roblox de forma segura.",
+  },
+  league: {
+    title: "RP de League of Legends | Compra en Colombia | BombaLoot",
+    description:
+      "Comprá RP (Riot Points) para League of Legends en Colombia con entrega automática apenas se confirma el pago. Recargá tu cuenta de forma segura.",
+  },
+  overwatch: {
+    title: "Saldo de Overwatch | Recarga en Colombia | BombaLoot",
+    description:
+      "Recargá saldo para Overwatch en Colombia con entrega automática apenas se confirma el pago. Pago seguro y código al instante.",
+  },
+};
+
+/**
  * Original, non-licensed per-game color identity — no official artwork or
  * marks. deep/base/tint drive panel backgrounds and pattern strokes.
  */
@@ -144,4 +175,17 @@ export function formatCop(amount: number): string {
     currency: "COP",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/**
+ * Nombre legible de un producto puntual — "565 VP — Valorant", no solo
+ * "Valorant" (Fase 9: cada denominación es su propia entidad indexable vía
+ * `Product` schema, aunque comparta URL con las demás del mismo juego —
+ * el alt de su imagen tiene que poder distinguirla igual). Mismo formato
+ * que `name` en `toJsonLdProduct` (`lib/seo.ts`) a propósito, para que el
+ * alt de la imagen y el nombre que lee Google en el schema sean la misma
+ * entidad dicha dos veces, no dos etiquetas distintas para lo mismo.
+ */
+export function productImageLabel(product: { denomination: string; unit: string; gameLabel: string }): string {
+  return `${product.denomination} ${product.unit} — ${product.gameLabel}`;
 }

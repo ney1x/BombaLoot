@@ -7,6 +7,7 @@ import { ProductTile } from "@/components/ProductTile";
 import { TrustStrip } from "@/components/TrustStrip";
 import { toStoreProduct } from "@/lib/catalog-mapper";
 import { sortForHero } from "@/lib/products";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
 import { getActiveGameVisualMap, getActiveProductVisualMap } from "@/server/services/game-visuals";
@@ -25,6 +26,9 @@ export default async function Home() {
 
   return (
     <div className={styles.shell}>
+      {/* Organization/WebSite — solo acá, no en cada página (ver el comentario en lib/seo.ts). */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationJsonLd() }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: websiteJsonLd() }} />
       <main className={styles.main}>
         <HeroRotator
           products={heroProducts}

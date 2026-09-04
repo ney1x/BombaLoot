@@ -23,6 +23,16 @@ export interface PaymentMethodMeta {
   id: PaymentMethodId;
   provider: PaymentProviderId;
   name: string;
+  /**
+   * "Colombia" = solo funciona con cuenta bancaria o Nequi colombiana
+   * (Nequi, PSE — el dinero sale de un banco local, no hay forma de pagar
+   * desde el exterior). "Internacional" = acepta tarjeta de cualquier país,
+   * no solo Colombia — Wompi procesa Visa/Mastercard/Amex tanto locales
+   * como emitidas en el exterior (confirmado contra la propia documentación
+   * de soporte de Wompi, no es un supuesto). El dinero siempre liquida en
+   * COP de cualquier forma; esto es sobre quién puede pagar, no sobre en
+   * qué moneda cobra el comercio.
+   */
   region: string;
   sublabel: string;
   description: string;
@@ -49,9 +59,9 @@ export const PAYMENT_METHODS: PaymentMethodMeta[] = [
     id: "card",
     provider: "wompi",
     name: "Tarjeta débito o crédito",
-    region: "Colombia",
+    region: "Internacional",
     sublabel: "Visa, Mastercard y más",
-    description: "Pagá con tu tarjeta, procesado en Colombia.",
+    description: "Pagá con tarjeta colombiana o del exterior — Wompi acepta ambas.",
   },
   {
     id: "paypal",

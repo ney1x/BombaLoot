@@ -3,7 +3,7 @@ import styles from "./CatalogProductCard.module.css";
 import { GameImageSlot } from "./GameImageSlot";
 import { StockBadge } from "./StockBadge";
 import { GAME_MARKS } from "./icons";
-import { formatCop, type Product } from "@/lib/products";
+import { formatCop, productImageLabel, type Product } from "@/lib/products";
 
 export function CatalogProductCard({
   product,
@@ -27,7 +27,7 @@ export function CatalogProductCard({
     <div className={styles.imageWrap}>
       <GameImageSlot
         gameId={product.gameId}
-        label={product.gameLabel}
+        label={productImageLabel(product)}
         sizeHint="480×480"
         sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 25vw"
         imageUrl={product.imageUrl}

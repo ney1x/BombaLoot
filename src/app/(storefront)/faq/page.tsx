@@ -1,9 +1,13 @@
 import Link from "next/link";
 import styles from "../legal.module.css";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { faqPageJsonLd, pageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Preguntas Frecuentes — BombaLoot",
-};
+export const metadata = pageMetadata({
+  title: "Preguntas Frecuentes | BombaLoot",
+  description: "Preguntas frecuentes sobre compras, pagos, entrega de códigos y soporte en BombaLoot.",
+  path: "/faq",
+});
 
 const FAQS = [
   {
@@ -43,6 +47,13 @@ const FAQS = [
 export default function FaqPage() {
   return (
     <div className={styles.wrap}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: faqPageJsonLd(FAQS.map((item) => ({ question: item.q, answer: item.a }))),
+        }}
+      />
+      <Breadcrumb items={[{ name: "Home", path: "" }, { name: "Preguntas Frecuentes", path: "/faq" }]} />
       <h1>Preguntas Frecuentes</h1>
       <p className={styles.intro}>
         Resolvé las dudas más comunes sobre compras, pagos y entrega de códigos en BombaLoot. Si

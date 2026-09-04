@@ -4,16 +4,6 @@
   padding: 32px 24px 80px;
 }
 
-.crumb {
-  font-size: 13px;
-  color: var(--ink-soft);
-  margin-bottom: 22px;
-}
-
-.crumb a:hover {
-  color: var(--ink);
-}
-
 .grid {
   display: grid;
   grid-template-columns: 340px 1fr;
@@ -46,17 +36,18 @@
   box-shadow: var(--shadow-sm);
 }
 
-.calloutCard h3 {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
 .calloutCard p {
   font-size: 13px;
   color: var(--ink-soft);
   line-height: 1.5;
+}
+
+.calloutCard .calloutTitle {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
 }
 
 /* Info column */

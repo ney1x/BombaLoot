@@ -1,13 +1,18 @@
 import Link from "next/link";
 import styles from "../legal.module.css";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Política de Cookies — BombaLoot",
-};
+export const metadata = pageMetadata({
+  title: "Política de Cookies | BombaLoot",
+  description: "Qué cookies usa BombaLoot y para qué — solo cookies propias, necesarias para el funcionamiento del sitio.",
+  path: "/cookies",
+});
 
 export default function CookiesPage() {
   return (
     <div className={styles.wrap}>
+      <Breadcrumb items={[{ name: "Home", path: "" }, { name: "Política de Cookies", path: "/cookies" }]} />
       <h1>Política de Cookies</h1>
       <p className={styles.intro}>
         Esta Política de Cookies explica qué cookies y tecnologías similares utiliza BombaLoot,

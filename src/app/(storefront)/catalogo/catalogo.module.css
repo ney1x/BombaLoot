@@ -19,6 +19,27 @@
   max-width: 60ch;
 }
 
+.gameLinks {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+
+.gameLinks a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gameLinks a:hover {
+  color: var(--ink);
+}
+
+.gameLinks a:not(:last-child)::after {
+  content: " · ";
+  text-decoration: none;
+}
+
 .controls {
   display: flex;
   align-items: center;
