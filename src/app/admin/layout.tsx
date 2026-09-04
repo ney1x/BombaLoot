@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Public_Sans, Roboto_Mono } from "next/font/google";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import "../globals.css";
 import styles from "./admin.module.css";
 import { requireAdminOrSupport } from "@/server/auth/guards";
@@ -102,6 +103,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <main className={styles.main}>{children}</main>
           </div>
         </div>
+        <SpeedInsights />
       </body>
     </html>
   );
