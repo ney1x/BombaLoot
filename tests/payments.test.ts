@@ -20,8 +20,10 @@ import {
 import {
   capturePaypalPayment,
   initPaypalPayment,
+  initWompiNequiPayment,
   initWompiPayment,
 } from "@/server/services/payment/payment-intent-service";
+import { wompiNequiInitSchema } from "@/server/services/payment/payment-schemas";
 import {
   processPaypalWebhook,
   processWompiWebhook,
@@ -488,6 +490,153 @@ describe("Caso B/G — pago confirmado sin código disponible", () => {
     expect(refundRows).toHaveLength(1);
     expect(refundRows[0].status).toBe("PENDING_REFUND");
     expect(refundRows[0].provider_request_id).toBeTruthy();
+  });
+});
+
+/* ════════════════════════════ Nequi directo (sin checkout alojado) ════════════════════════════ */
+
+function mockWompiMerchantAndTransactions(params: {
+  transactionId: string;
+  status?: string;
+  onCreate?: () => void;
+}): void {
+  fetchImpl = async (url, init) => {
+    if (url.includes("/merchants/")) {
+      return jsonResponse({
+        data: {
+          presigned_acceptance: { acceptance_token: "accept-tok", permalink: "https://wompi.co/x", type: "END_USER_POLICY" },
+          presigned_personal_data_auth: { acceptance_token: "personal-tok", permalink: "https://wompi.co/y" },
+        },
+      });
+    }
+    if (url.endsWith("/transactions") && init?.method === "POST") {
+      params.onCreate?.();
+      const body = JSON.parse(String(init.body)) as { amount_in_cents: number; currency: string; reference: string };
+      return jsonResponse(
+        {
+          data: {
+            id: params.transactionId,
+            reference: body.reference,
+            status: params.status ?? "PENDING",
+            amount_in_cents: body.amount_in_cents,
+            currency: body.currency,
+            payment_method_type: "NEQUI",
+            created_at: new Date().toISOString(),
+          },
+        },
+        201,
+      );
+    }
+    return jsonResponse({ error: "unexpected", url }, 404);
+  };
+}
+
+describe("Nequi directo — crea la transacción acá mismo, sin redirect", () => {
+  it("valida el celular en el borde antes de tocar la API de Wompi", () => {
+    expect(wompiNequiInitSchema.safeParse({ orderId: crypto.randomUUID(), phoneNumber: "3001234567" }).success).toBe(
+      true,
+    );
+    expect(wompiNequiInitSchema.safeParse({ orderId: crypto.randomUUID(), phoneNumber: "300 123 4567" }).success).toBe(
+      true,
+    ); // espacios se limpian
+    expect(wompiNequiInitSchema.safeParse({ orderId: crypto.randomUUID(), phoneNumber: "123456" }).success).toBe(
+      false,
+    );
+    expect(wompiNequiInitSchema.safeParse({ orderId: crypto.randomUUID(), phoneNumber: "4001234567" }).success).toBe(
+      false,
+    ); // no empieza en 3
+  });
+
+  it("crea la transacción con reference = payment_intent.id, y el intent queda INITIATED con provider_ref", async () => {
+    const order = await createPendingOrder(2, 1);
+    mockWompiMerchantAndTransactions({ transactionId: "WOMPI-NEQUI-TX-1" });
+
+    const result = await initWompiNequiPayment(pool, {
+      orderId: order.orderId,
+      accessToken: order.accessToken!,
+      phoneNumber: "3001234567",
+    });
+
+    expect(result.status).toBe("PENDING");
+
+    const { rows } = await pool.query<{ status: string; provider_ref: string }>(
+      "SELECT status, provider_ref FROM payment_intents WHERE id = $1",
+      [result.paymentIntentId],
+    );
+    expect(rows[0].status).toBe("INITIATED");
+    expect(rows[0].provider_ref).toBe("WOMPI-NEQUI-TX-1");
+
+    // Antes solo vivía enterrado en payment_intents.raw_payload — ahora es
+    // columna propia de orders, consultable desde el admin.
+    const { rows: orderRows } = await pool.query<{ buyer_phone: string | null }>(
+      "SELECT buyer_phone FROM orders WHERE id = $1",
+      [order.orderId],
+    );
+    expect(orderRows[0].buyer_phone).toBe("3001234567");
+  });
+
+  it("un reintento (doble clic) contra el mismo pedido no le manda un segundo push al cliente", async () => {
+    const order = await createPendingOrder(2, 1);
+    let createCalls = 0;
+    mockWompiMerchantAndTransactions({ transactionId: "WOMPI-NEQUI-TX-2", onCreate: () => createCalls++ });
+
+    const first = await initWompiNequiPayment(pool, {
+      orderId: order.orderId,
+      accessToken: order.accessToken!,
+      phoneNumber: "3001234567",
+    });
+    const second = await initWompiNequiPayment(pool, {
+      orderId: order.orderId,
+      accessToken: order.accessToken!,
+      phoneNumber: "3001234567",
+    });
+
+    expect(second.paymentIntentId).toBe(first.paymentIntentId);
+    expect(createCalls).toBe(1); // nunca dos transacciones para el mismo intent activo
+  });
+
+  it("el webhook de Wompi aprueba un pago Nequi igual que cualquier otro — mismo reference, mismo camino", async () => {
+    const order = await createPendingOrder(2, 1);
+    mockWompiMerchantAndTransactions({ transactionId: "WOMPI-NEQUI-TX-3" });
+
+    const init = await initWompiNequiPayment(pool, {
+      orderId: order.orderId,
+      accessToken: order.accessToken!,
+      phoneNumber: "3001234567",
+    });
+
+    await processWompiWebhook(
+      pool,
+      wompiEvent({
+        reference: init.paymentIntentId,
+        transactionId: "WOMPI-NEQUI-TX-3",
+        status: "APPROVED",
+        amountInCents: order.totalCop * 100,
+      }),
+    );
+
+    const fresh = await getOrderByAccessToken(pool, order.accessToken!);
+    expect(fresh!.paymentStatus).toBe("PAID");
+  });
+
+  it("si Wompi rechaza la creación (422), el intent queda FAILED y el error se propaga", async () => {
+    const order = await createPendingOrder(2, 1);
+    fetchImpl = async (url) => {
+      if (url.includes("/merchants/")) {
+        return jsonResponse({ data: { presigned_acceptance: { acceptance_token: "accept-tok" } } });
+      }
+      return jsonResponse({ error: { messages: { phone_number: "is invalid" } } }, 422);
+    };
+
+    await expect(
+      initWompiNequiPayment(pool, { orderId: order.orderId, accessToken: order.accessToken!, phoneNumber: "3001234567" }),
+    ).rejects.toThrow();
+
+    const { rows } = await pool.query<{ status: string }>(
+      "SELECT status FROM payment_intents WHERE order_id = $1",
+      [order.orderId],
+    );
+    expect(rows[0].status).toBe("FAILED");
   });
 });
 

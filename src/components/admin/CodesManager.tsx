@@ -24,6 +24,27 @@ export interface AdminCode {
 
 const STATUS_OPTIONS = ["AVAILABLE", "RESERVED", "PAID", "DELIVERED", "VOID"];
 
+type VigenciaZone = "fresh" | "risk" | "expired";
+
+const VIGENCIA_LABEL: Record<VigenciaZone, string> = {
+  fresh: "",
+  risk: "POR VENCER",
+  expired: "VENCIDO",
+};
+
+const VIGENCIA_TONE: Record<VigenciaZone, string> = {
+  fresh: "good",
+  risk: "warn",
+  expired: "bad",
+};
+
+function vigenciaZone(createdAt: string, riskWindowDays: number, expiryDays: number): VigenciaZone {
+  const ageDays = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
+  if (ageDays >= expiryDays) return "expired";
+  if (ageDays >= riskWindowDays) return "risk";
+  return "fresh";
+}
+
 /** Fecha + hora — antes solo mostraba la fecha, sin forma de distinguir
     dos códigos cargados el mismo día. */
 function formatDateTime(iso: string): string {
@@ -51,11 +72,15 @@ export function CodesManager({
   initialCodes,
   canEdit,
   currentUserId,
+  riskWindowDays,
+  expiryDays,
 }: {
   productId: string;
   initialCodes: AdminCode[];
   canEdit: boolean;
   currentUserId: string | null;
+  riskWindowDays: number;
+  expiryDays: number;
 }) {
   const router = useRouter();
   const [codes, setCodes] = useState(initialCodes);
@@ -68,20 +93,23 @@ export function CodesManager({
   const [editValue, setEditValue] = useState("");
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [revealingId, setRevealingId] = useState<string | null>(null);
+  const [voidingId, setVoidingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [vigenciaFilter, setVigenciaFilter] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [loadedDateFilter, setLoadedDateFilter] = useState("");
   const [deliveredDateFilter, setDeliveredDateFilter] = useState("");
   const [page, setPage] = useState(0);
 
   const hasActiveFilters =
-    search || statusFilter || sortOrder !== "desc" || loadedDateFilter || deliveredDateFilter;
+    search || statusFilter || vigenciaFilter || sortOrder !== "desc" || loadedDateFilter || deliveredDateFilter;
 
   const visibleCodes = useMemo(() => {
     const term = search.trim().toLowerCase();
     const filtered = codes.filter((c) => {
       if (statusFilter && c.status !== statusFilter) return false;
+      if (vigenciaFilter && vigenciaZone(c.createdAt, riskWindowDays, expiryDays) !== vigenciaFilter) return false;
       if (term && !c.fingerprint.toLowerCase().includes(term)) return false;
       if (loadedDateFilter && toDateInputValue(c.createdAt) !== loadedDateFilter) return false;
       if (deliveredDateFilter && (!c.deliveredAt || toDateInputValue(c.deliveredAt) !== deliveredDateFilter))
@@ -92,7 +120,7 @@ export function CodesManager({
       const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       return sortOrder === "desc" ? -diff : diff;
     });
-  }, [codes, search, statusFilter, sortOrder, loadedDateFilter, deliveredDateFilter]);
+  }, [codes, search, statusFilter, vigenciaFilter, sortOrder, loadedDateFilter, deliveredDateFilter, riskWindowDays, expiryDays]);
 
   // Una tabla sin paginar de hasta 500 filas (el tope del alta masiva) no es
   // escaneable. 50 por página; cualquier cambio de filtro vuelve a la 1.
@@ -134,7 +162,8 @@ export function CodesManager({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo cargar el lote");
-      setResult(`Cargados ${data.inserted}, duplicados ${data.duplicates}.`);
+      const reactivatedMsg = data.reactivated > 0 ? `, reactivados ${data.reactivated}` : "";
+      setResult(`Cargados ${data.inserted}${reactivatedMsg}, duplicados ${data.duplicates}.`);
       setBulkText("");
       await refresh();
       router.refresh();
@@ -189,6 +218,24 @@ export function CodesManager({
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
       setRevealingId(null);
+    }
+  }
+
+  async function voidCodeAction(codeId: string) {
+    if (!window.confirm("¿Anular este código? Sale de la venta, pero no se borra.")) return;
+    setError(null);
+    setVoidingId(codeId);
+    try {
+      const res = await fetch(`/api/admin/codes/${codeId}/void`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo anular");
+      hideCode(codeId);
+      await refresh();
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setVoidingId(null);
     }
   }
 
@@ -258,6 +305,15 @@ export function CodesManager({
           ))}
         </select>
         <select
+          value={vigenciaFilter}
+          onChange={(e) => updateFilter(setVigenciaFilter)(e.target.value)}
+          aria-label="Filtrar por vigencia"
+        >
+          <option value="">Toda vigencia</option>
+          <option value="risk">{VIGENCIA_LABEL.risk}</option>
+          <option value="expired">{VIGENCIA_LABEL.expired}</option>
+        </select>
+        <select
           value={sortOrder}
           onChange={(e) => updateFilter(setSortOrder)(e.target.value as "desc" | "asc")}
           aria-label="Ordenar por fecha de carga"
@@ -294,6 +350,7 @@ export function CodesManager({
             onClick={() => {
               setSearch("");
               setStatusFilter("");
+              setVigenciaFilter("");
               setSortOrder("desc");
               setLoadedDateFilter("");
               setDeliveredDateFilter("");
@@ -314,6 +371,7 @@ export function CodesManager({
             <tr>
               <th>Fingerprint</th>
               <th>Estado</th>
+              <th>Vigencia</th>
               <th>Subido por</th>
               <th>Cargado</th>
               <th>Entregado</th>
@@ -323,7 +381,8 @@ export function CodesManager({
           <tbody>
             {pagedCodes.map((c) => {
               const isOwner = !c.uploadedById || c.uploadedById === currentUserId;
-              const canReveal = canEdit && isOwner && c.status === "AVAILABLE";
+              const canReveal = canEdit && isOwner && (c.status === "AVAILABLE" || c.status === "VOID");
+              const zone = vigenciaZone(c.createdAt, riskWindowDays, expiryDays);
               return (
               <tr key={c.id}>
                 <td className={shared.mono}>
@@ -362,6 +421,13 @@ export function CodesManager({
                   <span className={shared.badge} data-tone={STATUS_TONE[c.status]}>
                     {STATUS_LABEL[c.status] ?? c.status}
                   </span>
+                </td>
+                <td>
+                  {zone !== "fresh" && (
+                    <span className={shared.badge} data-tone={VIGENCIA_TONE[zone]}>
+                      {VIGENCIA_LABEL[zone]}
+                    </span>
+                  )}
                 </td>
                 <td>{c.uploadedByName ?? "—"}</td>
                 <td className={shared.mono}>{formatDateTime(c.createdAt)}</td>
@@ -403,6 +469,15 @@ export function CodesManager({
                           >
                             Editar
                           </button>
+                          <button
+                            type="button"
+                            className={shared.btnSmall}
+                            onClick={() => voidCodeAction(c.id)}
+                            disabled={voidingId === c.id}
+                            title="Sacarlo de la venta sin borrarlo — para uno cercano a vencer."
+                          >
+                            Anular
+                          </button>
                           <button type="button" className={`${shared.btnSmall} ${shared.btnSmallDanger}`} onClick={() => removeCode(c.id)}>
                             Eliminar
                           </button>
@@ -418,7 +493,7 @@ export function CodesManager({
             })}
             {visibleCodes.length === 0 && (
               <tr>
-                <td colSpan={canEdit ? 6 : 5} className={shared.empty}>
+                <td colSpan={canEdit ? 7 : 6} className={shared.empty}>
                   {codes.length === 0 ? "Sin códigos cargados." : "Ningún código coincide con el filtro."}
                 </td>
               </tr>

@@ -296,6 +296,8 @@ export interface CheckoutParams {
   owner: CheckoutOwner;
   /** Código de cupón opcional, tal como lo escribió el comprador (se normaliza acá). */
   discountCode?: string;
+  /** Cédula — solo viene con valor cuando el checkout la pidió (hoy: método Nequi), con consentimiento propio. */
+  buyerLegalId?: string;
   /**
    * Cupón de fidelización opcional, de la cuenta del comprador — nunca
    * automático, es la elección activa de con qué pedido lo usa. Mutuamente
@@ -309,7 +311,8 @@ export interface CheckoutParams {
 }
 
 export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<CheckoutResult> {
-  const { lines, idempotencyKey, owner, discountCode, loyaltyCouponId, rateLimitKey, ip, userAgent } = params;
+  const { lines, idempotencyKey, owner, discountCode, loyaltyCouponId, buyerLegalId, rateLimitKey, ip, userAgent } =
+    params;
 
   await assertIpNotBlocked(pool, ip, { userAgent, action: "checkout" });
 
@@ -437,12 +440,12 @@ export async function checkoutCart(pool: Pool, params: CheckoutParams): Promise<
       try {
         const { rows } = (await tx.execute(sql`
           INSERT INTO orders (
-            order_number, access_token_hash, user_id, email, buyer_name,
+            order_number, access_token_hash, user_id, email, buyer_name, buyer_legal_id,
             subtotal_cop, discount_cop, total_cop, currency,
             loyalty_tier_id, payment_expires_at, idempotency_key
           )
           VALUES (
-            ${orderNumber}, ${accessTokenHash}, ${userId}::uuid, ${owner.email}, ${buyerName},
+            ${orderNumber}, ${accessTokenHash}, ${userId}::uuid, ${owner.email}, ${buyerName}, ${buyerLegalId ?? null},
             ${subtotalCop}, ${discountCop}, ${totalCop}, 'COP',
             ${tier?.id ?? null},
             now() + make_interval(secs => ${PAYMENT_WINDOW_SECONDS}::double precision),

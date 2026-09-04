@@ -6,6 +6,7 @@ import { createDb, isLocalDatabase, withTransaction, type Db } from "@/server/db
 import { createPool } from "@/server/db/client";
 import { MigrationChecksumMismatchError, runMigrations } from "@/server/db/migrate";
 import { writeAudit } from "@/server/services/audit";
+import { createSession } from "@/server/auth/session";
 import {
   QuantityNotAllowedError,
   ReservationExpiredError,
@@ -99,6 +100,56 @@ describe("C2 — la guarda de secretos de audit_logs es recursiva de verdad", ()
       "SELECT count(*)::int c FROM audit_logs WHERE entity_id = 'abc'",
     );
     expect(rows[0].c).toBe(1);
+  });
+});
+
+/* ═══════════════════════════ C3 — "unknown" no revienta el INSERT a inet ═══════════════════════════ */
+
+describe("C3 — getClientIp devuelve \"unknown\" sin proxy delante, y eso no puede tirar la transacción", () => {
+  it("writeAudit con ip: \"unknown\" no lanza — la fila queda con ip NULL", async () => {
+    await expect(
+      writeAudit(db, {
+        actorType: "CUSTOMER",
+        action: "order.created",
+        entityType: "order",
+        entityId: "unknown-ip-test",
+        ip: "unknown",
+      }),
+    ).resolves.not.toThrow();
+
+    const { rows } = await pool.query<{ ip: string | null }>(
+      "SELECT ip FROM audit_logs WHERE entity_id = 'unknown-ip-test'",
+    );
+    expect(rows[0].ip).toBeNull();
+  });
+
+  it("createSession con context.ip: \"unknown\" no lanza — la sesión queda con ip NULL (login/registro sin proxy)", async () => {
+    const { rows: userRows } = await pool.query<{ id: string }>(
+      `INSERT INTO users (email, password_hash) VALUES ('unknown-ip@test.local', 'x') RETURNING id`,
+    );
+    const userId = userRows[0].id;
+
+    const session = await createSession(db, userId, { ip: "unknown" });
+
+    const { rows } = await pool.query<{ ip: string | null }>(
+      "SELECT ip FROM sessions WHERE id = $1::uuid",
+      [session.sessionId],
+    );
+    expect(rows[0].ip).toBeNull();
+  });
+
+  it("una IP real (con o sin proxy) se sigue guardando tal cual", async () => {
+    await writeAudit(db, {
+      actorType: "CUSTOMER",
+      action: "order.created",
+      entityType: "order",
+      entityId: "real-ip-test",
+      ip: "190.85.12.4",
+    });
+    const { rows } = await pool.query<{ ip: string | null }>(
+      "SELECT ip FROM audit_logs WHERE entity_id = 'real-ip-test'",
+    );
+    expect(rows[0].ip).toBe("190.85.12.4");
   });
 });
 

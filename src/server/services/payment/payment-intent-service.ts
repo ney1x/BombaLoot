@@ -7,7 +7,7 @@ import type { OrderView } from "../checkout-service";
 import { writeAudit } from "../audit";
 import { OrderNotFoundError, OrderNotPayableError } from "./errors";
 import { loadOwnedOrder } from "./order-access";
-import { buildWompiCheckoutUrl } from "./wompi-client";
+import { buildWompiCheckoutUrl, createWompiNequiTransaction } from "./wompi-client";
 import { createPaypalOrder, getPaypalOrder, capturePaypalOrder } from "./paypal-client";
 import { applyApprovedPayment, applyFailedPayment } from "./webhook-service";
 
@@ -181,6 +181,87 @@ export async function initWompiPayment(pool: Pool, params: InitWompiPaymentParam
   }
 
   return { paymentIntentId: intent.id, checkoutUrl, reused };
+}
+
+export interface InitWompiNequiPaymentParams {
+  orderId: string;
+  accessToken?: string;
+  userId?: string;
+  /** Ya validado/normalizado (10 dígitos) por `wompiNequiInitSchema`. */
+  phoneNumber: string;
+}
+
+export interface InitWompiNequiPaymentResult {
+  paymentIntentId: string;
+  status: string;
+}
+
+/**
+ * A diferencia de `initWompiPayment` (checkout alojado, sin llamada de red
+ * acá), esto SÍ crea la transacción de una — mismo `reference` que el
+ * resto (`payment_intent.id`), así que el webhook de Wompi y
+ * `syncPaymentIntentWithProvider` (Caso C, "webhook perdido") la
+ * encuentran exactamente igual que a una nacida del widget, sin ninguna
+ * rama nueva ahí. El cliente nunca redirige a ningún lado — aprueba un
+ * push en su app y esta misma pestaña sigue el estado por
+ * `GET /api/result/[paymentIntentId]` (`PaymentResultReal`).
+ */
+export async function initWompiNequiPayment(
+  pool: Pool,
+  params: InitWompiNequiPaymentParams,
+): Promise<InitWompiNequiPaymentResult> {
+  const order = await loadOwnedOrder(pool, params);
+  assertPayable(order);
+
+  // Recién acá se conoce el celular — el pedido ya existe desde
+  // `/api/checkout`, así que se completa con un UPDATE puntual. Columna
+  // propia (no solo `payment_intents.raw_payload`) para que quede
+  // consultable desde el detalle de admin, igual que nombre/cédula.
+  await createDb(pool).execute(
+    sql`UPDATE orders SET buyer_phone = ${params.phoneNumber} WHERE id = ${order.orderId}::uuid`,
+  );
+
+  const amountInCents = order.totalCop * 100;
+  const { intent, reused } = await createOrReuseIntent(pool, {
+    orderId: order.orderId,
+    provider: "WOMPI",
+    amountCop: order.totalCop,
+    currency: "COP",
+  });
+
+  // Reintento (doble clic) contra un intent que ya le mandó el push a
+  // Nequi: no crear una segunda transacción — el cliente ya tiene una
+  // notificación esperando en su app; mandarle otra solo confunde. Mismo
+  // criterio que el `reused` de PayPal más abajo.
+  if (reused && intent.status === "INITIATED" && intent.provider_ref) {
+    return { paymentIntentId: intent.id, status: intent.status };
+  }
+
+  let transaction;
+  try {
+    transaction = await createWompiNequiTransaction({
+      reference: intent.id,
+      amountInCents,
+      currency: "COP",
+      customerEmail: order.email,
+      phoneNumber: params.phoneNumber,
+    });
+  } catch (error) {
+    await markIntentFailed(pool, intent.id, (error as Error).message);
+    throw error;
+  }
+
+  await markIntentInitiated(pool, intent.id, { providerRef: transaction.id, rawPayload: transaction });
+  await writeAudit(createDb(pool), {
+    actorType: "CUSTOMER",
+    actorId: params.userId,
+    action: "payment.intent_created",
+    entityType: "payment_intent",
+    entityId: intent.id,
+    metadata: { orderId: order.orderId, provider: "WOMPI", method: "NEQUI", amountCop: order.totalCop },
+  });
+
+  return { paymentIntentId: intent.id, status: transaction.status };
 }
 
 /* ────────────────────────── PayPal ────────────────────────── */

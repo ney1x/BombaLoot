@@ -50,6 +50,11 @@ const nextConfig: NextConfig = {
       // intenta renderizar cualquier imagen subida desde el admin.
       { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
+    // AVIF antes que WebP — mismo criterio de calidad, típicamente 20-30%
+    // más liviano, el que más importa justo en la red mobile lenta que
+    // reportó el usuario. Next negocia por `Accept` del browser; en el
+    // que no sepa AVIF, cae solo a WebP (ya era el default).
+    formats: ["image/avif", "image/webp"],
   },
   async headers() {
     // Solo en producción: en dev, Turbopack HMR y el túnel de ngrok

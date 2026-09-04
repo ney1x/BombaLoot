@@ -218,6 +218,15 @@ export class GameVisualNotFoundError extends Error {
   }
 }
 
+/** El `productId` de un banner no existe, o es de un producto de otro juego. */
+export class ProductGameMismatchError extends Error {
+  readonly code = "PRODUCT_GAME_MISMATCH";
+  constructor(readonly productId: string, readonly gameId: string) {
+    super(`El producto ${productId} no existe o no pertenece al juego ${gameId}`);
+    this.name = "ProductGameMismatchError";
+  }
+}
+
 /* ────────────────────────── admin — pedidos y reembolsos (fase 6B) ────────────────────────── */
 
 export class AdminOrderNotFoundError extends Error {
@@ -349,5 +358,14 @@ export class SupportOrderNotFoundError extends Error {
   constructor(readonly orderNumberInput: string) {
     super("No encontramos un pedido con ese número. Revisalo e intentá de nuevo.");
     this.name = "SupportOrderNotFoundError";
+  }
+}
+
+/** El pedido existe pero superó la ventana de soporte (`SUPPORT_LIMITS.orderMaxAgeDays`) — ya no admite ticket nuevo. */
+export class OrderTooOldForSupportError extends Error {
+  readonly code = "ORDER_TOO_OLD_FOR_SUPPORT";
+  constructor(readonly orderNumberInput: string, readonly maxAgeDays: number) {
+    super(`Ese pedido tiene más de ${maxAgeDays} días y ya no admite un ticket nuevo.`);
+    this.name = "OrderTooOldForSupportError";
   }
 }

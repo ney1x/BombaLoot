@@ -387,6 +387,28 @@ export function ChevronUpIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Celular con notificación — pantalla de espera de Nequi ("aprobá el pago en tu app"). */
+export function SmartphoneIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>
+      <rect x="6.5" y="2.5" width="11" height="19" rx="2.2" />
+      <path d="M10.3 18.3h3.4" />
+    </svg>
+  );
+}
+
+/** Grilla de categorías — símbolo de "catálogo completo" (navbar, "Ver catálogo completo"). */
+export function GridIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>
+      <rect x="3.5" y="3.5" width="7.2" height="7.2" rx="1.6" />
+      <rect x="13.3" y="3.5" width="7.2" height="7.2" rx="1.6" />
+      <rect x="3.5" y="13.3" width="7.2" height="7.2" rx="1.6" />
+      <rect x="13.3" y="13.3" width="7.2" height="7.2" rx="1.6" />
+    </svg>
+  );
+}
+
 export const GAME_MARKS: Record<GameId, (props: SVGProps<SVGSVGElement>) => React.JSX.Element> = {
   valorant: ValorantMark,
   roblox: RobloxMark,

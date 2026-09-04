@@ -23,6 +23,8 @@ export interface CatalogProduct {
   available: number;
   stock: "available" | "low" | "out";
   imageUrl: string | null;
+  /** NULL = sin posición manual en el rotator de Home — ver `heroSortOrder` en schema.ts. */
+  heroSortOrder: number | null;
 }
 
 function stockStateFor(available: number, lowStockAt: number): CatalogProduct["stock"] {
@@ -35,7 +37,7 @@ export async function listCatalogProducts(db: Db): Promise<CatalogProduct[]> {
   const { rows } = (await db.execute(sql`
     SELECT p.id, p.game_id, g.label AS game_label, g.short_label AS game_short_label,
            p.denomination, p.unit, p.price_cop, p.max_per_order, p.low_stock_at,
-           pi.image_url
+           p.hero_sort_order, pi.image_url
       FROM products p
       JOIN games g ON g.id = p.game_id
       LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary AND pi.is_active
@@ -52,6 +54,7 @@ export async function listCatalogProducts(db: Db): Promise<CatalogProduct[]> {
       price_cop: number;
       max_per_order: number;
       low_stock_at: number;
+      hero_sort_order: number | null;
       image_url: string | null;
     }>;
   };
@@ -76,6 +79,7 @@ export async function listCatalogProducts(db: Db): Promise<CatalogProduct[]> {
       available,
       stock: stockStateFor(available, r.low_stock_at),
       imageUrl: r.image_url,
+      heroSortOrder: r.hero_sort_order,
     };
   });
 }

@@ -13,6 +13,15 @@ export const SESSION_COOKIE_NAME = "loadout_session";
 export const CLAIM_COOKIE_NAME = "loadout_claim";
 
 /**
+ * Cookie efímera del ida-y-vuelta OAuth con Google — lleva el `state`
+ * (anti-CSRF), el `code_verifier` de PKCE, y a dónde volver (`next`,
+ * `claim`) mientras el navegador está en accounts.google.com. `Lax` alcanza
+ * (no hace falta `None`): el callback de Google vuelve como navegación
+ * top-level por GET, que `Lax` sí deja pasar — ver `cookieOptionsForEnv`.
+ */
+export const GOOGLE_OAUTH_COOKIE_NAME = "loadout_google_oauth";
+
+/**
  * Firma mínima que cubren tanto `NextResponse.cookies` como el store que
  * devuelve `await cookies()` de `next/headers` — cualquiera de los dos sirve
  * acá, así que las rutas HTTP pueden usar el que les resulte más cómodo sin
@@ -76,6 +85,24 @@ export function setClaimCookie(writer: CookieWriter, orderAccessToken: string): 
 
 export function clearClaimCookie(writer: CookieWriter): void {
   writer.delete(CLAIM_COOKIE_NAME);
+}
+
+export interface GoogleOAuthState {
+  state: string;
+  codeVerifier: string;
+  next: string;
+  claim?: string;
+}
+
+export function setGoogleOAuthCookie(writer: CookieWriter, value: GoogleOAuthState): void {
+  writer.set(GOOGLE_OAUTH_COOKIE_NAME, JSON.stringify(value), {
+    ...baseCookieOptions(),
+    maxAge: 60 * 10, // 10 min: alcanza para elegir cuenta en Google y volver, no queda colgada.
+  });
+}
+
+export function clearGoogleOAuthCookie(writer: CookieWriter): void {
+  writer.delete(GOOGLE_OAUTH_COOKIE_NAME);
 }
 
 export { SESSION_TTL_SECONDS_SHORT };

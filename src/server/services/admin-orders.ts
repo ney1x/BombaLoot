@@ -154,6 +154,10 @@ export async function listOrdersAdmin(db: Db, filters: OrderFilters): Promise<Ad
 
 export interface AdminOrderDetail extends AdminOrderSummary {
   buyerName: string | null;
+  /** Solo viene con valor si el pedido se pagó (o se intentó pagar) con Nequi y el comprador dio su consentimiento. */
+  buyerLegalId: string | null;
+  /** Solo viene con valor si se llegó a iniciar un pago con Nequi (se completa en `initWompiNequiPayment`, no antes). */
+  buyerPhone: string | null;
   subtotalCop: number;
   discountCop: number;
   paidAt: Date | null;
@@ -202,7 +206,15 @@ export interface AdminOrderDetail extends AdminOrderSummary {
     entityType: string;
     entityId: string;
     metadata: Record<string, unknown>;
+    ip: string | null;
   }>;
+  /**
+   * IP desde la que se creó el pedido (evento `order.created` en
+   * `audit_logs`) — lo que antes había que ir a buscar a mano en la base
+   * para poder banear. `null` si el evento no quedó con IP (ej. "unknown"
+   * en dev sin proxy delante, ver `getClientIp`).
+   */
+  checkoutIp: string | null;
   /** Tickets que resolvieron a este pedido — best-effort, ver `supportTickets.orderId`. */
   tickets: Array<{
     id: string;
@@ -214,7 +226,7 @@ export interface AdminOrderDetail extends AdminOrderSummary {
 
 export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<AdminOrderDetail | null> {
   const { rows: orderRows } = (await db.execute(sql`
-    SELECT id, order_number, email, user_id, buyer_name, payment_method, subtotal_cop, discount_cop, total_cop,
+    SELECT id, order_number, email, user_id, buyer_name, buyer_legal_id, buyer_phone, payment_method, subtotal_cop, discount_cop, total_cop,
            payment_status, delivery_status, payment_expires_at, paid_at, delivered_at, last_payment_error, created_at
       FROM orders WHERE id = ${orderId}::uuid
   `)) as unknown as {
@@ -224,6 +236,8 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       email: string;
       user_id: string | null;
       buyer_name: string | null;
+      buyer_legal_id: string | null;
+      buyer_phone: string | null;
       payment_method: string | null;
       subtotal_cop: number;
       discount_cop: number;
@@ -298,7 +312,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       }>;
     }>,
     db.execute(sql`
-      SELECT id, occurred_at, actor_type, actor_id, action, entity_type, entity_id, metadata
+      SELECT id, occurred_at, actor_type, actor_id, action, entity_type, entity_id, metadata, host(ip) AS ip
         FROM audit_logs
        WHERE (entity_type = 'order' AND entity_id = ${orderId})
           OR (entity_type = 'refund_request' AND entity_id IN (
@@ -316,6 +330,7 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
         entity_type: string;
         entity_id: string;
         metadata: Record<string, unknown>;
+        ip: string | null;
       }>;
     }>,
     db.execute(sql`
@@ -334,6 +349,8 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
     email: order.email,
     userId: order.user_id,
     buyerName: order.buyer_name,
+    buyerLegalId: order.buyer_legal_id,
+    buyerPhone: order.buyer_phone,
     paymentMethod: order.payment_method,
     subtotalCop: Number(order.subtotal_cop),
     discountCop: Number(order.discount_cop),
@@ -392,7 +409,11 @@ export async function getOrderDetailAdmin(db: Db, orderId: string): Promise<Admi
       entityType: a.entity_type,
       entityId: a.entity_id,
       metadata: a.metadata,
+      ip: a.ip,
     })),
+    // El más reciente si hubiera más de uno (no debería, pero el orden ya
+    // es DESC por las dudas).
+    checkoutIp: auditRows.rows.find((a) => a.entity_type === "order" && a.action === "order.created")?.ip ?? null,
     tickets: ticketRows.rows.map((t) => ({
       id: t.id,
       ticketNumber: t.ticket_number,
@@ -445,7 +466,7 @@ export async function cancelOrderForFraud(
     `)) as unknown as { rowCount: number | null };
 
     await writeAudit(tx, {
-      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorType: actor.role,
       actorId: actor.userId,
       action: "order.cancelled_fraud",
       entityType: "order",
@@ -514,7 +535,7 @@ export async function changeOrderEmail(
     `);
 
     await writeAudit(tx, {
-      actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+      actorType: actor.role,
       actorId: actor.userId,
       action: "order.email_changed",
       entityType: "order",

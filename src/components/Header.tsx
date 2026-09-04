@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
 import { BombLootMark } from "./BombLootMark";
-import { CartIcon, CloseIcon, LogOutIcon, SearchIcon, ShieldCheckIcon, UserIcon } from "./icons";
+import { CartIcon, CloseIcon, GridIcon, LogOutIcon, SearchIcon, ShieldCheckIcon, UserIcon } from "./icons";
 import { ThemeToggle } from "./ThemeToggle";
 import { useCart } from "@/lib/cart-context";
 import { useSession } from "@/lib/session-context";
@@ -201,6 +201,9 @@ export function Header() {
           >
             {mobileSearchOpen ? <CloseIcon /> : <SearchIcon />}
           </button>
+          <Link href="/catalogo" className={styles.iconBtn} title="Catálogo completo" aria-label="Ver catálogo completo">
+            <GridIcon />
+          </Link>
           <span className={styles.themeToggleWrap}>
             <ThemeToggle />
           </span>

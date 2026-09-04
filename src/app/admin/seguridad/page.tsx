@@ -6,8 +6,12 @@ import { listBlockedIps } from "@/server/services/security-service";
 
 export const metadata: Metadata = { title: "Seguridad — Admin BombaLoot" };
 
-export default async function AdminSecurityPage() {
-  const blocks = await listBlockedIps(getDb());
+export default async function AdminSecurityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ip?: string }>;
+}) {
+  const [blocks, { ip }] = await Promise.all([listBlockedIps(getDb()), searchParams]);
 
   return (
     <div className={shared.page}>
@@ -21,6 +25,7 @@ export default async function AdminSecurityPage() {
       </div>
 
       <IpBlocksManager
+        initialIp={ip}
         initialBlocks={blocks.map((b) => ({
           ip: b.ip,
           reason: b.reason,

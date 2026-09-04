@@ -40,6 +40,21 @@ export class EmailAlreadyRegisteredError extends Error {
   }
 }
 
+/**
+ * Cualquier falla técnica del intercambio OAuth con Google — código
+ * inválido/vencido, respuesta inesperada del token/userinfo endpoint, o un
+ * email de Google sin verificar intentando vincularse a una cuenta con
+ * contraseña ya existente. Un solo mensaje genérico: el detalle real va a
+ * `console.error` en la ruta, nunca al usuario.
+ */
+export class GoogleAuthError extends Error {
+  readonly code = "GOOGLE_AUTH_FAILED";
+  constructor() {
+    super("No pudimos completar el inicio de sesión con Google. Probá de nuevo.");
+    this.name = "GoogleAuthError";
+  }
+}
+
 export class InvalidResetTokenError extends Error {
   readonly code = "INVALID_RESET_TOKEN";
   constructor() {
@@ -147,5 +162,40 @@ export class InvalidSuspensionStateError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "InvalidSuspensionStateError";
+  }
+}
+
+/** El sitio nunca puede quedar sin ningún ADMIN — última línea de defensa antes del UPDATE, no solo una regla de UI. */
+export class LastAdminError extends Error {
+  readonly code = "LAST_ADMIN";
+  constructor() {
+    super("No se puede quitar el único ADMIN que queda — promové a otra persona antes de sacarle este rol.");
+    this.name = "LastAdminError";
+  }
+}
+
+/** Token de invitación a ADMIN inexistente, vencido, ya usado, o revocado — un solo mensaje para los cuatro casos. */
+export class InvalidInviteTokenError extends Error {
+  readonly code = "INVALID_INVITE_TOKEN";
+  constructor() {
+    super("Esta invitación no es válida o ya venció.");
+    this.name = "InvalidInviteTokenError";
+  }
+}
+
+/** La invitación es para un email distinto al de la cuenta logueada que intenta aceptarla. */
+export class InviteEmailMismatchError extends Error {
+  readonly code = "INVITE_EMAIL_MISMATCH";
+  constructor() {
+    super("Esta invitación es para otra cuenta — iniciá sesión con el email al que se la mandamos.");
+    this.name = "InviteEmailMismatchError";
+  }
+}
+
+export class AdminInvitePendingError extends Error {
+  readonly code = "ADMIN_INVITE_PENDING";
+  constructor() {
+    super("Ya hay una invitación pendiente para este email — usá \"Reenviar\" en la lista de abajo en vez de invitar de nuevo.");
+    this.name = "AdminInvitePendingError";
   }
 }

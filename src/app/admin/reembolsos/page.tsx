@@ -20,7 +20,7 @@ export default async function AdminRefundsPage({
     getCurrentSession(),
     listRefundsAdmin(getDb(), raw.status || undefined),
   ]);
-  const canExecute = session?.role === "ADMIN";
+  const canExecute = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
 
   return (
     <div className={shared.page}>

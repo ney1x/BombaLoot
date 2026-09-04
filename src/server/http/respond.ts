@@ -4,16 +4,20 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import {
   AccountSuspendedError,
+  AdminInvitePendingError,
   CannotSuspendAdminError,
   EmailAlreadyRegisteredError,
   ForbiddenError,
   InvalidCredentialsError,
   InvalidCurrentPasswordError,
+  InvalidInviteTokenError,
   InvalidOrderTokenError,
   InvalidResetTokenError,
   InvalidSuspensionStateError,
   InvalidTicketTokenError,
   InvalidRoleTransitionError,
+  InviteEmailMismatchError,
+  LastAdminError,
   OrderAlreadyClaimedError,
   SelfRoleChangeError,
   SelfSuspensionError,
@@ -48,6 +52,8 @@ import {
   OrderNotCancellableError,
   OrderNotPaidError,
   OrderVerificationMismatchError,
+  OrderTooOldForSupportError,
+  ProductGameMismatchError,
   ProductNotFoundError,
   QuantityNotAllowedError,
   RefundNotPendingManualReviewError,
@@ -65,6 +71,7 @@ import {
   WebhookAmountMismatchError,
   WebhookCurrencyMismatchError,
   WebhookOrphanError,
+  WompiApiError,
 } from "../services/payment/errors";
 
 /**
@@ -127,15 +134,24 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     error instanceof ForbiddenError ||
     error instanceof SelfRoleChangeError ||
     error instanceof SelfSuspensionError ||
-    error instanceof CannotSuspendAdminError
+    error instanceof CannotSuspendAdminError ||
+    error instanceof LastAdminError ||
+    error instanceof InviteEmailMismatchError
   ) {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof TargetUserNotFoundError) {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
-  if (error instanceof InvalidRoleTransitionError || error instanceof InvalidSuspensionStateError) {
+  if (
+    error instanceof InvalidRoleTransitionError ||
+    error instanceof InvalidSuspensionStateError ||
+    error instanceof AdminInvitePendingError
+  ) {
     return NextResponse.json({ error: error.message }, { status: 409 });
+  }
+  if (error instanceof InvalidInviteTokenError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   // ── admin — productos, códigos, pedidos, reembolsos (fase 6B) ──
@@ -154,6 +170,7 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   }
   if (
     error instanceof InvalidGameError ||
+    error instanceof ProductGameMismatchError ||
     error instanceof RefundOrderMismatchError ||
     error instanceof OrderVerificationMismatchError
   ) {
@@ -202,7 +219,7 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   if (error instanceof DiscountCodeInvalidError || error instanceof LoyaltyCouponInvalidError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  if (error instanceof SupportOrderNotFoundError) {
+  if (error instanceof SupportOrderNotFoundError || error instanceof OrderTooOldForSupportError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof IpBlockedError) {
@@ -218,6 +235,16 @@ export function apiErrorToResponse(error: unknown): NextResponse {
   }
   if (error instanceof OrderNotPayableError) {
     return NextResponse.json({ error: "Este pedido no admite un nuevo intento de pago." }, { status: 409 });
+  }
+  if (error instanceof WompiApiError) {
+    // 422 de Wompi = casi siempre el celular u otro dato del pedido — 502
+    // (nuestro lado nunca sabe cuál sin parsear su body de error) sería
+    // engañoso como "problema nuestro"; esto es más honesto sin filtrar el
+    // body crudo de Wompi al cliente.
+    return NextResponse.json(
+      { error: "No pudimos iniciar el pago con Nequi. Revisá el número e intentá de nuevo." },
+      { status: 400 },
+    );
   }
   if (
     error instanceof InvalidWebhookSignatureError ||

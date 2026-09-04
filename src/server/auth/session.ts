@@ -2,6 +2,7 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/client";
+import { sanitizeIpForStorage } from "../http/request-meta";
 import { createOpaqueToken, hashToken } from "./tokens";
 
 /**
@@ -57,7 +58,7 @@ export async function createSession(
       ${userId}::uuid,
       ${hash},
       now() + make_interval(secs => ${ttlSeconds}::double precision),
-      ${context.ip ?? null}::inet,
+      ${sanitizeIpForStorage(context.ip)}::inet,
       ${context.userAgent ?? null}
     )
     RETURNING id, expires_at
@@ -75,7 +76,7 @@ export interface ValidatedSession {
   userId: string;
   email: string;
   name: string | null;
-  role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+  role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
   purchasesCount: number;
   expiresAt: Date;
 }
@@ -101,7 +102,7 @@ export async function validateSessionToken(
       user_id: string;
       email: string;
       name: string | null;
-      role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+      role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
       purchases_count: number;
       suspended_at: string | null;
     }>;

@@ -26,6 +26,13 @@ export const checkoutSchema = z.object({
   /** Solo se usa si no hay sesión — para un usuario logueado, el email sale de la cuenta. */
   buyerEmail: z.string().trim().toLowerCase().email().max(320).optional(),
   buyerName: z.string().trim().max(120).optional(),
+  /**
+   * Cédula/documento — hoy solo la pide el checkout cuando el método
+   * elegido es Nequi, con su propio checkbox de consentimiento (ver
+   * CheckoutView). El backend no lo exige por sí solo: la obligatoriedad
+   * es una decisión de UI, no de este schema.
+   */
+  buyerLegalId: z.string().trim().min(5).max(20).optional(),
   /** Código de cupón opcional, tal como lo escribió el comprador. */
   discountCode: z.string().trim().min(1).max(40).optional(),
   /** Cupón de fidelización opcional, de la cuenta del comprador. Mutuamente excluyente con `discountCode`. */

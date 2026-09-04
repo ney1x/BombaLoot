@@ -19,9 +19,12 @@ const ROTATE_MS = 4500;
 export function HeroRotator({
   products,
   gameImages,
+  productImages,
 }: {
   products: Product[];
   gameImages: Record<string, string>;
+  /** Banner de `game_visuals` específico de una denominación — gana sobre `gameImages` cuando existe. */
+  productImages: Record<string, string>;
 }) {
   const [index, setIndex] = useState(0);
   const pausedRef = useRef(false);
@@ -129,16 +132,22 @@ export function HeroRotator({
         aria-roledescription="carrusel"
         aria-label="Productos destacados"
       >
-        <div className={styles.bg} key={product.id}>
-          <GameImageSlot
-            gameId={product.gameId}
-            label={product.gameLabel}
-            sizeHint="1600×670"
-            sizes="(max-width: 900px) 100vw, 44vw"
-            priority
-            imageUrl={gameImages[product.gameId]}
-          />
-        </div>
+        {products.map((p, i) => (
+          <div
+            key={p.id}
+            className={`${styles.bg} ${i === index ? styles.bgActive : ""}`}
+            aria-hidden={i !== index}
+          >
+            <GameImageSlot
+              gameId={p.gameId}
+              label={p.gameLabel}
+              sizeHint="1200×1440"
+              sizes="(max-width: 900px) 100vw, 44vw"
+              priority={i === 0}
+              imageUrl={productImages[p.id] ?? gameImages[p.gameId]}
+            />
+          </div>
+        ))}
         <div className={styles.scrim} />
 
         <div className={styles.overlay}>

@@ -79,7 +79,7 @@ export async function blockIp(
   `);
 
   await writeAudit(db, {
-    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorType: actor.role,
     actorId: actor.userId,
     action: "security.ip_blocked",
     entityType: "ip",
@@ -102,7 +102,7 @@ export async function unblockIp(
   if (!result.rowCount) throw new IpBlockNotFoundError(ip);
 
   await writeAudit(db, {
-    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorType: actor.role,
     actorId: actor.userId,
     action: "security.ip_unblocked",
     entityType: "ip",

@@ -113,6 +113,11 @@
   color: var(--warn);
 }
 
+.sessionRole[data-role="SUPERADMIN"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 .sessionEmail {
   font-size: 12px;
   color: var(--ink-faint);

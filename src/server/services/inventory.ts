@@ -59,11 +59,23 @@ export const PAYMENT_WINDOW_SECONDS = 1800; // 30 min
  * Incluye reservas vencidas a propósito: la recuperación ocurre dentro del
  * propio reclamo, así que **la corrección no depende de que el cron esté
  * vivo**. El barrido es mantenimiento, no un requisito.
+ *
+ * El corte de vigencia (`expiry_days`) se lee en vivo de
+ * `code_lifecycle_settings` (fila única, 0023) en vez de ser una constante —
+ * es una preferencia editable por un SUPERADMIN desde el panel, no un valor
+ * fijo. Misma garantía que con las reservas: un código de 90+ días deja de
+ * contar solo, sin depender de ningún cron.
+ *
+ * Columnas calificadas con `c.` a propósito: ambos usos de este predicado
+ * (`claimCodesForProduct`, `getAvailability`) tienen más de una tabla en
+ * scope con columna `created_at` propia (`code_batches`, `products`) —
+ * sin calificar, Postgres lo rechaza como referencia ambigua.
  */
 const CLAIMABLE = sql`
-  order_item_id IS NULL
-  AND ( status = 'AVAILABLE'
-     OR (status = 'RESERVED' AND reserved_until < now()) )
+  c.order_item_id IS NULL
+  AND ( c.status = 'AVAILABLE'
+     OR (c.status = 'RESERVED' AND c.reserved_until < now()) )
+  AND c.created_at > now() - make_interval(days => (SELECT expiry_days FROM code_lifecycle_settings))
 `;
 
 interface ExecResult {
@@ -93,6 +105,29 @@ export interface ClaimParams {
  * haber tomado algunos códigos (menos de los pedidos) y solo el ROLLBACK los
  * devuelve. El tipo `TxDb` hace ese contrato parte de la firma, no solo de
  * este comentario — pasar `getDb()` acá no compila.
+ *
+ * Equidad entre admins: si el stock de un producto viene de varios admins
+ * (`code_batches.uploaded_by`), el reparto prioriza que cada uno aporte por
+ * turnos (el código más viejo de cada admin antes que el segundo de
+ * cualquiera) en vez de vaciar siempre al mismo. Dos reglas de desempate, en
+ * orden:
+ *
+ * 1. Un código cuya antigüedad le saca `fairness_gap_days` (preferencia
+ *    editable, `code_lifecycle_settings`) al mejor candidato de cualquier
+ *    otro admin gana su turno sin sorteo — la diferencia de antigüedad pesa
+ *    más que la equidad. Con 1 sola unidad esto es, en la práctica, "gana el
+ *    más viejo salvo que estén parejos".
+ * 2. Por debajo de ese margen, los candidatos "empatados" se desempatan al
+ *    azar (`random()`) — es lo que hace que comprar 3 códigos de un pool de
+ *    2+2 dé un reparto 2-1 con el admin del extra elegido al azar, no
+ *    siempre el mismo.
+ *
+ * Restricción real de Postgres: `FOR UPDATE` no puede coexistir con
+ * funciones de ventana en el mismo SELECT. Por eso el ranking (`ranked`, con
+ * `row_number() OVER (...)`) es un CTE de solo lectura, y el lock
+ * (`lockable`) es un segundo CTE ya sin funciones de ventana — mismo patrón
+ * dinámico "saltar fila trabada y seguir buscando" que antes, solo dividido
+ * en dos pasos en vez de uno.
  */
 export async function claimCodesForProduct(
   tx: TxDb,
@@ -108,21 +143,41 @@ export async function claimCodesForProduct(
   const { rows } = await run(
     tx,
     sql`
-      WITH claimable AS (
-        SELECT id
-          FROM codes
-         WHERE product_id = ${productId}
+      WITH pool AS (
+        SELECT c.id, c.status, c.created_at, cb.uploaded_by
+          FROM codes c
+          LEFT JOIN code_batches cb ON cb.id = c.batch_id
+         WHERE c.product_id = ${productId}
            AND ${CLAIMABLE}
-         ORDER BY (status = 'AVAILABLE') DESC, created_at
-         FOR UPDATE SKIP LOCKED
+      ),
+      bounds AS (
+        SELECT min(created_at) AS oldest FROM pool
+      ),
+      ranked AS (
+        SELECT p.id,
+               (p.status = 'AVAILABLE') AS is_available,
+               (p.created_at > b.oldest + make_interval(days => (SELECT fairness_gap_days FROM code_lifecycle_settings)))::int AS age_tier,
+               row_number() OVER (
+                 PARTITION BY p.uploaded_by
+                 ORDER BY (p.status = 'AVAILABLE') DESC, p.created_at
+               ) AS admin_round,
+               random() AS tie_key
+          FROM pool p, bounds b
+      ),
+      lockable AS (
+        SELECT r.id
+          FROM ranked r
+          JOIN codes c ON c.id = r.id
+         ORDER BY r.is_available DESC, r.age_tier, r.admin_round, r.tie_key
+         FOR UPDATE OF c SKIP LOCKED
          LIMIT ${quantity}
       )
       UPDATE codes c
          SET status         = 'RESERVED',
              reservation_id = ${reservationId}::uuid,
              reserved_until = now() + make_interval(secs => ${ttlSeconds}::double precision)
-        FROM claimable
-       WHERE c.id = claimable.id
+        FROM lockable
+       WHERE c.id = lockable.id
       RETURNING c.id
     `,
   );

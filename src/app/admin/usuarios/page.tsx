@@ -4,13 +4,20 @@ import shared from "../shared.module.css";
 import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { listUsersAdmin } from "@/server/services/admin-users";
+import { listPendingAdminInvites } from "@/server/services/admin-service";
 import { SupportRoleAction } from "@/components/admin/SupportRoleAction";
 import { SuspendAction } from "@/components/admin/SuspendAction";
 import { UserDetailToggle } from "@/components/admin/UserDetailToggle";
+import { AdminInviteManager } from "@/components/admin/AdminInviteManager";
 
 export const metadata: Metadata = { title: "Usuarios — Admin BombaLoot" };
 
-const ROLE_TONE: Record<string, string | undefined> = { ADMIN: "accent", SUPPORT: "warn", CUSTOMER: undefined };
+const ROLE_TONE: Record<string, string | undefined> = {
+  SUPERADMIN: "accent",
+  ADMIN: "accent",
+  SUPPORT: "warn",
+  CUSTOMER: undefined,
+};
 
 export default async function AdminUsersPage({
   searchParams,
@@ -22,12 +29,14 @@ export default async function AdminUsersPage({
     getCurrentSession(),
     listUsersAdmin(getDb(), {
       email: raw.email || undefined,
-      role: (raw.role as "CUSTOMER" | "ADMIN" | "SUPPORT" | undefined) || undefined,
+      role: (raw.role as "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN" | undefined) || undefined,
       limit: 50,
     }),
   ]);
-  const canManageRoles = session?.role === "ADMIN";
-  const canSuspend = session?.role === "ADMIN" || session?.role === "SUPPORT";
+  const canManageRoles = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
+  const canManageAdmins = session?.role === "SUPERADMIN";
+  const canSuspend = session?.role === "ADMIN" || session?.role === "SUPPORT" || session?.role === "SUPERADMIN";
+  const invites = canManageAdmins ? await listPendingAdminInvites(getDb()) : [];
 
   return (
     <div className={shared.page}>
@@ -38,6 +47,18 @@ export default async function AdminUsersPage({
         </div>
       </div>
 
+      {canManageAdmins && (
+        <AdminInviteManager
+          initialInvites={invites.map((i) => ({
+            id: i.id,
+            email: i.email,
+            invitedByEmail: i.invitedByEmail,
+            expiresAt: i.expiresAt.toISOString(),
+            createdAt: i.createdAt.toISOString(),
+          }))}
+        />
+      )}
+
       <form className={shared.filterForm} method="get">
         <input name="email" placeholder="Buscar por email" defaultValue={raw.email ?? ""} />
         <select name="role" defaultValue={raw.role ?? ""}>
@@ -45,6 +66,7 @@ export default async function AdminUsersPage({
           <option value="CUSTOMER">CUSTOMER</option>
           <option value="SUPPORT">SUPPORT</option>
           <option value="ADMIN">ADMIN</option>
+          <option value="SUPERADMIN">SUPERADMIN</option>
         </select>
         <button type="submit" className={shared.btnSmall}>
           Filtrar
@@ -76,7 +98,13 @@ export default async function AdminUsersPage({
                 </td>
                 {canManageRoles && (
                   <td>
-                    <SupportRoleAction userId={u.id} role={u.role} />
+                    <SupportRoleAction
+                      userId={u.id}
+                      role={u.role}
+                      isSelf={session?.userId === u.id}
+                      wasAdmin={u.wasAdmin}
+                      canManageAdmins={canManageAdmins}
+                    />
                   </td>
                 )}
                 {canSuspend && (

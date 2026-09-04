@@ -126,7 +126,7 @@
   /* Altura explícita — comparte los 44px de los botones de ícono y del
      toggle de tema, en vez de quedar a lo que dé el padding vertical. */
   height: 44px;
-  padding: 0 14px 0 40px;
+  padding: 0 16px 0 40px;
   border-radius: 10px;
   /* Campo "recesado" contra el fondo del navbar: un tono más claro
      (--nav-surface-2), no una card blanca flotando sobre otra blanca —
@@ -134,7 +134,13 @@
   border: 1px solid transparent;
   background: var(--nav-surface-2);
   color: var(--nav-ink);
-  font-size: 14.5px;
+  font-size: 14px;
+  /* En anchos donde el placeholder no entra entero (el riel del medio se
+     achica cuando el navbar suma íconos), esto corta con "…" en vez de
+     rebanar la última letra a la mitad — lo que pasaba antes, sin ninguna
+     de las dos propiedades. */
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 

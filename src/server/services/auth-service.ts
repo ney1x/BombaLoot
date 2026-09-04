@@ -6,12 +6,14 @@ import { createDb, withTransaction } from "../db/client";
 import {
   AccountSuspendedError,
   EmailAlreadyRegisteredError,
+  GoogleAuthError,
   InvalidCredentialsError,
   InvalidCurrentPasswordError,
   InvalidOrderTokenError,
   InvalidResetTokenError,
   OrderAlreadyClaimedError,
 } from "../auth/errors";
+import type { GoogleProfile } from "../auth/google";
 import { hashPassword, normalizeEmail, verifyPasswordHash } from "../auth/password";
 import {
   createSession,
@@ -187,7 +189,8 @@ export async function loginUser(
       email: string;
       role: string;
       purchases_count: number;
-      password_hash: string;
+      /** NULL en una cuenta creada por Google sin contraseña propia — `?? getDummyHash()` abajo lo cubre igual que a un email inexistente. */
+      password_hash: string | null;
       suspended_at: string | null;
     }>;
   };
@@ -254,6 +257,146 @@ export async function loginUser(
         purchasesCount: row.purchases_count,
       },
       session,
+    };
+  });
+}
+
+/* ────────────────────────── login / registro con Google ────────────────────────── */
+
+/**
+ * Resuelve (o crea) la cuenta a partir de un perfil de Google ya validado
+ * por `exchangeGoogleCode` — nunca recibe el `code` ni toca la red.
+ *
+ * Orden de resolución:
+ * 1. `google_id` exacto → esa cuenta, sin importar el email (el email de
+ *    Google puede haber cambiado desde el último login).
+ * 2. Si no hay match por `google_id`, se busca por email. Si existe una
+ *    cuenta con ese email (creada con contraseña, o con otra vinculación),
+ *    se vincula ACÁ — pero solo si Google confirma `email_verified`: es lo
+ *    que hace seguro asumir que quien está del otro lado es el dueño real
+ *    de esa cuenta. Si esa fila ya tenía otro `google_id` distinto, no se
+ *    pisa — error genérico en vez de robarle la cuenta a otra sesión de
+ *    Google.
+ * 3. Si tampoco hay cuenta por email, se crea una nueva sin contraseña.
+ */
+export async function loginOrRegisterWithGoogle(
+  pool: Pool,
+  profile: GoogleProfile,
+  meta: RequestMeta,
+): Promise<AuthResult & { isNewUser: boolean }> {
+  await assertIpNotBlocked(pool, meta.ip, { userAgent: meta.userAgent, action: "auth.google" });
+
+  const email = normalizeEmail(profile.email);
+
+  return withTransaction(pool, async (tx) => {
+    const { rows: byGoogleId } = (await tx.execute(sql`
+      SELECT id, name, email, role, purchases_count, suspended_at
+        FROM users WHERE google_id = ${profile.googleId}
+    `)) as unknown as {
+      rows: Array<{
+        id: string;
+        name: string | null;
+        email: string;
+        role: string;
+        purchases_count: number;
+        suspended_at: string | null;
+      }>;
+    };
+
+    let row = byGoogleId[0];
+    let isNewUser = false;
+
+    if (!row) {
+      const { rows: byEmail } = (await tx.execute(sql`
+        SELECT id, name, email, role, purchases_count, suspended_at, google_id
+          FROM users WHERE lower(email) = ${email} FOR UPDATE
+      `)) as unknown as {
+        rows: Array<{
+          id: string;
+          name: string | null;
+          email: string;
+          role: string;
+          purchases_count: number;
+          suspended_at: string | null;
+          google_id: string | null;
+        }>;
+      };
+
+      const existing = byEmail[0];
+
+      if (existing) {
+        if (existing.google_id && existing.google_id !== profile.googleId) {
+          throw new GoogleAuthError();
+        }
+        if (!profile.emailVerified) {
+          // Google no garantiza que este email le pertenezca a quien está
+          // del otro lado — no se vincula una cuenta existente a ciegas.
+          throw new GoogleAuthError();
+        }
+        if (!existing.google_id) {
+          await tx.execute(
+            sql`UPDATE users SET google_id = ${profile.googleId}, updated_at = now() WHERE id = ${existing.id}::uuid`,
+          );
+        }
+        row = existing;
+      } else {
+        const emailVerifiedAt = profile.emailVerified ? sql`now()` : sql`null`;
+        const { rows: created } = (await tx.execute(sql`
+          INSERT INTO users (email, name, google_id, email_verified_at)
+          VALUES (${email}, ${profile.name}, ${profile.googleId}, ${emailVerifiedAt})
+          RETURNING id, name, email, role, purchases_count, suspended_at
+        `)) as unknown as {
+          rows: Array<{
+            id: string;
+            name: string | null;
+            email: string;
+            role: string;
+            purchases_count: number;
+            suspended_at: string | null;
+          }>;
+        };
+        row = created[0];
+        isNewUser = true;
+      }
+    }
+
+    // Mismo chequeo y misma auditoría que `loginUser` — una cuenta
+    // suspendida no entra tampoco por Google.
+    if (row.suspended_at) {
+      await writeAudit(tx, {
+        actorType: "CUSTOMER",
+        actorId: row.id,
+        action: "auth.login_blocked_suspended",
+        entityType: "user",
+        entityId: row.id,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+      throw new AccountSuspendedError();
+    }
+
+    const session = await createSession(tx, row.id, sessionContext(meta));
+
+    await writeAudit(tx, {
+      actorType: "CUSTOMER",
+      actorId: row.id,
+      action: isNewUser ? "auth.google_registered" : "auth.google_login",
+      entityType: "user",
+      entityId: row.id,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
+    });
+
+    return {
+      user: {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        purchasesCount: row.purchases_count,
+      },
+      session,
+      isNewUser,
     };
   });
 }
@@ -435,58 +578,6 @@ export async function changePassword(
       actorType: "CUSTOMER",
       actorId: userId,
       action: "auth.password_changed",
-      entityType: "user",
-      entityId: userId,
-    });
-  });
-}
-
-/* ────────────────────────── eliminar cuenta (autoservicio) ────────────────────────── */
-
-/**
- * Autoservicio de "eliminar mi cuenta" (Política de Privacidad §9). No
- * borra la fila — los pedidos (`orders.user_id`) y el resto de la
- * actividad financiera/de auditoría tienen que sobrevivir por obligación
- * legal y de contabilidad. En cambio, anonimiza: nombre y email dejan de
- * ser reales, y `password_hash` se reemplaza por un hash aleatorio
- * irreproducible — eso solo ya alcanza para que el login normal falle
- * (mismo camino que una contraseña incorrecta), sin necesitar un chequeo
- * nuevo en `loginUser`. Revoca TODAS las sesiones, incluida la actual: a
- * diferencia de `changePassword`, acá no hay nada que preservar.
- */
-export async function deleteOwnAccount(
-  pool: Pool,
-  userId: string,
-  currentPassword: string,
-): Promise<void> {
-  const db = createDb(pool);
-
-  const { rows } = (await db.execute(
-    sql`SELECT password_hash FROM users WHERE id = ${userId}::uuid`,
-  )) as unknown as { rows: Array<{ password_hash: string }> };
-
-  const row = rows[0];
-  if (!row || !(await verifyPasswordHash(row.password_hash, currentPassword))) {
-    throw new InvalidCurrentPasswordError();
-  }
-
-  const unusableHash = await hashPassword(createOpaqueToken().value);
-
-  await withTransaction(pool, async (tx) => {
-    await tx.execute(sql`
-      UPDATE users
-         SET name = NULL,
-             email = 'eliminado-' || id || '@bombaloot.invalid',
-             password_hash = ${unusableHash},
-             anonymized_at = now(),
-             updated_at = now()
-       WHERE id = ${userId}::uuid
-    `);
-    await revokeAllUserSessions(tx, userId);
-    await writeAudit(tx, {
-      actorType: "CUSTOMER",
-      actorId: userId,
-      action: "account.deleted",
       entityType: "user",
       entityId: userId,
     });

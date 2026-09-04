@@ -30,9 +30,11 @@ export function SupportTicketForm() {
   const [message, setMessage] = useState("");
   // Solo para LOST_ORDER_NUMBER — no hay número de pedido que pedir, así
   // que esto (más el email) es lo que le da a soporte algo para buscar.
-  // Los dos opcionales: van adentro del mensaje del ticket, no en campos
-  // propios — no vale la pena una migración de columnas nuevas por dos
-  // datos que igual necesitan lectura humana.
+  // Método de pago es obligatorio acá (sin "no estoy seguro" — sin el
+  // número de pedido es el dato más fuerte para encontrar la compra);
+  // qué compró sigue opcional. Los dos van adentro del mensaje del ticket,
+  // no en campos propios — no vale la pena una migración de columnas
+  // nuevas por dos datos que igual necesitan lectura humana.
   const [paymentMethodInput, setPaymentMethodInput] = useState("");
   const [purchaseInput, setPurchaseInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -176,15 +178,18 @@ export function SupportTicketForm() {
           <>
             <label className={styles.field} htmlFor={paymentMethodId}>
               <span className={styles.label}>
-                Método de pago <span className={styles.optional}>(opcional, pero ayuda a resolver más rápido)</span>
+                Método de pago <span className={styles.required}>(obligatorio para este motivo)</span>
               </span>
               <select
                 id={paymentMethodId}
                 className={styles.input}
+                required
                 value={paymentMethodInput}
                 onChange={(e) => setPaymentMethodInput(e.target.value)}
               >
-                <option value="">Preferís no decir / no estoy seguro</option>
+                <option value="" disabled>
+                  Elegí una opción
+                </option>
                 <option value="Nequi">Nequi</option>
                 <option value="PSE">PSE</option>
                 <option value="Tarjeta">Tarjeta</option>

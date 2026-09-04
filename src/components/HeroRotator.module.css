@@ -179,8 +179,30 @@
   touch-action: pan-y;
 }
 
+/*
+ * Antes esto era un solo layer remontado (`key={product.id}`) por cada
+ * rotación — nada de la imagen 2 en adelante empezaba a pedirse hasta que
+ * le tocaba el turno, así que en mobile con red lenta cada rotación abría
+ * una descarga en frío y se notaba como "unos segundos cargando". Ahora
+ * los 6 productos están apilados desde el montaje inicial (opacity 0/1,
+ * nunca display:none — así el navegador sí las pide) y cada uno arranca su
+ * descarga en cuanto la página carga, en paralelo y en segundo plano
+ * (`loading="lazy"` en las que no son la primera no compite con el LCP).
+ * Para cuando la rotación llega a esa denominación, la imagen ya suele
+ * estar en caché — el crossfade por opacity es puro bonus, la ganancia real
+ * es no arrancar la descarga recién en ese momento.
+ */
 .bg {
-  animation: fadeIn 0.6s ease both;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.bgActive {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .scrim {

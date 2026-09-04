@@ -79,6 +79,98 @@ export function buildWompiCheckoutUrl(params: WompiCheckoutUrlParams): string {
   return url.toString();
 }
 
+/* ────────────────────────── Nequi directo (sin redirect) ────────────────────────── */
+
+/**
+ * Único método que evita del todo el checkout alojado — el resto (PSE,
+ * tarjeta) sigue por `buildWompiCheckoutUrl`. La transacción se crea acá
+ * mismo, server-side, con la llave PÚBLICA (así lo pide el spec de Wompi
+ * para `POST /transactions` — es la misma llave que ya viaja expuesta en
+ * la URL del widget, no un secreto nuevo). El cliente solo aprueba un push
+ * en su app; `payment_intents`/webhook/`syncPaymentIntentWithProvider`
+ * nunca se enteran de que esta transacción no vino del widget — comparten
+ * el mismo `reference` (`payment_intent.id`) que el resto.
+ */
+
+interface WompiMerchantResponse {
+  data: {
+    presigned_acceptance?: { acceptance_token: string };
+    presigned_personal_data_auth?: { acceptance_token: string };
+  };
+}
+
+export interface WompiMerchantAcceptanceTokens {
+  acceptanceToken: string;
+  /** No todos los merchants/ambientes lo devuelven — se manda solo si está. */
+  personalDataAuthToken?: string;
+}
+
+/**
+ * Son JWT presignados sin política de vigencia documentada por Wompi — se
+ * piden frescos antes de cada transacción en vez de cachearlos, para no
+ * arriesgar un 422 por token vencido en medio de un pago real.
+ */
+export async function getWompiMerchantAcceptanceTokens(): Promise<WompiMerchantAcceptanceTokens> {
+  const publicKey = requireEnv("WOMPI_PUBLIC_KEY");
+  const response = await wompiFetchWithKey<WompiMerchantResponse>(
+    `/merchants/${encodeURIComponent(publicKey)}`,
+    { method: "GET" },
+    publicKey,
+  );
+  const acceptanceToken = response.data.presigned_acceptance?.acceptance_token;
+  if (!acceptanceToken) {
+    throw new WompiApiError(502, "Wompi no devolvió acceptance_token en /merchants");
+  }
+  return {
+    acceptanceToken,
+    personalDataAuthToken: response.data.presigned_personal_data_auth?.acceptance_token,
+  };
+}
+
+export interface CreateWompiNequiTransactionParams {
+  /** `payment_intent.id` — mismo valor que `reference` en el resto del código. */
+  reference: string;
+  amountInCents: number;
+  currency: string;
+  customerEmail: string;
+  /** Celular colombiano registrado en Nequi, ya validado en el borde (10 dígitos, empieza en 3). */
+  phoneNumber: string;
+}
+
+/**
+ * `POST /transactions` con `payment_method.type = "NEQUI"`. La respuesta
+ * llega en `PENDING` siempre — recién cuando el cliente aprueba (o
+ * rechaza) el push en su app cambia a `APPROVED`/`DECLINED`/`ERROR`, y eso
+ * lo entera el webhook de siempre (o el polling de `GET /api/result` si el
+ * webhook se pierde).
+ */
+export async function createWompiNequiTransaction(
+  params: CreateWompiNequiTransactionParams,
+): Promise<WompiTransactionData> {
+  const publicKey = requireEnv("WOMPI_PUBLIC_KEY");
+  const { acceptanceToken, personalDataAuthToken } = await getWompiMerchantAcceptanceTokens();
+  const signature = signWompiReference(params.reference, params.amountInCents, params.currency);
+
+  const response = await wompiFetchWithKey<WompiTransactionResponse>(
+    "/transactions",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        acceptance_token: acceptanceToken,
+        ...(personalDataAuthToken ? { accept_personal_auth: personalDataAuthToken } : {}),
+        amount_in_cents: params.amountInCents,
+        currency: params.currency,
+        customer_email: params.customerEmail,
+        reference: params.reference,
+        signature,
+        payment_method: { type: "NEQUI", phone_number: params.phoneNumber },
+      }),
+    },
+    publicKey,
+  );
+  return response.data;
+}
+
 /* ────────────────────────── consulta de transacciones ────────────────────────── */
 
 export type WompiTransactionStatus = "PENDING" | "APPROVED" | "DECLINED" | "VOIDED" | "ERROR";
@@ -102,11 +194,11 @@ export interface WompiTransactionListResponse {
   data: WompiTransactionData[];
 }
 
-async function wompiFetch<T>(path: string, init: RequestInit): Promise<T> {
+async function wompiFetchWithKey<T>(path: string, init: RequestInit, key: string): Promise<T> {
   const response = await fetch(`${wompiBaseUrl()}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${requireEnv("WOMPI_PRIVATE_KEY")}`,
+      Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
       ...init.headers,
     },
@@ -117,6 +209,10 @@ async function wompiFetch<T>(path: string, init: RequestInit): Promise<T> {
     throw new WompiApiError(response.status, JSON.stringify(body));
   }
   return body;
+}
+
+function wompiFetch<T>(path: string, init: RequestInit): Promise<T> {
+  return wompiFetchWithKey<T>(path, init, requireEnv("WOMPI_PRIVATE_KEY"));
 }
 
 export async function getWompiTransaction(transactionId: string): Promise<WompiTransactionResponse> {

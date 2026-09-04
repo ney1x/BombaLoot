@@ -12,7 +12,7 @@ import type { Db } from "../db/client";
 
 export const userFiltersSchema = z.object({
   email: z.string().trim().max(320).optional(),
-  role: z.enum(["CUSTOMER", "ADMIN", "SUPPORT"]).optional(),
+  role: z.enum(["CUSTOMER", "ADMIN", "SUPPORT", "SUPERADMIN"]).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
@@ -22,22 +22,25 @@ export interface AdminUserRow {
   id: string;
   email: string;
   name: string | null;
-  role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+  role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
   purchasesCount: number;
   createdAt: Date;
   suspendedAt: Date | null;
   suspendedReason: string | null;
+  /** Tuvo rol ADMIN antes y se lo sacaron (`admin.role_removed` en el log de auditoría) — habilita "Volver a hacer ADMIN" sin pasar por invitación. */
+  wasAdmin: boolean;
 }
 
 interface UserQueryRow {
   id: string;
   email: string;
   name: string | null;
-  role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+  role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
   purchases_count: number;
   created_at: string;
   suspended_at: string | null;
   suspended_reason: string | null;
+  was_admin: boolean;
 }
 
 export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<AdminUserRow[]> {
@@ -47,10 +50,14 @@ export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<Admi
   const where = conditions.reduce((acc, c) => sql`${acc} AND ${c}`);
 
   const { rows } = (await db.execute(sql`
-    SELECT id, email, name, role, purchases_count, created_at, suspended_at, suspended_reason
-      FROM users
+    SELECT u.id, u.email, u.name, u.role, u.purchases_count, u.created_at, u.suspended_at, u.suspended_reason,
+           EXISTS (
+             SELECT 1 FROM audit_logs a
+              WHERE a.entity_type = 'user' AND a.entity_id = u.id::text AND a.action = 'admin.role_removed'
+           ) AS was_admin
+      FROM users u
      WHERE ${where}
-     ORDER BY created_at DESC
+     ORDER BY u.created_at DESC
      LIMIT ${filters.limit}
   `)) as unknown as { rows: UserQueryRow[] };
 
@@ -63,6 +70,7 @@ export async function listUsersAdmin(db: Db, filters: UserFilters): Promise<Admi
     createdAt: new Date(r.created_at),
     suspendedAt: r.suspended_at ? new Date(r.suspended_at) : null,
     suspendedReason: r.suspended_reason,
+    wasAdmin: r.was_admin,
   }));
 }
 
@@ -75,8 +83,12 @@ export interface AdminUserDetail extends AdminUserRow {
 
 export async function getUserDetailAdmin(db: Db, userId: string): Promise<AdminUserDetail | null> {
   const { rows: userRows } = (await db.execute(sql`
-    SELECT id, email, name, role, purchases_count, created_at, suspended_at, suspended_reason
-      FROM users WHERE id = ${userId}::uuid
+    SELECT u.id, u.email, u.name, u.role, u.purchases_count, u.created_at, u.suspended_at, u.suspended_reason,
+           EXISTS (
+             SELECT 1 FROM audit_logs a
+              WHERE a.entity_type = 'user' AND a.entity_id = u.id::text AND a.action = 'admin.role_removed'
+           ) AS was_admin
+      FROM users u WHERE u.id = ${userId}::uuid
   `)) as unknown as { rows: UserQueryRow[] };
   const user = userRows[0];
   if (!user) return null;
@@ -107,6 +119,7 @@ export async function getUserDetailAdmin(db: Db, userId: string): Promise<AdminU
     createdAt: new Date(user.created_at),
     suspendedAt: user.suspended_at ? new Date(user.suspended_at) : null,
     suspendedReason: user.suspended_reason,
+    wasAdmin: user.was_admin,
     totalSpentCop: Number(ordersAgg.rows[0].total_spent_cop),
     ordersCount: Number(ordersAgg.rows[0].orders_count),
     loyaltyTier: tier ? { id: tier.id, name: tier.name, discountPct: Number(tier.discount_pct) } : null,

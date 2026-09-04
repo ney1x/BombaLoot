@@ -6,24 +6,31 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { ProductTile } from "@/components/ProductTile";
 import { TrustStrip } from "@/components/TrustStrip";
 import { toStoreProduct } from "@/lib/catalog-mapper";
+import { sortForHero } from "@/lib/products";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
-import { getActiveGameVisualMap } from "@/server/services/game-visuals";
+import { getActiveGameVisualMap, getActiveProductVisualMap } from "@/server/services/game-visuals";
 
 export default async function Home() {
   const db = getDb();
-  const [catalogProducts, heroMap, showcaseMap] = await Promise.all([
+  const [catalogProducts, heroMap, heroProductMap, showcaseMap] = await Promise.all([
     listCatalogProducts(db),
     getActiveGameVisualMap(db, "hero"),
+    getActiveProductVisualMap(db, "hero"),
     getActiveGameVisualMap(db, "showcase"),
   ]);
   const products = catalogProducts.map(toStoreProduct);
   const catalogPreview = products.slice(0, 4);
+  const heroProducts = sortForHero(products);
 
   return (
     <div className={styles.shell}>
       <main className={styles.main}>
-        <HeroRotator products={products} gameImages={Object.fromEntries(heroMap)} />
+        <HeroRotator
+          products={heroProducts}
+          gameImages={Object.fromEntries(heroMap)}
+          productImages={Object.fromEntries(heroProductMap)}
+        />
 
         <section className={styles.section}>
           <div className={styles.sectionHead}>
@@ -46,8 +53,8 @@ export default async function Home() {
             </Link>
           </div>
           <div className={styles.productGrid}>
-            {catalogPreview.map((product) => (
-              <ProductTile product={product} prefetch={false} key={product.id} />
+            {catalogPreview.map((product, index) => (
+              <ProductTile product={product} prefetch={false} index={index} key={product.id} />
             ))}
           </div>
         </section>

@@ -16,6 +16,8 @@ export interface Product {
   /** Stock real y tope por pedido — presentes siempre en datos reales del catálogo; ausentes solo en el mock legado de abajo. */
   available?: number;
   maxPerOrder?: number;
+  /** Posición manual en el rotator de Home — NULL/ausente = orden natural del catálogo. */
+  heroSortOrder?: number | null;
 }
 
 export const GAMES: { id: GameId; label: string }[] = [
@@ -112,6 +114,23 @@ export function maxAddableQuantity(product: Product): number {
   const available = product.available ?? 10;
   const maxPerOrder = product.maxPerOrder ?? 10;
   return Math.max(0, Math.min(available, maxPerOrder));
+}
+
+/**
+ * Orden del rotator de Home — separado del orden del catálogo (que sigue
+ * siendo juego → precio, sin tocar). `heroSortOrder` NULL cae al final,
+ * en el orden en que ya venían (estable): así un producto sin posición
+ * manual asignada no salta a un lugar arbitrario cada vez que se recalcula.
+ */
+export function sortForHero<T extends { heroSortOrder?: number | null }>(products: T[]): T[] {
+  return products
+    .map((product, index) => ({ product, index }))
+    .sort((a, b) => {
+      const orderA = a.product.heroSortOrder ?? Infinity;
+      const orderB = b.product.heroSortOrder ?? Infinity;
+      return orderA - orderB || a.index - b.index;
+    })
+    .map(({ product }) => product);
 }
 
 export function startingPrice(gameId: GameId): number {

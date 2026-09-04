@@ -56,7 +56,7 @@ async function runDelivery(
   pool: Pool,
   order: OrderView,
   auditActor: {
-    actorType: "CUSTOMER" | "ADMIN" | "SUPPORT";
+    actorType: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
     actorId?: string;
     action: AuditAction;
     ip?: string | null;
@@ -185,7 +185,7 @@ export async function adminDeliverOrderCodes(
   if (order.paymentStatus !== "PAID") throw new OrderNotPaidError(orderId, order.paymentStatus);
 
   const result = await runDelivery(pool, order, {
-    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorType: actor.role,
     actorId: actor.userId,
     action: "code.delivered_by_support",
     ip: context.ip,
@@ -260,7 +260,7 @@ export async function resendDeliveredCodesEmail(
   });
 
   await writeAudit(db, {
-    actorType: actor.role === "ADMIN" ? "ADMIN" : "SUPPORT",
+    actorType: actor.role,
     actorId: actor.userId,
     action: "code.resent_by_support",
     entityType: "order",

@@ -22,6 +22,10 @@ export default function PrivacidadPage() {
       <ul>
         <li>Nombre o nombre de usuario.</li>
         <li>Dirección de correo electrónico.</li>
+        <li>
+          Número de documento de identidad (cédula), solo cuando pagás con Nequi y marcás
+          expresamente el consentimiento en el checkout — nunca se pide para otros métodos de pago.
+        </li>
         <li>Información necesaria para procesar y entregar tus pedidos.</li>
         <li>Historial de compras y pedidos.</li>
         <li>
@@ -50,7 +54,12 @@ export default function PrivacidadPage() {
         <li>Crear y administrar tu cuenta.</li>
         <li>Brindar atención y soporte al cliente.</li>
         <li>Responder consultas y solicitudes.</li>
-        <li>Detectar y prevenir fraudes, abusos y actividades no autorizadas.</li>
+        <li>
+          Detectar y prevenir fraudes, abusos y actividades no autorizadas — incluyendo identificar
+          al comprador con su cédula cuando pagás con Nequi. Este dato no se usa para facturación
+          electrónica ni para ningún otro fin distinto al declarado en el checkout al momento de
+          pedirlo.
+        </li>
         <li>Mantener la seguridad de BombaLoot.</li>
         <li>Mejorar nuestros productos, servicios y experiencia de usuario.</li>
         <li>Analizar el funcionamiento y rendimiento de nuestro sitio web.</li>

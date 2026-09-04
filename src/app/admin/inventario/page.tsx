@@ -3,9 +3,12 @@ import Link from "next/link";
 import shared from "../shared.module.css";
 import { STOCK_LABEL, STOCK_TONE, sortBySeverity } from "../stock-labels";
 import { GAMES } from "@/lib/products";
+import { getCurrentSession } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
 import { formatCop } from "@/lib/products";
 import { listAdminProducts, type AdminProductRow } from "@/server/services/admin-products";
+import { getCodeLifecycleSettings } from "@/server/services/code-lifecycle-settings";
+import { CodeLifecycleSettingsForm } from "@/components/admin/CodeLifecycleSettingsForm";
 
 export const metadata: Metadata = { title: "Inventario — Admin BombaLoot" };
 
@@ -25,7 +28,11 @@ export default async function InventoryPage({
   searchParams: Promise<{ game?: string; status?: string }>;
 }) {
   const { game, status } = await searchParams;
-  const products = await listAdminProducts(getDb());
+  const [session, products, lifecycleSettings] = await Promise.all([
+    getCurrentSession(),
+    listAdminProducts(getDb()),
+    getCodeLifecycleSettings(getDb()),
+  ]);
   const sorted = sortBySeverity(products);
 
   const filtered = sorted.filter((p) => {
@@ -51,6 +58,17 @@ export default async function InventoryPage({
           </p>
         </div>
       </div>
+
+      <CodeLifecycleSettingsForm
+        initial={{
+          expiryDays: lifecycleSettings.expiryDays,
+          riskWindowDays: lifecycleSettings.riskWindowDays,
+          fairnessGapDays: lifecycleSettings.fairnessGapDays,
+          updatedAt: lifecycleSettings.updatedAt.toISOString(),
+          updatedByName: lifecycleSettings.updatedByName,
+        }}
+        canEdit={session?.role === "SUPERADMIN"}
+      />
 
       <form className={shared.filterForm} method="get">
         <select name="game" defaultValue={game ?? ""}>

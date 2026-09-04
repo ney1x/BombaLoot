@@ -8,7 +8,7 @@ import { InvalidTicketTokenError } from "../auth/errors";
 import { createOpaqueToken, generateTicketNumber, hashToken } from "../auth/tokens";
 import { SUPPORT_CATEGORIES, isOrderRequired } from "@/lib/support";
 import { SUPPORT_LIMITS } from "./support-limits";
-import { SupportOrderNotFoundError, SupportTicketNotFoundError } from "./errors";
+import { OrderTooOldForSupportError, SupportOrderNotFoundError, SupportTicketNotFoundError } from "./errors";
 import { checkRateLimit } from "./rate-limit";
 import { assertIpNotBlocked } from "./security-service";
 
@@ -144,6 +144,12 @@ const TICKET_SELECT = sql`
  * — no es una búsqueda de autorización, el número de pedido no es
  * credencial (ver `tokens.ts`), solo le ahorra a soporte tener que
  * buscarlo a mano.
+ *
+ * Un pedido que sí existe pero superó `SUPPORT_LIMITS.orderMaxAgeDays`
+ * (ventana de soporte) rechaza la creación del ticket entero —
+ * `OrderTooOldForSupportError`, no un simple aviso. Aplica siempre que se
+ * escribió un número que matchea un pedido real, sin importar si el motivo
+ * elegido lo exige o no.
  */
 export async function createSupportTicket(
   pool: Pool,
@@ -157,9 +163,25 @@ export async function createSupportTicket(
     let orderId: string | null = null;
     if (input.orderNumberInput) {
       const { rows } = (await tx.execute(sql`
-        SELECT id FROM orders WHERE lower(order_number) = lower(${input.orderNumberInput}) LIMIT 1
-      `)) as unknown as { rows: { id: string }[] };
-      orderId = rows[0]?.id ?? null;
+        SELECT id, created_at FROM orders WHERE lower(order_number) = lower(${input.orderNumberInput}) LIMIT 1
+      `)) as unknown as { rows: { id: string; created_at: string }[] };
+      const found = rows[0];
+      orderId = found?.id ?? null;
+
+      // Un pedido real, pero demasiado viejo: no es "no lo encontramos"
+      // (SupportOrderNotFoundError), es un rechazo distinto — el pedido
+      // existe, pero ya pasó la ventana de soporte. Antes de chequear que
+      // exista siquiera, porque un pedido viejo que además no requiere
+      // orderNumberInput para su categoría (ej. alguien lo pone igual en
+      // "Problemas con mi cuenta") también debe rechazarse, no solo cuando
+      // el motivo lo exige.
+      if (found) {
+        const ageMs = Date.now() - new Date(found.created_at).getTime();
+        const maxAgeMs = SUPPORT_LIMITS.orderMaxAgeDays * 86_400_000;
+        if (ageMs > maxAgeMs) {
+          throw new OrderTooOldForSupportError(input.orderNumberInput, SUPPORT_LIMITS.orderMaxAgeDays);
+        }
+      }
     }
 
     // El schema ya exige `orderNumberInput` para estos motivos (superRefine

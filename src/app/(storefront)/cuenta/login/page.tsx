@@ -10,12 +10,22 @@ import loginStyles from "./login.module.css";
 import { AlertIcon, GoogleIcon } from "@/components/icons";
 import { useSession } from "@/lib/session-context";
 
+/** Mensajes para `?error=` — llega acá tras un `/api/auth/google/callback` que no pudo seguir. */
+const OAUTH_ERROR_MESSAGE: Record<string, string> = {
+  google_failed: "No pudimos completar el inicio de sesión con Google. Probá de nuevo.",
+  google_not_configured: "El inicio de sesión con Google todavía no está disponible.",
+  account_suspended: "Esta cuenta está suspendida. Contactá a soporte si creés que es un error.",
+};
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useSession();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    () => OAUTH_ERROR_MESSAGE[searchParams.get("error") ?? ""] ?? null,
+  );
   const [submitting, setSubmitting] = useState(false);
+  const googleHref = `/api/auth/google/start?next=${encodeURIComponent(searchParams.get("next") || "/cuenta")}`;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,11 +106,10 @@ function LoginForm() {
 
       <div className={styles.divider}>o continuá con</div>
 
-      <button type="button" className={styles.socialBtn} disabled title="Muy pronto">
+      <a href={googleHref} className={styles.socialBtn}>
         <GoogleIcon />
-        Google
-        <span className={styles.soonTag}>Muy pronto</span>
-      </button>
+        Continuar con Google
+      </a>
 
       <Link href="/catalogo" className={`btn btnSecondary ${styles.guestBtn}`}>
         Continuar como invitado

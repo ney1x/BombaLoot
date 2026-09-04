@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Productos — Admin BombaLoot" };
 
 export default async function AdminProductsPage() {
   const [session, products] = await Promise.all([getCurrentSession(), listAdminProducts(getDb())]);
-  const canEdit = session?.role === "ADMIN";
+  const canEdit = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
   const sorted = sortBySeverity(products);
 
   return (

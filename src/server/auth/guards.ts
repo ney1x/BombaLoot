@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "../db/client";
 import { SESSION_COOKIE_NAME } from "./cookies";
 import { validateSessionToken, type ValidatedSession } from "./session";
-import { assertAdminOrSupportRole, assertAdminRole } from "./admin-guards";
+import { assertAdminOrSupportRole, assertAdminRole, assertSuperAdminRole } from "./admin-guards";
 
 /**
  * Helpers de autorización para Server Components y Route Handlers.
@@ -60,7 +60,7 @@ export async function requireUser(redirectTo?: string): Promise<ValidatedSession
  */
 export async function requireAdmin(): Promise<ValidatedSession> {
   const session = await getCurrentSession();
-  if (!session || session.role !== "ADMIN") {
+  if (!session || (session.role !== "ADMIN" && session.role !== "SUPERADMIN")) {
     notFound();
   }
   return session;
@@ -72,7 +72,7 @@ export async function requireAdmin(): Promise<ValidatedSession> {
  */
 export async function requireAdminOrSupport(): Promise<ValidatedSession> {
   const session = await getCurrentSession();
-  if (!session || (session.role !== "ADMIN" && session.role !== "SUPPORT")) {
+  if (!session || (session.role !== "ADMIN" && session.role !== "SUPPORT" && session.role !== "SUPERADMIN")) {
     notFound();
   }
   return session;
@@ -101,5 +101,12 @@ export async function requireAdminApi(): Promise<ValidatedSession> {
 export async function requireAdminOrSupportApi(): Promise<ValidatedSession> {
   const session = await getCurrentSession();
   assertAdminOrSupportRole(session);
+  return session;
+}
+
+/** Solo SUPERADMIN — invitar/revocar/restaurar ADMIN, la única capacidad que un ADMIN normal ya no tiene. */
+export async function requireSuperAdminApi(): Promise<ValidatedSession> {
+  const session = await getCurrentSession();
+  assertSuperAdminRole(session);
   return session;
 }

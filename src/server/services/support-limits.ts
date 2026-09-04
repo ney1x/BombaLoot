@@ -12,6 +12,8 @@ export interface SupportLimits {
   /** Mensajes de cliente permitidos por ticket+IP en la ventana. */
   messageMaxPerWindow: number;
   messageWindowSeconds: number;
+  /** Un pedido más viejo que esto ya no admite ticket nuevo — ver `createSupportTicket`. */
+  orderMaxAgeDays: number;
 }
 
 function envInt(name: string, fallback: number): number {
@@ -26,4 +28,5 @@ export const SUPPORT_LIMITS: SupportLimits = {
   createWindowSeconds: envInt("SUPPORT_CREATE_WINDOW_SECONDS", 3600),
   messageMaxPerWindow: envInt("SUPPORT_MESSAGE_MAX_PER_WINDOW", 20),
   messageWindowSeconds: envInt("SUPPORT_MESSAGE_WINDOW_SECONDS", 3600),
+  orderMaxAgeDays: envInt("SUPPORT_ORDER_MAX_AGE_DAYS", 21),
 };

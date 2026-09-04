@@ -4,14 +4,20 @@ import { createDb, type Db } from "@/server/db/client";
 import {
   ForbiddenError,
   InvalidRoleTransitionError,
+  LastAdminError,
   SelfRoleChangeError,
   TargetUserNotFoundError,
   UnauthorizedError,
 } from "@/server/auth/errors";
-import { assertAdminOrSupportRole, assertAdminRole } from "@/server/auth/admin-guards";
+import { assertAdminOrSupportRole, assertAdminRole, assertSuperAdminRole } from "@/server/auth/admin-guards";
 import { createSession, type ValidatedSession } from "@/server/auth/session";
 import { registerUser } from "@/server/services/auth-service";
-import { assignSupportRole, removeSupportRole } from "@/server/services/admin-service";
+import {
+  assignSupportRole,
+  removeAdminRole,
+  removeSupportRole,
+  restoreAdminRole,
+} from "@/server/services/admin-service";
 import { createTestDatabase, resetData } from "./helpers/database";
 
 let pool: Pool;
@@ -33,7 +39,7 @@ beforeEach(async () => {
 let userCounter = 0;
 
 /** Registra un usuario, lo sube (o no) al rol pedido, y arma una sesión válida como haría un login real. */
-async function makeSessionWithRole(role: "CUSTOMER" | "ADMIN" | "SUPPORT"): Promise<ValidatedSession> {
+async function makeSessionWithRole(role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN"): Promise<ValidatedSession> {
   userCounter += 1;
   const email = `usuario${userCounter}@test.local`;
   const { user } = await registerUser(pool, { name: `Usuario ${userCounter}`, email, password: "correcto-caballo-batería" }, {});
@@ -56,12 +62,12 @@ async function makeSessionWithRole(role: "CUSTOMER" | "ADMIN" | "SUPPORT"): Prom
 
 /* ═══════════════════════════ Guards puros (rol) ═══════════════════════════ */
 
-describe("modelo de roles ADMIN/SUPPORT", () => {
-  it("SUPPORT queda disponible en el enum de la base (migración 0002)", async () => {
+describe("modelo de roles ADMIN/SUPPORT/SUPERADMIN", () => {
+  it("SUPERADMIN queda disponible en el enum de la base (migración 0022)", async () => {
     const { rows } = await pool.query<{ unnest: string }>(
       "SELECT unnest(enum_range(NULL::user_role))::text",
     );
-    expect(rows.map((r) => r.unnest)).toEqual(["CUSTOMER", "ADMIN", "SUPPORT"]);
+    expect(rows.map((r) => r.unnest)).toEqual(["CUSTOMER", "ADMIN", "SUPPORT", "SUPERADMIN"]);
   });
 });
 
@@ -176,7 +182,7 @@ describe("removeSupportRole", () => {
 
 /* ═══════════════════════════ Guards de API admin (assertAdminRole / assertAdminOrSupportRole) ═══════════════════════════ */
 
-function sessionOf(role: "CUSTOMER" | "ADMIN" | "SUPPORT"): ValidatedSession {
+function sessionOf(role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN"): ValidatedSession {
   return {
     sessionId: "s1",
     userId: "u1",
@@ -188,7 +194,7 @@ function sessionOf(role: "CUSTOMER" | "ADMIN" | "SUPPORT"): ValidatedSession {
   };
 }
 
-describe("assertAdminRole — solo ADMIN pasa", () => {
+describe("assertAdminRole — ADMIN y SUPERADMIN pasan", () => {
   it("sin sesión → UnauthorizedError", () => {
     expect(() => assertAdminRole(null)).toThrow(UnauthorizedError);
   });
@@ -204,9 +210,13 @@ describe("assertAdminRole — solo ADMIN pasa", () => {
   it("ADMIN → pasa", () => {
     expect(() => assertAdminRole(sessionOf("ADMIN"))).not.toThrow();
   });
+
+  it("SUPERADMIN → pasa (superset de ADMIN)", () => {
+    expect(() => assertAdminRole(sessionOf("SUPERADMIN"))).not.toThrow();
+  });
 });
 
-describe("assertAdminOrSupportRole — ADMIN o SUPPORT pasan", () => {
+describe("assertAdminOrSupportRole — ADMIN, SUPPORT o SUPERADMIN pasan", () => {
   it("sin sesión → UnauthorizedError", () => {
     expect(() => assertAdminOrSupportRole(null)).toThrow(UnauthorizedError);
   });
@@ -221,5 +231,116 @@ describe("assertAdminOrSupportRole — ADMIN o SUPPORT pasan", () => {
 
   it("ADMIN → pasa (ADMIN también actúa como SUPPORT operativamente)", () => {
     expect(() => assertAdminOrSupportRole(sessionOf("ADMIN"))).not.toThrow();
+  });
+
+  it("SUPERADMIN → pasa", () => {
+    expect(() => assertAdminOrSupportRole(sessionOf("SUPERADMIN"))).not.toThrow();
+  });
+});
+
+describe("assertSuperAdminRole — solo SUPERADMIN pasa", () => {
+  it("sin sesión → UnauthorizedError", () => {
+    expect(() => assertSuperAdminRole(null)).toThrow(UnauthorizedError);
+  });
+
+  it("CUSTOMER → ForbiddenError", () => {
+    expect(() => assertSuperAdminRole(sessionOf("CUSTOMER"))).toThrow(ForbiddenError);
+  });
+
+  it("ADMIN → ForbiddenError (un ADMIN normal ya no puede tocar el rol ADMIN de nadie)", () => {
+    expect(() => assertSuperAdminRole(sessionOf("ADMIN"))).toThrow(ForbiddenError);
+  });
+
+  it("SUPPORT → ForbiddenError", () => {
+    expect(() => assertSuperAdminRole(sessionOf("SUPPORT"))).toThrow(ForbiddenError);
+  });
+
+  it("SUPERADMIN → pasa", () => {
+    expect(() => assertSuperAdminRole(sessionOf("SUPERADMIN"))).not.toThrow();
+  });
+});
+
+/* ═══════════════════════════ removeAdminRole / restoreAdminRole (SUPERADMIN) ═══════════════════════════ */
+
+describe("removeAdminRole", () => {
+  it("permite sacar el último ADMIN normal si sigue habiendo un SUPERADMIN", async () => {
+    const superadmin = await makeSessionWithRole("SUPERADMIN");
+    const admin = await makeSessionWithRole("ADMIN");
+
+    await removeAdminRole(pool, superadmin, admin.userId);
+
+    const { rows } = await pool.query<{ role: string }>("SELECT role FROM users WHERE id = $1::uuid", [
+      admin.userId,
+    ]);
+    expect(rows[0].role).toBe("CUSTOMER");
+  });
+
+  it("bloquea dejar el sitio sin ningún ADMIN ni SUPERADMIN", async () => {
+    // Único rol admin-tier en toda la tabla (resetData la vació en beforeEach).
+    const admin = await makeSessionWithRole("ADMIN");
+    // El guard real de ruta (`requireSuperAdminApi`) ya exige SUPERADMIN antes
+    // de llegar acá — este test prueba el conteo del propio servicio, no
+    // repite ese guard, así que el actor puede ser cualquiera.
+    const actor = await makeSessionWithRole("CUSTOMER");
+
+    await expect(removeAdminRole(pool, actor, admin.userId)).rejects.toBeInstanceOf(LastAdminError);
+
+    const { rows } = await pool.query<{ role: string }>("SELECT role FROM users WHERE id = $1::uuid", [
+      admin.userId,
+    ]);
+    expect(rows[0].role).toBe("ADMIN");
+  });
+
+  it("audita admin.role_removed", async () => {
+    const superadmin = await makeSessionWithRole("SUPERADMIN");
+    const admin = await makeSessionWithRole("ADMIN");
+
+    await removeAdminRole(pool, superadmin, admin.userId);
+
+    const { rows } = await pool.query<{ action: string }>(
+      `SELECT action FROM audit_logs WHERE action = 'admin.role_removed' AND entity_id = $1 ORDER BY id DESC LIMIT 1`,
+      [admin.userId],
+    );
+    expect(rows).toHaveLength(1);
+  });
+});
+
+describe("restoreAdminRole", () => {
+  it("rechaza restaurar a alguien que nunca fue ADMIN", async () => {
+    const superadmin = await makeSessionWithRole("SUPERADMIN");
+    const customer = await makeSessionWithRole("CUSTOMER");
+
+    await expect(restoreAdminRole(pool, superadmin, customer.userId)).rejects.toBeInstanceOf(
+      InvalidRoleTransitionError,
+    );
+  });
+
+  it("rechaza restaurar sobre una cuenta que ya es SUPERADMIN (no la degrada a ADMIN)", async () => {
+    const superadmin = await makeSessionWithRole("SUPERADMIN");
+    const otherSuperadmin = await makeSessionWithRole("SUPERADMIN");
+
+    await expect(restoreAdminRole(pool, superadmin, otherSuperadmin.userId)).rejects.toBeInstanceOf(
+      InvalidRoleTransitionError,
+    );
+
+    const { rows } = await pool.query<{ role: string }>("SELECT role FROM users WHERE id = $1::uuid", [
+      otherSuperadmin.userId,
+    ]);
+    expect(rows[0].role).toBe("SUPERADMIN");
+  });
+
+  it("restaura a ADMIN a quien tiene un admin.role_removed real en el log", async () => {
+    const superadmin = await makeSessionWithRole("SUPERADMIN");
+    const admin = await makeSessionWithRole("ADMIN");
+    // Necesita un segundo ADMIN/SUPERADMIN vivo para que removeAdminRole no
+    // choque con LastAdminError.
+    await removeAdminRole(pool, superadmin, admin.userId);
+
+    await restoreAdminRole(pool, superadmin, admin.userId);
+
+    const { rows } = await pool.query<{ role: string }>("SELECT role FROM users WHERE id = $1::uuid", [
+      admin.userId,
+    ]);
+    expect(rows[0].role).toBe("ADMIN");
   });
 });

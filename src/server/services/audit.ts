@@ -2,8 +2,9 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/client";
+import { sanitizeIpForStorage } from "../http/request-meta";
 
-export type ActorType = "CUSTOMER" | "ADMIN" | "SUPPORT" | "SYSTEM";
+export type ActorType = "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN" | "SYSTEM";
 
 export type AuditAction =
   | "code.uploaded"
@@ -34,7 +35,9 @@ export type AuditAction =
   | "refund.manual_review"
   | "refund.cancelled"
   | "auth.registered"
+  | "auth.google_registered"
   | "auth.login"
+  | "auth.google_login"
   | "auth.login_failed"
   | "auth.logout"
   | "auth.password_changed"
@@ -50,12 +53,21 @@ export type AuditAction =
   | "admin.role_changed"
   | "support.role_assigned"
   | "support.role_removed"
+  | "admin.invite_sent"
+  | "admin.invite_resent"
+  | "admin.invite_accepted"
+  | "admin.invite_revoked"
+  | "admin.role_removed"
+  | "admin.role_restored"
+  | "code_lifecycle_settings.updated"
   | "product.created"
   | "product.updated"
   | "product.toggled_active"
+  | "product.hero_order_set"
   | "code.edited"
   | "code.deleted"
   | "refund.manual_completed"
+  | "code.unvoided"
   | "product_image.added"
   | "product_image.updated"
   | "product_image.deleted"
@@ -164,7 +176,7 @@ export async function writeAudit(db: Db, entry: AuditEntry): Promise<void> {
       ${entry.entityType},
       ${entry.entityId},
       ${JSON.stringify(metadata)}::jsonb,
-      ${entry.ip ?? null}::inet,
+      ${sanitizeIpForStorage(entry.ip)}::inet,
       ${entry.userAgent ?? null}
     )
   `);

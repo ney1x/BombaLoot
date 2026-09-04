@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "@/app/(storefront)/checkout/checkout.module.css";
+import nequiStyles from "./NequiPhoneField.module.css";
 import { BuyerInfoForm } from "./BuyerInfoForm";
 import { CheckoutSummary, type CheckoutLine } from "./CheckoutSummary";
 import { DiscountCodeField, type AppliedDiscount } from "./DiscountCodeField";
@@ -43,6 +44,10 @@ export function CheckoutView() {
 
   const [buyer, setBuyer] = useState<BuyerInfo>({ name: "", email: "", isGuest: true });
   const [method, setMethod] = useState<PaymentMethodId>("nequi");
+  const [nequiPhone, setNequiPhone] = useState("");
+  const [nequiLastName, setNequiLastName] = useState("");
+  const [nequiLegalId, setNequiLegalId] = useState("");
+  const [nequiConsent, setNequiConsent] = useState(false);
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
   const [loyaltyCoupon, setLoyaltyCoupon] = useState<AppliedLoyaltyCoupon | null>(null);
   const [reservationExpired, setReservationExpired] = useState(false);
@@ -100,7 +105,24 @@ export function CheckoutView() {
   const hasStockIssue = checkoutLines.some((l) => l.flag);
   const expired = reservationExpired || demo === "expirada";
   const emailValid = /^\S+@\S+\.\S+$/.test(buyer.email.trim());
-  const canSubmit = checkoutLines.length > 0 && !hasStockIssue && !expired && emailValid;
+  // Nequi es el único método que arma la transacción acá mismo (sin ir al
+  // checkout alojado de Wompi) — necesita el celular antes de poder seguir.
+  // La cédula NO la pide Wompi (ya lo probamos: el sandbox aprueba solo con
+  // celular + email) — es una decisión propia, con su propio checkbox de
+  // consentimiento, para identificación del comprador / antifraude.
+  const nequiPhoneDigits = nequiPhone.replace(/\D/g, "");
+  const nequiPhoneValid = /^3\d{9}$/.test(nequiPhoneDigits);
+  const nequiLegalIdValid = /^\d{10}$/.test(nequiLegalId);
+  // Nombre/apellido son obligatorios acá (a diferencia de BuyerInfoForm,
+  // donde el nombre es opcional) — mismo criterio que Bonoxs, que los pide
+  // con asterisco junto al resto de datos de identificación.
+  const nequiNameValid = buyer.name.trim().length > 0 && nequiLastName.trim().length > 0;
+  const canSubmit =
+    checkoutLines.length > 0 &&
+    !hasStockIssue &&
+    !expired &&
+    emailValid &&
+    (method !== "nequi" || (nequiPhoneValid && nequiLegalIdValid && nequiNameValid && nequiConsent));
   const selectedMethod = PAYMENT_METHODS.find((m) => m.id === method)!;
 
   if (products === null) {
@@ -145,9 +167,13 @@ export function CheckoutView() {
           lines: checkoutLines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
           idempotencyKey: idempotencyKeyRef.current,
           buyerEmail: buyer.email.trim(),
-          buyerName: buyer.name.trim() || undefined,
+          buyerName:
+            method === "nequi"
+              ? [buyer.name.trim(), nequiLastName.trim()].filter(Boolean).join(" ") || undefined
+              : buyer.name.trim() || undefined,
           discountCode: discount?.code,
           loyaltyCouponId: loyaltyCoupon?.id,
+          buyerLegalId: method === "nequi" ? nequiLegalId.trim() : undefined,
         }),
       });
 
@@ -172,12 +198,35 @@ export function CheckoutView() {
         email: order.email,
         totalCop: order.totalCop,
         paymentExpiresAt: order.paymentExpiresAt,
-        // A quién se le pega de verdad — Nequi/PSE/Tarjeta comparten el
-        // mismo checkout alojado de Wompi (ver PAYMENT_METHODS en
-        // lib/checkout.ts), `method` es solo cuál tarjeta se mostró elegida.
+        // A quién se le pega de verdad — PSE/Tarjeta comparten el checkout
+        // alojado de Wompi (ver PAYMENT_METHODS en lib/checkout.ts); Nequi
+        // sigue siendo Wompi como API, pero arma la transacción acá mismo
+        // (ver la rama de abajo), nunca redirige.
         provider: selectedMethod.provider,
         methodId: method,
       });
+
+      if (method === "nequi") {
+        // Sin redirect: la transacción se crea acá mismo y el cliente
+        // aprueba un push en su app Nequi. De acá en más es la MISMA
+        // pantalla de resultado que usan Wompi (widget) y PayPal después
+        // de volver — solo cambia cómo se llegó al `paymentIntentId`.
+        const nequiResponse = await fetch("/api/payments/wompi/nequi/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.orderId,
+            accessToken: order.accessToken ?? undefined,
+            phoneNumber: nequiPhoneDigits,
+          }),
+        });
+        const nequiBody = await nequiResponse.json();
+        if (!nequiResponse.ok) {
+          throw new Error(nequiBody.error ?? "No pudimos iniciar el pago con Nequi. Intentá de nuevo.");
+        }
+        router.push(`/checkout/resultado/${nequiBody.paymentIntentId}`);
+        return;
+      }
 
       router.push("/checkout/pago");
     } catch (error) {
@@ -265,14 +314,131 @@ export function CheckoutView() {
           </div>
         ) : (
           <>
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Información del comprador</h2>
-              <BuyerInfoForm value={buyer} onChange={setBuyer} sessionUser={sessionUser} />
-            </section>
+            {method !== "nequi" && (
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Información del comprador</h2>
+                <BuyerInfoForm value={buyer} onChange={setBuyer} sessionUser={sessionUser} />
+              </section>
+            )}
 
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Método de pago</h2>
-              <PaymentMethodPicker selected={method} onSelect={setMethod} />
+              <PaymentMethodPicker
+                selected={method}
+                onSelect={setMethod}
+                renderExpansion={(id) =>
+                  id === "nequi" ? (
+                    <div className={nequiStyles.wrap}>
+                      <p className={nequiStyles.blockTitle}>Necesitamos información adicional</p>
+
+                      <div className={nequiStyles.fieldGrid}>
+                        <div className={nequiStyles.field}>
+                          <label className={nequiStyles.label} htmlFor="nequi-name">
+                            Nombre
+                          </label>
+                          <input
+                            id="nequi-name"
+                            type="text"
+                            autoComplete="given-name"
+                            placeholder="Tu nombre"
+                            className={nequiStyles.input}
+                            value={buyer.name}
+                            onChange={(e) => setBuyer({ ...buyer, name: e.target.value })}
+                          />
+                        </div>
+                        <div className={nequiStyles.field}>
+                          <label className={nequiStyles.label} htmlFor="nequi-lastname">
+                            Apellido
+                          </label>
+                          <input
+                            id="nequi-lastname"
+                            type="text"
+                            autoComplete="family-name"
+                            placeholder="Tu apellido"
+                            className={nequiStyles.input}
+                            value={nequiLastName}
+                            onChange={(e) => setNequiLastName(e.target.value)}
+                          />
+                        </div>
+                        <div className={nequiStyles.field}>
+                          <label className={nequiStyles.label} htmlFor="nequi-legal-id">
+                            C.C
+                          </label>
+                          <input
+                            id="nequi-legal-id"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={10}
+                            placeholder="1020304050"
+                            className={nequiStyles.input}
+                            value={nequiLegalId}
+                            onChange={(e) => setNequiLegalId(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          />
+                          {nequiLegalId && !nequiLegalIdValid && (
+                            <p className={`${nequiStyles.hint} ${nequiStyles.error}`}>
+                              La cédula tiene 10 dígitos.
+                            </p>
+                          )}
+                        </div>
+                        <div className={nequiStyles.field}>
+                          <label className={nequiStyles.label} htmlFor="nequi-email">
+                            Email
+                          </label>
+                          <input
+                            id="nequi-email"
+                            type="email"
+                            autoComplete="email"
+                            placeholder="tu@email.com"
+                            className={nequiStyles.input}
+                            value={buyer.email}
+                            onChange={(e) => setBuyer({ ...buyer, email: e.target.value })}
+                          />
+                        </div>
+                        <div className={nequiStyles.field} style={{ gridColumn: "1 / -1" }}>
+                          <label className={nequiStyles.label} htmlFor="nequi-phone">
+                            Número
+                          </label>
+                          <input
+                            id="nequi-phone"
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            placeholder="300 123 4567"
+                            className={nequiStyles.input}
+                            value={nequiPhone}
+                            onChange={(e) => setNequiPhone(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <p
+                        className={`${nequiStyles.hint} ${nequiPhone && !nequiPhoneValid ? nequiStyles.error : ""}`}
+                      >
+                        {nequiPhone && !nequiPhoneValid
+                          ? "Celular colombiano inválido — 10 dígitos, empieza en 3."
+                          : "Te va a llegar una notificación a tu app Nequi para aprobar el pago."}
+                      </p>
+
+                      <label className={nequiStyles.consentRow}>
+                        <input
+                          type="checkbox"
+                          checked={nequiConsent}
+                          onChange={(e) => setNequiConsent(e.target.checked)}
+                        />
+                        <span>
+                          Autorizo el tratamiento de mis datos personales (incluida mi cédula) para identificar esta
+                          compra, según la{" "}
+                          <Link href="/privacidad" target="_blank">
+                            Política de Privacidad
+                          </Link>
+                          .
+                        </span>
+                      </label>
+                    </div>
+                  ) : null
+                }
+              />
             </section>
           </>
         )}

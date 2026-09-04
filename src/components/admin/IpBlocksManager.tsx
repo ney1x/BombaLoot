@@ -16,9 +16,16 @@ function fieldErrorText(data: { error?: string; fields?: Record<string, string[]
   return [data.error, fieldMsgs].filter(Boolean).join(" — ") || fallback;
 }
 
-export function IpBlocksManager({ initialBlocks }: { initialBlocks: BlockedIpItem[] }) {
+export function IpBlocksManager({
+  initialBlocks,
+  initialIp,
+}: {
+  initialBlocks: BlockedIpItem[];
+  /** Llega de `?ip=` — el link "Banear esta IP →" del detalle de un pedido. */
+  initialIp?: string;
+}) {
   const router = useRouter();
-  const [ip, setIp] = useState("");
+  const [ip, setIp] = useState(initialIp ?? "");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);

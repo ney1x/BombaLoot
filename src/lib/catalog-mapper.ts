@@ -17,6 +17,7 @@ export interface RawCatalogProduct {
   maxPerOrder: number;
   stock: "available" | "low" | "out";
   imageUrl: string | null;
+  heroSortOrder: number | null;
 }
 
 export function toStoreProduct(p: RawCatalogProduct): Product {
@@ -33,5 +34,6 @@ export function toStoreProduct(p: RawCatalogProduct): Product {
     imageUrl: p.imageUrl,
     available: p.available,
     maxPerOrder: p.maxPerOrder,
+    heroSortOrder: p.heroSortOrder,
   };
 }

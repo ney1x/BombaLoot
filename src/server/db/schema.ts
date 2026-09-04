@@ -34,7 +34,8 @@ const inet = customType<{ data: string; driverData: string }>({
 
 /* ─────────────────────────── enums ─────────────────────────── */
 
-export const userRole = pgEnum("user_role", ["CUSTOMER", "ADMIN", "SUPPORT"]);
+/** SUPERADMIN es superset de ADMIN (nunca un rol paralelo con su propio set de permisos) — ver 0022_superadmin_role.sql. */
+export const userRole = pgEnum("user_role", ["CUSTOMER", "ADMIN", "SUPPORT", "SUPERADMIN"]);
 
 export const codeStatus = pgEnum("code_status", [
   "AVAILABLE",
@@ -111,7 +112,10 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
-    passwordHash: text("password_hash").notNull(),
+    /** NULL = cuenta sin contraseña propia — entró por Google (`googleId` NOT NULL en ese caso). Ver `usersHasAuthMethod`. */
+    passwordHash: text("password_hash"),
+    /** `sub` de Google — estable por cuenta de Google, a diferencia del email (que ahí sí puede cambiar). NULL = cuenta sin Google vinculado. */
+    googleId: text("google_id"),
     name: text("name"),
     role: userRole("role").notNull().default("CUSTOMER"),
     purchasesCount: integer("purchases_count").notNull().default(0),
@@ -119,14 +123,14 @@ export const users = pgTable(
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     suspendedReason: text("suspended_reason"),
     suspendedBy: uuid("suspended_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
-    /** NOT NULL = cuenta eliminada por el propio usuario (autoservicio, ver 0013_account_deletion.sql). Registro, no el mecanismo de bloqueo — eso lo hace reescribir `password_hash`. */
-    anonymizedAt: timestamp("anonymized_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("users_email_lower_key").on(sql`lower(${t.email})`),
+    uniqueIndex("users_google_id_key").on(t.googleId).where(sql`google_id IS NOT NULL`),
     check("users_purchases_count_positive", sql`${t.purchasesCount} >= 0`),
+    check("users_has_auth_method", sql`${t.passwordHash} IS NOT NULL OR ${t.googleId} IS NOT NULL`),
     index("users_suspended_idx").on(t.suspendedAt).where(sql`suspended_at IS NOT NULL`),
   ],
 );
@@ -147,6 +151,23 @@ export const sessions = pgTable(
   },
   (t) => [index("sessions_user_idx").on(t.userId), index("sessions_expiry_idx").on(t.expiresAt)],
 );
+
+/**
+ * Invitaciones a ADMIN — mismo patrón de token opaco que
+ * `password_reset_tokens` (solo el sha256 se guarda). `acceptedAt`/
+ * `revokedAt` NULL a la vez = pendiente; el índice único parcial en
+ * 0021_admin_invites.sql es la garantía real de "un pendiente por email".
+ */
+export const adminInvites = pgTable("admin_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  tokenHash: bytea("token_hash").notNull().unique(),
+  invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /* ─────────────────────────── catálogo ─────────────────────────── */
 
@@ -179,6 +200,8 @@ export const products = pgTable(
     priceCop: bigint("price_cop", { mode: "number" }).notNull(),
     maxPerOrder: integer("max_per_order").notNull().default(10),
     lowStockAt: integer("low_stock_at").notNull().default(5),
+    /** NULL = cae al orden natural del catálogo (juego, precio); un número saca al producto de ahí y lo ubica en esa posición del rotator de Home (0019_product_hero_sort.sql). */
+    heroSortOrder: integer("hero_sort_order"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -215,7 +238,13 @@ export const productImages = pgTable(
   (t) => [index("product_images_product_idx").on(t.productId, t.sortOrder)],
 );
 
-/** Banners/hero reutilizables por juego — Home, tarjetas de producto, página de juego. */
+/**
+ * Banners/hero reutilizables por juego — Home, tarjetas de producto, página
+ * de juego. `productId` NULL = banner genérico del juego, el fallback de
+ * siempre; una fila con `productId` es para UNA denominación puntual (ver
+ * 0018_game_visual_product.sql) — así dos productos del mismo juego pueden
+ * mostrar imágenes distintas en el hero en vez de compartir la del juego.
+ */
 export const gameVisuals = pgTable(
   "game_visuals",
   {
@@ -223,11 +252,12 @@ export const gameVisuals = pgTable(
     gameId: text("game_id")
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
+    productId: text("product_id").references(() => products.id, { onDelete: "cascade" }),
     imageUrl: text("image_url").notNull(),
     title: text("title"),
     ctaText: text("cta_text"),
     ctaLink: text("cta_link"),
-    /** 'hero' = banner grande de Home (1600×670); 'showcase' = panel de "Elegí tu juego" (600×800). */
+    /** 'hero' = banner grande de Home (1200×1440); 'showcase' = panel de "Elegí tu juego" (600×800). */
     placement: text("placement").notNull().default("hero"),
     sortOrder: integer("sort_order").notNull().default(0),
     validFrom: timestamp("valid_from", { withTimezone: true }),
@@ -237,7 +267,8 @@ export const gameVisuals = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("game_visuals_game_idx").on(t.gameId, t.sortOrder),
+    index("game_visuals_game_idx").on(t.gameId, t.placement, t.sortOrder),
+    index("game_visuals_product_idx").on(t.productId, t.placement, t.sortOrder).where(sql`${t.productId} IS NOT NULL`),
     check(
       "game_visuals_window",
       sql`${t.validUntil} IS NULL OR ${t.validFrom} IS NULL OR ${t.validUntil} > ${t.validFrom}`,
@@ -341,6 +372,21 @@ export const orders = pgTable(
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     email: text("email").notNull(),
     buyerName: text("buyer_name"),
+    /**
+     * Documento de identidad (cédula) — solo se pide para Nequi, con
+     * consentimiento explícito propio en el checkout. Finalidad declarada:
+     * identificación del comprador / antifraude, NO facturación
+     * electrónica (esa promesa no se hace acá — ver privacidad#1).
+     */
+    buyerLegalId: text("buyer_legal_id"),
+    /**
+     * Celular de Nequi — se completa recién en `initWompiNequiPayment`
+     * (fase de pago), no en la creación del pedido, porque ahí es cuando
+     * se conoce. Antes solo vivía enterrado en `payment_intents.raw_payload`
+     * (el JSON crudo de Wompi), sin ninguna columna propia ni pantalla que
+     * lo mostrara — esto lo hace consultable de verdad.
+     */
+    buyerPhone: text("buyer_phone"),
     paymentStatus: paymentStatus("payment_status").notNull().default("PENDING"),
     deliveryStatus: deliveryStatus("delivery_status").notNull().default("PENDING"),
     subtotalCop: bigint("subtotal_cop", { mode: "number" }).notNull(),
@@ -485,6 +531,20 @@ export const codes = pgTable(
     ),
   ],
 );
+
+/**
+ * Preferencias editables de vigencia de códigos y equidad entre admins — fila
+ * única (patrón singleton: `id boolean PRIMARY KEY DEFAULT true CHECK (id)`).
+ * Ver 0023_code_lifecycle_settings.sql.
+ */
+export const codeLifecycleSettings = pgTable("code_lifecycle_settings", {
+  id: boolean("id").primaryKey().default(true),
+  expiryDays: integer("expiry_days").notNull().default(90),
+  riskWindowDays: integer("risk_window_days").notNull().default(70),
+  fairnessGapDays: integer("fairness_gap_days").notNull().default(45),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /* ─────────────────────────── pagos y descuentos ─────────────────────────── */
 
@@ -727,6 +787,7 @@ export const auditLogs = pgTable(
 export const schema = {
   users,
   sessions,
+  adminInvites,
   games,
   products,
   productImages,
@@ -739,6 +800,7 @@ export const schema = {
   reservations,
   codeBatches,
   codes,
+  codeLifecycleSettings,
   paymentIntents,
   paymentEvents,
   refundRequests,

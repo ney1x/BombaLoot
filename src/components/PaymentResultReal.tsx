@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import styles from "@/app/(storefront)/checkout/resultado/[status]/resultado.module.css";
 import { AlertIcon, CardOffIcon, CheckIcon, HourglassIcon } from "./icons";
+import { NequiPendingStatus } from "./NequiPendingStatus";
 import { PaymentStatusLayout } from "./PaymentStatusLayout";
 import { loadRealCheckoutSession } from "@/lib/payment-session";
 import { formatCop } from "@/lib/products";
@@ -150,6 +151,13 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   }
 
   if (!result) {
+    // Antes del primer poll todavía no hay `result`, pero el método ya se
+    // conoce por la sesión de checkout — Nequi entra directo a su propia
+    // pantalla en vez de pasar primero por el "Confirmando tu pago"
+    // genérico y recién después cambiar a la de Nequi.
+    if (session?.methodId === "nequi") {
+      return <NequiPendingStatus />;
+    }
     return (
       <PaymentStatusLayout tone="neutral" pulse icon={<HourglassIcon />} title="Confirmando tu pago">
         No cierres ni recargues esta ventana.
@@ -252,6 +260,10 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   }
 
   // PENDING_PAYMENT / PAYMENT_EXPIRED mientras el webhook todavía no llega.
+  if (session?.methodId === "nequi") {
+    return <NequiPendingStatus />;
+  }
+
   return (
     <PaymentStatusLayout tone="neutral" pulse icon={<HourglassIcon />} title="Confirmando tu pago">
       No cierres ni recargues esta ventana — puede tardar unos segundos.

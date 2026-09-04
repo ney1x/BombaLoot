@@ -6,7 +6,7 @@ import { Suspense, useState } from "react";
 import { AuthLayout } from "@/components/AuthLayout";
 import { PasswordField } from "@/components/PasswordField";
 import styles from "@/components/AuthForm.module.css";
-import { AlertIcon } from "@/components/icons";
+import { AlertIcon, GoogleIcon } from "@/components/icons";
 import { useSession } from "@/lib/session-context";
 
 function RegistroForm() {
@@ -22,6 +22,7 @@ function RegistroForm() {
   // (POST /api/auth/claim) se hace recién cuando existe una cuenta real.
   const claimToken = searchParams.get("claim");
   const prefillEmail = searchParams.get("email") ?? "";
+  const googleHref = `/api/auth/google/start?next=${encodeURIComponent("/cuenta")}${claimToken ? `&claim=${encodeURIComponent(claimToken)}` : ""}`;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,6 +119,13 @@ function RegistroForm() {
           {submitting ? "Creando cuenta…" : "Crear cuenta"}
         </button>
       </form>
+
+      <div className={styles.divider}>o continuá con</div>
+
+      <a href={googleHref} className={styles.socialBtn}>
+        <GoogleIcon />
+        Continuar con Google
+      </a>
 
       <p className={styles.note}>
         Al crear tu cuenta vas a poder ver tu historial de compras, acceder a tus pedidos más

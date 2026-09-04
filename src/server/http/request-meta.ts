@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isIP } from "node:net";
+
 /**
  * IP y user-agent del request, para auditoría y para las claves de rate
  * limit. `NextRequest` ya no expone `.ip` (Vercel lo sacó de la API hace
@@ -33,4 +35,17 @@ export function getUserAgent(request: Request): string | null {
 
 export function requestMeta(request: Request): { ip: string; userAgent: string | null } {
   return { ip: getClientIp(request), userAgent: getUserAgent(request) };
+}
+
+/**
+ * `"unknown"` (el fallback de `getClientIp` sin proxy delante — nunca pasa
+ * detrás del edge de Vercel, sí en dev/self-hosted sin uno) no es una IP:
+ * meterlo en una columna `inet` con `::inet` tira "invalid input syntax"
+ * y revienta la transacción entera (checkout, login/registro — cualquier
+ * `INSERT` que grabe la IP de auditoría). Todo cast a `::inet` en el
+ * código tiene que pasar por acá primero — nunca directo `entry.ip ?? null`.
+ */
+export function sanitizeIpForStorage(ip: string | null | undefined): string | null {
+  if (!ip) return null;
+  return isIP(ip) ? ip : null;
 }

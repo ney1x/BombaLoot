@@ -103,6 +103,8 @@ export async function listCodesForProduct(db: Db, productId: string): Promise<Ad
 
 export interface BulkAddResult {
   inserted: number;
+  /** Coincidía con un código propio ya ANULADO del mismo producto — se reactivó (VOID → AVAILABLE) en vez de rechazarse. */
+  reactivated: number;
   duplicates: number;
 }
 
@@ -128,6 +130,7 @@ export async function bulkAddCodes(
     const batchId = batchRows[0].id;
 
     let inserted = 0;
+    const reactivatedIds: string[] = [];
     for (const plain of plainCodes) {
       const encrypted = encryptCode(plain);
       const { rowCount } = (await tx.execute(sql`
@@ -135,32 +138,76 @@ export async function bulkAddCodes(
         VALUES (${productId}, ${encrypted.cipher}, ${encrypted.nonce}, ${encrypted.tag}, ${encrypted.fingerprint}, ${batchId}::uuid)
         ON CONFLICT (secret_fingerprint) DO NOTHING
       `)) as unknown as { rowCount: number | null };
-      if (rowCount) inserted += 1;
+      if (rowCount) {
+        inserted += 1;
+        continue;
+      }
+
+      // El fingerprint ya existe — antes de contarlo como duplicado, ¿es un
+      // código propio que YA anulé? Si es así, no es un duplicado real (está
+      // fuera de la venta): reactivarlo (VOID -> AVAILABLE) es lo que el
+      // admin quiere al volver a pegarlo, no un rechazo. Mismo producto y
+      // misma regla de dueño que `lockEditableCode` (sin dueño = de nadie).
+      const { rows: reactivatedRows } = (await tx.execute(sql`
+        UPDATE codes c
+           SET status = 'AVAILABLE'
+         WHERE c.secret_fingerprint = ${encrypted.fingerprint}
+           AND c.product_id = ${productId}
+           AND c.status = 'VOID'
+           AND ( c.batch_id IS NULL
+              OR EXISTS (
+                   SELECT 1 FROM code_batches cb
+                    WHERE cb.id = c.batch_id
+                      AND (cb.uploaded_by IS NULL OR cb.uploaded_by = ${actor.userId}::uuid)
+                 ) )
+        RETURNING c.id
+      `)) as unknown as { rows: Array<{ id: string }> };
+      if (reactivatedRows[0]) reactivatedIds.push(reactivatedRows[0].id);
     }
 
-    const duplicates = plainCodes.length - inserted;
+    const duplicates = plainCodes.length - inserted - reactivatedIds.length;
 
     // Nunca se guardan los códigos en el metadata del audit — solo cuántos
-    // entraron y cuántos ya existían.
+    // entraron, cuántos se reactivaron y cuántos ya existían.
     await writeAudit(tx, {
       actorType: actor.role,
       actorId: actor.userId,
       action: "code.uploaded",
       entityType: "product",
       entityId: productId,
-      metadata: { batchId, requested: plainCodes.length, inserted, duplicates },
+      metadata: { batchId, requested: plainCodes.length, inserted, reactivated: reactivatedIds.length, duplicates },
       ip: context.ip,
       userAgent: context.userAgent,
     });
 
-    return { inserted, duplicates };
+    if (reactivatedIds.length > 0) {
+      await writeAudit(tx, {
+        actorType: actor.role,
+        actorId: actor.userId,
+        action: "code.unvoided",
+        entityType: "product",
+        entityId: productId,
+        metadata: { codeIds: reactivatedIds },
+        ip: context.ip,
+        userAgent: context.userAgent,
+      });
+    }
+
+    return { inserted, reactivated: reactivatedIds.length, duplicates };
   });
 }
 
+/**
+ * `allowedStatuses` por defecto solo `AVAILABLE` — editar/eliminar/anular
+ * exigen eso. `revealCode` es la excepción: también deja `VOID`, porque el
+ * dueño del código sigue pudiendo necesitar verlo (usarlo él mismo, o
+ * confirmar qué anuló) después de sacarlo de la venta.
+ */
 async function lockEditableCode(
   tx: TxDb,
   actor: ValidatedSession,
   codeId: string,
+  allowedStatuses: string[] = ["AVAILABLE"],
 ): Promise<{ id: string; status: string; productId: string }> {
   // `FOR UPDATE` sobre codes; el join a code_batches solo lee el dueño del
   // lote, no hace falta lockearlo — nadie más edita `uploaded_by`.
@@ -174,7 +221,7 @@ async function lockEditableCode(
 
   const row = rows[0];
   if (!row) throw new CodeNotFoundError(codeId);
-  if (row.status !== "AVAILABLE") throw new CodeNotEditableError(codeId, row.status);
+  if (!allowedStatuses.includes(row.status)) throw new CodeNotEditableError(codeId, row.status);
   if (row.uploaded_by && row.uploaded_by !== actor.userId) throw new CodeNotOwnedError(codeId);
   return { id: row.id, status: row.status, productId: row.product_id };
 }
@@ -234,10 +281,12 @@ export async function editCode(
 }
 
 /**
- * Revela el código en claro — solo para corregir un error de escritura
- * antes de vender (misma regla que editar: `AVAILABLE` y dueño del lote).
- * Cada revelado queda auditado (`code.revealed`), igual que un edit o un
- * delete — es la única función del archivo que expone el secreto.
+ * Revela el código en claro. Dueño del lote, y `AVAILABLE` o `VOID` — a
+ * diferencia de editar/eliminar, seguir pudiendo ver un código ya anulado
+ * es el punto: el admin lo sacó de la venta pero puede necesitar usarlo él
+ * mismo o confirmar qué anuló. Cada revelado queda auditado
+ * (`code.revealed`), igual que un edit o un delete — es la única función
+ * del archivo que expone el secreto.
  */
 export async function revealCode(
   pool: Pool,
@@ -246,7 +295,7 @@ export async function revealCode(
   context: { ip?: string | null; userAgent?: string | null } = {},
 ): Promise<string> {
   return withTransaction(pool, async (tx) => {
-    await lockEditableCode(tx, actor, codeId);
+    await lockEditableCode(tx, actor, codeId, ["AVAILABLE", "VOID"]);
 
     const { rows } = (await tx.execute(
       sql`SELECT secret_cipher, secret_nonce, secret_tag FROM codes WHERE id = ${codeId}::uuid`,
@@ -267,6 +316,40 @@ export async function revealCode(
     });
 
     return plain;
+  });
+}
+
+/**
+ * Anula un código sin borrarlo — para uno que sigue siendo válido pero el
+ * admin decide no vender más (típicamente por vigencia: revisó uno cercano a
+ * caducar con `revealCode` y prefiere sacarlo antes que arriesgarse a
+ * venderlo). A diferencia de `deleteCode`, la fila y su historial quedan;
+ * solo cambia el estado (mismo `code_status = 'VOID'` que ya existe en el
+ * enum, y la acción `code.voided` que ya existe en `audit.ts` — ninguna
+ * función los usaba todavía). Mismas reglas de `AVAILABLE` + dueño del lote
+ * que editar/revelar/eliminar, sin tope de edad: el criterio de cuándo
+ * anular es del admin, no del backend.
+ */
+export async function voidCode(
+  pool: Pool,
+  actor: ValidatedSession,
+  codeId: string,
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<void> {
+  await withTransaction(pool, async (tx) => {
+    await lockEditableCode(tx, actor, codeId);
+
+    await tx.execute(sql`UPDATE codes SET status = 'VOID' WHERE id = ${codeId}::uuid`);
+
+    await writeAudit(tx, {
+      actorType: actor.role,
+      actorId: actor.userId,
+      action: "code.voided",
+      entityType: "code",
+      entityId: codeId,
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
   });
 }
 

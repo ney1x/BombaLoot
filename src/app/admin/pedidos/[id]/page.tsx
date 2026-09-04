@@ -134,11 +134,23 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <p className={shared.subtitle}>
             {order.buyerName ?? order.email} · {order.email} ·{" "}
             {order.userId ? "cuenta registrada" : "invitado"} · pedido el {order.createdAt.toLocaleString("es-CO")}
+            {order.buyerLegalId && ` · C.C. ${order.buyerLegalId}`}
+            {order.buyerPhone && ` · Nequi ${order.buyerPhone}`}
           </p>
           <p className={shared.subtitle}>
             {order.paidAt ? `Pagado el ${order.paidAt.toLocaleString("es-CO")}` : "Sin pagar todavía"}
             {" · "}
             {order.deliveredAt ? `Entregado el ${order.deliveredAt.toLocaleString("es-CO")}` : "Código no entregado todavía"}
+          </p>
+          <p className={shared.subtitle}>
+            {order.checkoutIp ? (
+              <>
+                IP de origen: <span className={shared.mono}>{order.checkoutIp}</span>{" "}
+                <Link href={`/admin/seguridad?ip=${encodeURIComponent(order.checkoutIp)}`}>Banear esta IP →</Link>
+              </>
+            ) : (
+              "IP de origen: no quedó registrada"
+            )}
           </p>
         </div>
         <span className={shared.badge} data-tone={STATUS_TONE[order.orderStatus]}>

@@ -17,7 +17,7 @@ export function SuspendAction({
   isSelf,
 }: {
   userId: string;
-  role: "CUSTOMER" | "ADMIN" | "SUPPORT";
+  role: "CUSTOMER" | "ADMIN" | "SUPPORT" | "SUPERADMIN";
   suspended: boolean;
   isSelf: boolean;
 }) {
@@ -27,7 +27,7 @@ export function SuspendAction({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (role === "ADMIN" || isSelf) return <span className={shared.subtitle}>—</span>;
+  if (role === "ADMIN" || role === "SUPERADMIN" || isSelf) return <span className={shared.subtitle}>—</span>;
 
   async function handleSuspend(e: React.FormEvent) {
     e.preventDefault();

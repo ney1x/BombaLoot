@@ -21,11 +21,17 @@ export async function POST(request: NextRequest) {
 
     let owner: CheckoutOwner;
     if (session) {
+      // El nombre/email de la cuenta son el default, pero un pedido puntual
+      // puede pedir que se registre con otros — hoy el único lugar que
+      // ofrece ese campo editable estando logueado es el bloque de Nequi
+      // (pagás por alguien más, o con datos distintos a los de tu cuenta).
+      // `userId` sigue siendo el de la sesión siempre: el pedido cuenta
+      // para el historial/fidelización de esa cuenta pase lo que pase acá.
       owner = {
         type: "user",
         userId: session.userId,
-        email: session.email,
-        name: session.name,
+        email: body.buyerEmail?.trim() || session.email,
+        name: body.buyerName?.trim() || session.name,
         purchasesCount: session.purchasesCount,
       };
     } else {
@@ -44,6 +50,7 @@ export async function POST(request: NextRequest) {
       owner,
       discountCode: body.discountCode,
       loyaltyCouponId: body.loyaltyCouponId,
+      buyerLegalId: body.buyerLegalId,
       rateLimitKey,
       ip: meta.ip,
       userAgent: meta.userAgent,

@@ -63,6 +63,8 @@ export interface AdminProductRow {
   priceCop: number;
   maxPerOrder: number;
   lowStockAt: number;
+  /** NULL = sin posición manual en el rotator de Home. */
+  heroSortOrder: number | null;
   isActive: boolean;
   available: number;
   reserved: number;
@@ -83,6 +85,7 @@ interface ProductQueryRow {
   price_cop: number;
   max_per_order: number;
   low_stock_at: number;
+  hero_sort_order: number | null;
   is_active: boolean;
   available: string;
   reserved: string;
@@ -128,6 +131,7 @@ function toAdminProductRow(row: ProductQueryRow): AdminProductRow {
     priceCop: Number(row.price_cop),
     maxPerOrder: row.max_per_order,
     lowStockAt: row.low_stock_at,
+    heroSortOrder: row.hero_sort_order,
     isActive: row.is_active,
     available,
     reserved: Number(row.reserved),
@@ -143,12 +147,21 @@ function toAdminProductRow(row: ProductQueryRow): AdminProductRow {
  * A diferencia del catálogo público (`catalog.ts`), acá se listan TODOS los
  * productos — activos e inactivos — y con el desglose completo por estado
  * de código, no solo el disponible. Es una vista operativa, no de venta.
+ *
+ * `available` no es un conteo puro por `status` como `reserved`/`paid`/
+ * `delivered`: además excluye códigos que superaron `expiry_days` (vigencia,
+ * `code_lifecycle_settings`), igual que `CLAIMABLE` en `inventory.ts` —
+ * mismo motivo, esta es la pantalla de triage de stock, así que "disponible"
+ * acá tiene que significar lo mismo que "se le puede vender a un cliente".
  */
 export async function listAdminProducts(db: Db): Promise<AdminProductRow[]> {
   const { rows } = (await db.execute(sql`
     SELECT p.id, p.game_id, g.label AS game_label, p.denomination, p.unit, p.description,
-           p.price_cop, p.max_per_order, p.low_stock_at, p.is_active, p.created_at, p.updated_at,
-           count(*) FILTER (WHERE c.status = 'AVAILABLE' AND c.order_item_id IS NULL) AS available,
+           p.price_cop, p.max_per_order, p.low_stock_at, p.hero_sort_order, p.is_active, p.created_at, p.updated_at,
+           count(*) FILTER (
+             WHERE c.status = 'AVAILABLE' AND c.order_item_id IS NULL
+               AND c.created_at > now() - make_interval(days => (SELECT expiry_days FROM code_lifecycle_settings))
+           ) AS available,
            count(*) FILTER (WHERE c.status = 'RESERVED') AS reserved,
            count(*) FILTER (WHERE c.status = 'PAID') AS paid,
            count(*) FILTER (WHERE c.status = 'DELIVERED') AS delivered
@@ -165,8 +178,11 @@ export async function listAdminProducts(db: Db): Promise<AdminProductRow[]> {
 export async function getAdminProduct(db: Db, productId: string): Promise<AdminProductRow | null> {
   const { rows } = (await db.execute(sql`
     SELECT p.id, p.game_id, g.label AS game_label, p.denomination, p.unit, p.description,
-           p.price_cop, p.max_per_order, p.low_stock_at, p.is_active, p.created_at, p.updated_at,
-           count(*) FILTER (WHERE c.status = 'AVAILABLE' AND c.order_item_id IS NULL) AS available,
+           p.price_cop, p.max_per_order, p.low_stock_at, p.hero_sort_order, p.is_active, p.created_at, p.updated_at,
+           count(*) FILTER (
+             WHERE c.status = 'AVAILABLE' AND c.order_item_id IS NULL
+               AND c.created_at > now() - make_interval(days => (SELECT expiry_days FROM code_lifecycle_settings))
+           ) AS available,
            count(*) FILTER (WHERE c.status = 'RESERVED') AS reserved,
            count(*) FILTER (WHERE c.status = 'PAID') AS paid,
            count(*) FILTER (WHERE c.status = 'DELIVERED') AS delivered
@@ -316,6 +332,47 @@ export async function setProductActive(
       entityType: "product",
       entityId: productId,
       metadata: { isActive },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
+  });
+}
+
+export const setHeroOrderSchema = z.object({
+  /** Ids en el orden exacto en que deben rotar — la posición en el array es el orden, no un campo aparte. */
+  productIds: z.array(z.string().trim().min(1)).min(1).max(500),
+});
+
+export type SetHeroOrderInput = z.infer<typeof setHeroOrderSchema>;
+
+/**
+ * Reescribe `hero_sort_order` de TODOS los productos listados, 0 en
+ * adelante según su posición en `productIds` — no un patch parcial. Un id
+ * que no exista se ignora en silencio (`UPDATE` sin filas afectadas, sin
+ * error): la lista sale de `listAdminProducts` en el propio admin, así que
+ * un id inválido acá solo puede venir de una carrera con un producto
+ * borrado entre que se cargó la página y se guardó el orden.
+ */
+export async function setHeroOrder(
+  pool: Pool,
+  actor: ValidatedSession,
+  productIds: string[],
+  context: { ip?: string | null; userAgent?: string | null } = {},
+): Promise<void> {
+  await withTransaction(pool, async (tx) => {
+    for (const [index, productId] of productIds.entries()) {
+      await tx.execute(
+        sql`UPDATE products SET hero_sort_order = ${index}, updated_at = now() WHERE id = ${productId}`,
+      );
+    }
+
+    await writeAudit(tx, {
+      actorType: actor.role,
+      actorId: actor.userId,
+      action: "product.hero_order_set",
+      entityType: "product",
+      entityId: "bulk",
+      metadata: { productIds },
       ip: context.ip,
       userAgent: context.userAgent,
     });

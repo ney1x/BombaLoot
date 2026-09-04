@@ -21,6 +21,7 @@ import {
   QuantityNotAllowedError,
 } from "@/server/services/errors";
 import { registerUser } from "@/server/services/auth-service";
+import { getOrderDetailAdmin } from "@/server/services/admin-orders";
 import { getAccountLoyaltyCoupons } from "@/server/services/loyalty";
 import { resetRateLimits } from "@/server/services/rate-limit";
 import {
@@ -89,6 +90,43 @@ describe("checkout de invitado", () => {
       [result.orderId],
     );
     expect(rows[0].user_id).toBeNull();
+  });
+
+  it("guarda buyer_legal_id solo cuando el checkout lo manda (hoy: consentimiento de Nequi)", async () => {
+    await seedProduct(pool, { codeCount: 5 });
+
+    const withId = await checkoutCart(pool, {
+      lines: [{ productId: TEST_PRODUCT_ID, quantity: 1 }],
+      idempotencyKey: uuid(),
+      owner: guestOwner({ email: "con-cedula@test.local" }),
+      buyerLegalId: "1020304050",
+    });
+    const withoutId = await checkoutCart(pool, {
+      lines: [{ productId: TEST_PRODUCT_ID, quantity: 1 }],
+      idempotencyKey: uuid(),
+      owner: guestOwner({ email: "sin-cedula@test.local" }),
+    });
+
+    const { rows } = await pool.query<{ id: string; buyer_legal_id: string | null }>(
+      "SELECT id, buyer_legal_id FROM orders WHERE id = ANY($1::uuid[])",
+      [[withId.orderId, withoutId.orderId]],
+    );
+    expect(rows.find((r) => r.id === withId.orderId)?.buyer_legal_id).toBe("1020304050");
+    expect(rows.find((r) => r.id === withoutId.orderId)?.buyer_legal_id).toBeNull();
+  });
+
+  it("la IP del checkout queda en audit_logs y el admin la puede leer para banear", async () => {
+    await seedProduct(pool, { codeCount: 5 });
+
+    const result = await checkoutCart(pool, {
+      lines: [{ productId: TEST_PRODUCT_ID, quantity: 1 }],
+      idempotencyKey: uuid(),
+      owner: guestOwner({ email: "con-ip@test.local" }),
+      ip: "190.85.12.4",
+    });
+
+    const detail = await getOrderDetailAdmin(db, result.orderId);
+    expect(detail?.checkoutIp).toBe("190.85.12.4");
   });
 });
 

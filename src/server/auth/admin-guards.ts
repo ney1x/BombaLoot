@@ -10,14 +10,23 @@ import type { ValidatedSession } from "./session";
  * `next/headers`/`next/navigation`) queda como la única capa que toca
  * cookies.
  */
+/** SUPERADMIN pasa cualquier chequeo de ADMIN — es superset, nunca un rol paralelo. */
 export function assertAdminRole(session: ValidatedSession | null): asserts session is ValidatedSession {
   if (!session) throw new UnauthorizedError();
-  if (session.role !== "ADMIN") throw new ForbiddenError();
+  if (session.role !== "ADMIN" && session.role !== "SUPERADMIN") throw new ForbiddenError();
 }
 
 export function assertAdminOrSupportRole(
   session: ValidatedSession | null,
 ): asserts session is ValidatedSession {
   if (!session) throw new UnauthorizedError();
-  if (session.role !== "ADMIN" && session.role !== "SUPPORT") throw new ForbiddenError();
+  if (session.role !== "ADMIN" && session.role !== "SUPPORT" && session.role !== "SUPERADMIN") {
+    throw new ForbiddenError();
+  }
+}
+
+/** Solo para invitar/revocar/restaurar el rol ADMIN — la única capacidad que un ADMIN normal ya NO tiene. */
+export function assertSuperAdminRole(session: ValidatedSession | null): asserts session is ValidatedSession {
+  if (!session) throw new UnauthorizedError();
+  if (session.role !== "SUPERADMIN") throw new ForbiddenError();
 }

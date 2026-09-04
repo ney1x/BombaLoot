@@ -13,7 +13,7 @@ export default async function AdminLoyaltyPage() {
     listLoyaltyTiers(getDb()),
     countCustomersByTier(getDb()),
   ]);
-  const canEdit = session?.role === "ADMIN";
+  const canEdit = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
 
   return (
     <div className={shared.page}>

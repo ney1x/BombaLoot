@@ -73,6 +73,17 @@ export async function sendMail(message: MailMessage): Promise<void> {
   }
 }
 
+/** Invitación a ADMIN — vence en 7 días, aceptar exige estar logueado con este mismo email. */
+export function adminInviteEmail(acceptUrl: string): MailMessage["text"] {
+  return [
+    "Te invitaron a administrar BombaLoot.",
+    "",
+    `Iniciá sesión (o creá una cuenta) con este mismo email y abrí este link para aceptar (vence en 7 días): ${acceptUrl}`,
+    "",
+    "Si no esperabas esta invitación, podés ignorar este correo — no pasa nada hasta que se acepte.",
+  ].join("\n");
+}
+
 export function passwordResetEmail(resetUrl: string): MailMessage["text"] {
   return [
     "Pediste restablecer tu contraseña en BombaLoot.",

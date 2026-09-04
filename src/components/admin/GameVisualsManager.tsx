@@ -41,6 +41,7 @@ export type GameVisualPlacement = "hero" | "showcase";
 
 export interface AdminGameVisual {
   id: string;
+  productId: string | null;
   imageUrl: string;
   placement: GameVisualPlacement;
   title: string | null;
@@ -48,16 +49,30 @@ export interface AdminGameVisual {
   isActive: boolean;
 }
 
+export interface GameProductOption {
+  id: string;
+  denomination: string;
+  unit: string;
+}
+
 const PLACEMENT_LABEL: Record<GameVisualPlacement, string> = {
-  hero: "Hero de Home (1600×670)",
+  hero: "Hero de Home (1200×1440)",
   showcase: "Elegí tu juego (600×800)",
 };
 
 /** Ancho/alto de referencia por lugar — de acá sale la relación de aspecto esperada y el thumbnail. */
 const PLACEMENT_DIMENSIONS: Record<GameVisualPlacement, { width: number; height: number }> = {
-  hero: { width: 1600, height: 670 },
+  hero: { width: 1200, height: 1440 },
   showcase: { width: 600, height: 800 },
 };
+
+/**
+ * Solo el hero de Home rota por denominación — el panel "Elegí tu juego"
+ * siempre mostró un panel por juego, nunca por producto puntual.
+ */
+function supportsProductTarget(placement: GameVisualPlacement): boolean {
+  return placement === "hero";
+}
 
 /** Cuánto puede desviarse la relación de aspecto real antes de avisar — recorte leve es normal, uno grosero no. */
 const ASPECT_RATIO_TOLERANCE = 0.15;
@@ -74,22 +89,25 @@ function aspectRatioWarning(
   return `La imagen es ${dims.width}×${dims.height} — ${PLACEMENT_LABEL[placement]} espera una relación de aspecto de ~${expected.width}×${expected.height}. Se va a recortar distinto a como se ve acá.`;
 }
 
-/** Thumbnail con la forma real del lugar — un box 72×30 miente sobre cómo se ve un showcase (0.75:1, retrato). */
+/** Thumbnail con la forma real del lugar — un box 45×54 miente sobre cómo se ve un showcase (0.75:1, retrato). */
 const THUMBNAIL_SIZE: Record<GameVisualPlacement, { width: number; height: number }> = {
-  hero: { width: 72, height: 30 },
+  hero: { width: 34, height: 41 },
   showcase: { width: 45, height: 60 },
 };
 
 function VisualRow({
   visual,
+  products,
   onToggle,
   onRemove,
 }: {
   visual: AdminGameVisual;
+  products: GameProductOption[];
   onToggle: () => void;
   onRemove: () => void;
 }) {
   const thumb = THUMBNAIL_SIZE[visual.placement];
+  const targetProduct = visual.productId ? products.find((p) => p.id === visual.productId) : null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <span className={shared.mono} style={{ fontSize: 11, color: "var(--ink-faint)", width: 18, textAlign: "right" }}>
@@ -109,6 +127,9 @@ function VisualRow({
       >
         {visual.imageUrl}
       </span>
+      <span className={shared.badge} data-tone={visual.productId ? "accent" : undefined}>
+        {targetProduct ? `${targetProduct.denomination} ${targetProduct.unit}` : visual.productId ? "producto eliminado" : "General"}
+      </span>
       <span className={shared.badge} data-tone={visual.isActive ? "good" : "bad"}>
         {visual.isActive ? "ACTIVO" : "INACTIVO"}
       </span>
@@ -126,16 +147,19 @@ export function GameVisualsManager({
   gameId,
   gameLabel,
   initialVisuals,
+  products,
 }: {
   gameId: string;
   gameLabel: string;
   initialVisuals: AdminGameVisual[];
+  products: GameProductOption[];
 }) {
   const router = useRouter();
   const [visuals, setVisuals] = useState(initialVisuals);
   const [imageUrl, setImageUrl] = useState("");
   const [title, setTitle] = useState("");
   const [placement, setPlacement] = useState<GameVisualPlacement>("hero");
+  const [productId, setProductId] = useState("");
   const [sortOrder, setSortOrder] = useState(0);
   const [uploadedDims, setUploadedDims] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -179,13 +203,20 @@ export function GameVisualsManager({
       const res = await fetch(`/api/admin/games/${gameId}/visuals`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: imageUrl.trim(), placement, title: title.trim() || undefined, sortOrder }),
+        body: JSON.stringify({
+          imageUrl: imageUrl.trim(),
+          placement,
+          productId: supportsProductTarget(placement) && productId ? productId : undefined,
+          title: title.trim() || undefined,
+          sortOrder,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo cargar el banner");
       setImageUrl("");
       setTitle("");
       setSortOrder(0);
+      setProductId("");
       setUploadedDims(null);
       await refresh();
       router.refresh();
@@ -269,6 +300,19 @@ export function GameVisualsManager({
             <option value="showcase">{PLACEMENT_LABEL.showcase}</option>
           </select>
         </div>
+        {supportsProductTarget(placement) && (
+          <div className={shared.field} style={{ flex: "1 1 200px" }}>
+            <label htmlFor={`product-${gameId}`}>Denominación</label>
+            <select id={`product-${gameId}`} value={productId} onChange={(e) => setProductId(e.target.value)}>
+              <option value="">General (todo el juego)</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.denomination} {p.unit}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className={shared.field} style={{ flex: "1 1 160px" }}>
           <label htmlFor={`title-${gameId}`}>Título (opcional)</label>
           <input id={`title-${gameId}`} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -320,7 +364,13 @@ export function GameVisualsManager({
           <div key={p} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <span className={shared.subtitle}>{PLACEMENT_LABEL[p]}</span>
             {rows.map((v) => (
-              <VisualRow key={v.id} visual={v} onToggle={() => toggleActive(v.id, !v.isActive)} onRemove={() => removeVisual(v.id)} />
+              <VisualRow
+                key={v.id}
+                visual={v}
+                products={products}
+                onToggle={() => toggleActive(v.id, !v.isActive)}
+                onRemove={() => removeVisual(v.id)}
+              />
             ))}
             {rows.length === 0 && <p className={shared.subtitle}>Sin banners — se ve el placeholder.</p>}
           </div>

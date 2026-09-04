@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Descuentos — Admin BombaLoot" };
 
 export default async function AdminDiscountsPage() {
   const [session, discounts] = await Promise.all([getCurrentSession(), listDiscountRules(getDb())]);
-  const canEdit = session?.role === "ADMIN";
+  const canEdit = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
 
   return (
     <div className={shared.page}>

@@ -67,6 +67,21 @@ export async function resetData(pool: Pool): Promise<void> {
     RESTART IDENTITY CASCADE
   `);
   // audit_logs tiene trigger append-only: no se trunca desde la app.
+
+  // code_lifecycle_settings es config de toda la app (fila única), no dato
+  // transaccional — pero el TRUNCATE ... CASCADE de arriba la vacía igual,
+  // porque tiene un FK a `users` (`updated_by`) y CASCADE en TRUNCATE ignora
+  // el ON DELETE SET NULL de la columna (esa acción solo aplica a DELETE).
+  // Sin este re-seed, la primera llamada a resetData() deja la tabla vacía
+  // para el resto del archivo, y como `inventory.ts` lee `expiry_days` con
+  // una subquery contra esta fila, una tabla vacía vuelve NULL cualquier
+  // comparación — silenciosamente excluye TODO código de la venta.
+  await pool.query(`
+    INSERT INTO code_lifecycle_settings (id) VALUES (true)
+    ON CONFLICT (id) DO UPDATE
+       SET expiry_days = 90, risk_window_days = 70, fairness_gap_days = 45,
+           updated_by = NULL, updated_at = now()
+  `);
 }
 
 export interface SeedProductOptions {
@@ -119,6 +134,48 @@ export async function seedProduct(
   }
 
   return { productId, codeIds };
+}
+
+/**
+ * Códigos con dueño (`code_batches.uploaded_by`) y antigüedad controlada —
+ * para los tests de vigencia/equidad entre admins. Crea el lote y los
+ * códigos; `ageDays` fuerza `created_at` hacia atrás (por defecto, recién
+ * cargados). El "admin" es cualquier fila de `users`, no hace falta que
+ * tenga rol ADMIN — `claimCodesForProduct` solo mira `uploaded_by`.
+ */
+export async function seedCodesWithBatch(
+  pool: Pool,
+  params: { productId: string; uploadedBy: string; count: number; ageDays?: number },
+): Promise<string[]> {
+  const { productId, uploadedBy, count, ageDays = 0 } = params;
+
+  const { rows: batchRows } = await pool.query<{ id: string }>(
+    `INSERT INTO code_batches (product_id, uploaded_by, source) VALUES ($1, $2, 'test') RETURNING id`,
+    [productId, uploadedBy],
+  );
+  const batchId = batchRows[0].id;
+
+  const codeIds: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const encrypted = encryptCode(`TST-${randomBytes(6).toString("hex").toUpperCase()}`);
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO codes (product_id, secret_cipher, secret_nonce, secret_tag, secret_fingerprint, batch_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6, now() - make_interval(days => $7)) RETURNING id`,
+      [productId, encrypted.cipher, encrypted.nonce, encrypted.tag, encrypted.fingerprint, batchId, ageDays],
+    );
+    codeIds.push(rows[0].id);
+  }
+
+  return codeIds;
+}
+
+/** Crea un usuario mínimo (sin rol admin real) solo para usar su id como dueño de un lote en tests. */
+export async function seedTestUser(pool: Pool, email: string): Promise<string> {
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO users (email, password_hash) VALUES ($1, 'x') RETURNING id`,
+    [email],
+  );
+  return rows[0].id;
 }
 
 /**

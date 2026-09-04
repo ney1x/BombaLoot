@@ -8,6 +8,7 @@ import { getDb } from "@/server/db/client";
 import { getAdminProduct } from "@/server/services/admin-products";
 import { listCodesForProduct } from "@/server/services/admin-codes";
 import { listProductImages } from "@/server/services/admin-images";
+import { getCodeLifecycleSettings } from "@/server/services/code-lifecycle-settings";
 import { ProductEditForm } from "@/components/admin/ProductEditForm";
 import { CodesManager } from "@/components/admin/CodesManager";
 import { ImagesManager } from "@/components/admin/ImagesManager";
@@ -26,8 +27,12 @@ export default async function ProductDetailPage({
   const [session, product] = await Promise.all([getCurrentSession(), getAdminProduct(getDb(), id)]);
   if (!product) notFound();
 
-  const [codes, images] = await Promise.all([listCodesForProduct(getDb(), id), listProductImages(getDb(), id)]);
-  const canEdit = session?.role === "ADMIN";
+  const [codes, images, lifecycleSettings] = await Promise.all([
+    listCodesForProduct(getDb(), id),
+    listProductImages(getDb(), id),
+    getCodeLifecycleSettings(getDb()),
+  ]);
+  const canEdit = session?.role === "ADMIN" || session?.role === "SUPERADMIN";
 
   return (
     <div className={shared.page}>
@@ -103,6 +108,8 @@ export default async function ProductDetailPage({
         }))}
         canEdit={canEdit}
         currentUserId={session?.userId ?? null}
+        riskWindowDays={lifecycleSettings.riskWindowDays}
+        expiryDays={lifecycleSettings.expiryDays}
       />
     </div>
   );
