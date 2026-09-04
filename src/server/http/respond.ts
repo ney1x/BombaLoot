@@ -39,6 +39,7 @@ import {
   GameVisualNotFoundError,
   ImageNotFoundError,
   InsufficientStockError,
+  InvalidAssigneeError,
   InvalidGameError,
   InvalidProductError,
   InvalidQuantityError,
@@ -220,6 +221,9 @@ export function apiErrorToResponse(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof SupportOrderNotFoundError || error instanceof OrderTooOldForSupportError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof InvalidAssigneeError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof IpBlockedError) {

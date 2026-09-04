@@ -11,11 +11,24 @@ import type { NextConfig } from "next";
  *   2. Atributos `style={{ ... }}` de React (fondos degradados por juego
  *      en `GameImageSlot`, etc.) — se renderizan como atributo `style`
  *      inline, valores fijos de `GAME_COLORS`, tampoco vienen de input.
- * Ninguno de los dos es un vector real: no hay `dangerouslySetInnerHTML`
- * ni `eval` en todo el proyecto (verificado), así que no existe un punto
- * donde contenido de usuario pueda llegar a convertirse en script/estilo
- * inline. Si en el futuro se agrega `middleware.ts` por otro motivo, vale
- * la pena migrar a nonce y sacar `'unsafe-inline'`.
+ * Ninguno de los dos es un vector real: son estáticos, nunca interpolan
+ * input de usuario ni de la base.
+ *
+ * Corrección (auditoría de seguridad, 2026-09-04): el proyecto SÍ usa
+ * `dangerouslySetInnerHTML` — 8 veces, todas para insertar JSON-LD
+ * (`<script type="application/ld+json">`, ver `lib/seo.ts`). La fuente de
+ * esos datos no es 100% estática: `productsJsonLd` arma `name`/`description`
+ * a partir de `denomination`/`unit`, texto libre que carga un ADMIN — así
+ * que sí hay un punto donde contenido no controlado por este código llega
+ * a un `dangerouslySetInnerHTML`. `lib/seo.ts` ahora escapa `<`/`>`/`&` en
+ * todo JSON-LD antes de serializarlo (helper `jsonLdScript`, único punto de
+ * entrada, ningún builder llama `JSON.stringify` directo) — eso es lo que
+ * cierra el vector, no el CSP. `script-src 'unsafe-inline'` sigue siendo
+ * necesario por el motivo original (sin `middleware.ts` no hay nonce), pero
+ * ya no es una segunda barrera gratis contra este tipo de inyección: un
+ * error futuro en el escape del JSON-LD ejecutaría igual. Si en algún
+ * momento se agrega `middleware.ts` por otro motivo, vale la pena migrar a
+ * nonce y sacar `'unsafe-inline'` como capa extra.
  */
 const CSP_DIRECTIVES = [
   "default-src 'self'",

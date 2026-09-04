@@ -98,7 +98,11 @@ export function SupportTicketForm() {
         ticketNumber: body.ticket.ticketNumber,
         createdAt: new Date().toISOString(),
       });
-      router.push(`/ayuda/ticket/${body.ticket.id}?token=${encodeURIComponent(body.accessToken)}`);
+      // Sin el token en la URL (auditoría de seguridad, 2026-09-04): la
+      // ruta de creación ya plantó la cookie de acceso del ticket, así que
+      // no hace falta repetirlo acá — `saveTicketRef` de arriba sigue
+      // guardándolo aparte para el atajo "volver a tu conversación".
+      router.push(`/ayuda/ticket/${body.ticket.id}`);
     } catch {
       setError("No pudimos enviar tu solicitud. Probá de nuevo.");
     } finally {

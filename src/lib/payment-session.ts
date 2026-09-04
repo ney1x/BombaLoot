@@ -5,6 +5,14 @@
  * Wompi/PayPal dentro de la misma pestaña, igual que `lib/checkout.ts`
  * para el flujo mock — este es el equivalente para el flujo real, sin
  * tocar aquel archivo.
+ *
+ * El `accessToken` del pedido de invitado deliberadamente NO vive acá
+ * (auditoría de seguridad, 2026-09-04) — `sessionStorage` es legible por
+ * cualquier JS de la página, así que guardar ahí un bearer token era una
+ * superficie de exposición innecesaria (ante una XSS futura, por ejemplo).
+ * Ese token ahora vive solo en una cookie httpOnly (`loadout_order_<id>`,
+ * ver `server/auth/cookies.ts`), plantada por el propio servidor al crear
+ * el pedido — nunca pasa por acá.
  */
 
 export type PaymentProviderId = "wompi" | "paypal";
@@ -12,8 +20,6 @@ export type PaymentProviderId = "wompi" | "paypal";
 export interface RealCheckoutSession {
   orderId: string;
   orderNumber: string;
-  /** `null` en un reintento sin caché — ver el trade-off documentado en checkout-service.ts. */
-  accessToken: string | null;
   email: string;
   totalCop: number;
   paymentExpiresAt: string;

@@ -32,9 +32,11 @@ function RedirectingToPayment({ subtitle }: { subtitle?: React.ReactNode }) {
 
 /**
  * Inicia el pago real: llama `POST /api/payments/[provider]/init` (que NO
- * confía en nada del navegador salvo `orderId`/`accessToken`, ya creados
- * por `/checkout`) y redirige al checkout alojado del proveedor. El
- * navegador nunca marca nada como pagado acá — solo pide la URL y viaja.
+ * confía en nada del navegador salvo `orderId`, ya creado por `/checkout`
+ * — la prueba de que el pedido es tuyo la resuelve el propio servidor
+ * contra la cookie httpOnly plantada en ese momento, ver
+ * `server/auth/cookies.ts`) y redirige al checkout alojado del proveedor.
+ * El navegador nunca marca nada como pagado acá — solo pide la URL y viaja.
  */
 export default function PagoPendientePage() {
   const router = useRouter();
@@ -91,7 +93,7 @@ export default function PagoPendientePage() {
         const response = await fetch(`/api/payments/${session.provider}/init`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: session.orderId, accessToken: session.accessToken ?? undefined }),
+          body: JSON.stringify({ orderId: session.orderId }),
         });
         const body = await response.json();
         if (!response.ok) {

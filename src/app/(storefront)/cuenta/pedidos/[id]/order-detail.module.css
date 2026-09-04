@@ -289,27 +289,46 @@
   margin-bottom: 20px;
 }
 
+/*
+ * Mismo motivo y misma segunda vuelta que el equivalente de /carrito
+ * (carrito.module.css) — confirmado en vivo que un `--surface-2` sólido
+ * flotando directo sobre el fondo de la página seguía siendo casi
+ * invisible (el fondo real acá también es un crema muy cercano a
+ * `--surface-2`). El pedido real vive en `.card` (blanco + borde, ver
+ * arriba) — el skeleton ahora calca esa misma card, con el pulso como
+ * bloque `--surface-2` adentro, contra blanco.
+ */
 .skeleton {
   height: 88px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
-  background-size: 200% 100%;
-  animation: order-skeleton-sweep 1.3s ease-in-out infinite;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
   margin-bottom: 20px;
 }
 
-@keyframes order-skeleton-sweep {
-  0% {
-    background-position: 200% 0;
-  }
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  animation: order-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes order-skeleton-pulse {
+  0%,
   100% {
-    background-position: -200% 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton::after {
     animation: none;
-    background: var(--surface-2);
   }
 }

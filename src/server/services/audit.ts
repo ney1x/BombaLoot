@@ -87,7 +87,8 @@ export type AuditAction =
   | "security.ip_blocked"
   | "security.ip_unblocked"
   | "security.blocked_ip_attempt"
-  | "order.cancelled_fraud";
+  | "order.cancelled_fraud"
+  | "support.ticket_updated";
 
 export interface AuditEntry {
   actorType: ActorType;

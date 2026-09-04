@@ -194,7 +194,6 @@ export function CheckoutView() {
       saveRealCheckoutSession({
         orderId: order.orderId,
         orderNumber: order.orderNumber,
-        accessToken: order.accessToken,
         email: order.email,
         totalCop: order.totalCop,
         paymentExpiresAt: order.paymentExpiresAt,

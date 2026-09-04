@@ -190,6 +190,25 @@ describe("toJsonLdProduct / productsJsonLd — Fase 8", () => {
     expect(json[0].aggregateRating).toBeUndefined();
     expect(json[0].review).toBeUndefined();
   });
+
+  it("regresión (auditoría de seguridad, XSS almacenado): un </script> en denomination/unit no rompe el script real", () => {
+    const malicious = fakeProduct({
+      denomination: '1000</script><script>window.__pwned = true;</script>',
+      unit: "VP",
+    });
+    const serialized = productsJsonLd([toJsonLdProduct(malicious)]);
+
+    // El string serializado, tal como queda embebido en el <script>, nunca
+    // contiene un </script> literal — si lo tuviera, cerraría el bloque
+    // JSON-LD real y dejaría correr lo que sigue como HTML/JS nuevo.
+    expect(serialized).not.toMatch(/<\/script>/i);
+    expect(serialized).not.toContain("<script>window.__pwned");
+
+    // Pero el dato en sí no se corrompe: cualquier parser de JSON (el de
+    // Google incluido) recupera el string original tal cual.
+    const json = JSON.parse(serialized);
+    expect(json[0].name).toBe('1000</script><script>window.__pwned = true;</script> VP — Valorant');
+  });
 });
 
 describe("faqPageJsonLd — Fase 8", () => {

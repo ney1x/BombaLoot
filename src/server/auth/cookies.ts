@@ -13,6 +13,23 @@ export const SESSION_COOKIE_NAME = "loadout_session";
 export const CLAIM_COOKIE_NAME = "loadout_claim";
 
 /**
+ * Una cookie POR PEDIDO (nombre dinámico), no una sola cookie con todos los
+ * pedidos de un invitado — cada ruta que necesita el token ya tiene el
+ * `orderId` en su propio contexto (segmento de path, o resuelto desde un
+ * `payment_intent_id`), así que el servidor siempre puede calcular el nombre
+ * exacto sin que el cliente enumere nada. Reemplaza el `accessToken` viajando
+ * por query string/segmento de URL en el uso normal (hallazgo de la
+ * auditoría de seguridad, 2026-09-04) — `httpOnly` además lo saca del
+ * alcance de `sessionStorage`/JS, donde vivía antes.
+ */
+const ORDER_COOKIE_PREFIX = "loadout_order_";
+const ORDER_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 días — decidido con el usuario.
+
+export function orderAccessCookieName(orderId: string): string {
+  return `${ORDER_COOKIE_PREFIX}${orderId}`;
+}
+
+/**
  * Cookie efímera del ida-y-vuelta OAuth con Google — lleva el `state`
  * (anti-CSRF), el `code_verifier` de PKCE, y a dónde volver (`next`,
  * `claim`) mientras el navegador está en accounts.google.com. `Lax` alcanza
@@ -85,6 +102,40 @@ export function setClaimCookie(writer: CookieWriter, orderAccessToken: string): 
 
 export function clearClaimCookie(writer: CookieWriter): void {
   writer.delete(CLAIM_COOKIE_NAME);
+}
+
+export function setOrderAccessCookie(writer: CookieWriter, orderId: string, token: string): void {
+  writer.set(orderAccessCookieName(orderId), token, {
+    ...baseCookieOptions(),
+    maxAge: ORDER_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
+export function clearOrderAccessCookie(writer: CookieWriter, orderId: string): void {
+  writer.delete(orderAccessCookieName(orderId));
+}
+
+/**
+ * Mismo patrón que la cookie de pedidos, aplicado al token de acceso de un
+ * ticket de soporte de invitado (`support_tickets.access_token_hash`) —
+ * recurso separado, mismo problema de transporte (viajaba por `?token=` en
+ * cada fetch/poll/reply). Ver `orderAccessCookieName` arriba.
+ */
+const TICKET_COOKIE_PREFIX = "loadout_ticket_";
+
+export function ticketAccessCookieName(ticketId: string): string {
+  return `${TICKET_COOKIE_PREFIX}${ticketId}`;
+}
+
+export function setTicketAccessCookie(writer: CookieWriter, ticketId: string, token: string): void {
+  writer.set(ticketAccessCookieName(ticketId), token, {
+    ...baseCookieOptions(),
+    maxAge: ORDER_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
+export function clearTicketAccessCookie(writer: CookieWriter, ticketId: string): void {
+  writer.delete(ticketAccessCookieName(ticketId));
 }
 
 export interface GoogleOAuthState {

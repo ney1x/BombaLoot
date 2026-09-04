@@ -19,6 +19,8 @@ import {
   createSession,
   revokeAllUserSessions,
   revokeSession,
+  SESSION_TTL_SECONDS,
+  SESSION_TTL_SECONDS_SHORT,
   type CreatedSession,
   type SessionContext,
 } from "../auth/session";
@@ -157,6 +159,15 @@ function getDummyHash(): Promise<string> {
 export interface LoginInput {
   email: string;
   password: string;
+  /**
+   * "Recordarme" del formulario de login — hasta acá solo controlaba el
+   * `maxAge` de la cookie (`setSessionCookie`); la fila en `sessions`
+   * siempre vivía 30 días sin importar el checkbox (hallazgo de la
+   * auditoría de seguridad, 2026-09-04). Ahora también decide el TTL real
+   * de la sesión: sin tildar, técho de 12h (`SESSION_TTL_SECONDS_SHORT`),
+   * consistente con que el navegador ya descarta esa cookie al cerrarse.
+   */
+  remember?: boolean;
 }
 
 export async function loginUser(
@@ -236,7 +247,12 @@ export async function loginUser(
     // Sesión SIEMPRE nueva, nunca se reutiliza una existente: es lo que
     // evita session fixation (un token capturado antes del login no se
     // vuelve válido por loguearse encima).
-    const session = await createSession(tx, row.id, sessionContext(meta));
+    const session = await createSession(
+      tx,
+      row.id,
+      sessionContext(meta),
+      input.remember ? SESSION_TTL_SECONDS : SESSION_TTL_SECONDS_SHORT,
+    );
 
     await writeAudit(tx, {
       actorType: "CUSTOMER",
@@ -555,6 +571,19 @@ export async function changePassword(
   newPassword: string,
 ): Promise<void> {
   const db = createDb(pool);
+
+  // Sin esto, alguien con una sesión válida (robada, dispositivo
+  // desatendido) podía probar `currentPassword` sin límite de intentos —
+  // el resto de los endpoints que verifican una credencial ya tienen esto,
+  // este se había quedado afuera (hallazgo de la auditoría de seguridad,
+  // 2026-09-04). Key por `userId`, no por IP: quien lo intenta ya pasó la
+  // sesión, así que lo que importa limitar es la cuenta, no el origen.
+  await checkRateLimit(
+    db,
+    `auth:change-password:${userId}`,
+    AUTH_LIMITS.changePasswordMaxPerWindow,
+    AUTH_LIMITS.changePasswordWindowSeconds,
+  );
 
   const { rows } = (await db.execute(
     sql`SELECT password_hash FROM users WHERE id = ${userId}::uuid`,

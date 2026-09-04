@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { setOrderAccessCookie } from "@/server/auth/cookies";
 import { getPool } from "@/server/db/client";
 import { getOrderByAccessToken } from "@/server/services/checkout-service";
 
@@ -14,6 +15,16 @@ import { getOrderByAccessToken } from "@/server/services/checkout-service";
  * barrera de seguridad real (quien tiene el token ya probó posesión del
  * link); es fricción contra alguien que encontró el link solo, sin saber
  * el email de la compra.
+ *
+ * Es la única ruta que POR NECESIDAD sigue aceptando el token por URL — es
+ * el arranque en frío (link/bookmark viejo, sin cookie todavía), igual que
+ * un link de recuperación de contraseña. Lo que cambia (auditoría de
+ * seguridad, 2026-09-04): una vez resuelto el pedido acá, se "promueve" el
+ * token a una cookie httpOnly durable — de ahí en más el resto del flujo
+ * deja de necesitar el token en la URL. Usa `NextResponse.cookies`, no
+ * `next/headers cookies()`: `tests/order-recovery-route.test.ts` invoca este
+ * `GET` directo, sin pasar por el request scope real de Next, y `cookies()`
+ * de `next/headers` tira fuera de ese scope.
  */
 export async function GET(
   request: NextRequest,
@@ -31,5 +42,7 @@ export async function GET(
     return NextResponse.json({ error: "Ese email no coincide con el de la compra" }, { status: 403 });
   }
 
-  return NextResponse.json({ order });
+  const response = NextResponse.json({ order });
+  setOrderAccessCookie(response.cookies, order.orderId, accessToken);
+  return response;
 }

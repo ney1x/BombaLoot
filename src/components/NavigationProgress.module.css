@@ -1,0 +1,44 @@
+/*
+ * Barra de progreso de navegación — estilo YouTube/GitHub, no un overlay
+ * que tape contenido. `--accent` ya está definido para claro/oscuro en
+ * globals.css, así que no hace falta ningún color nuevo acá.
+ */
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: var(--accent);
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.loading {
+  opacity: 1;
+  width: 80%;
+  transition:
+    width 8s cubic-bezier(0.1, 0.6, 0.3, 1),
+    opacity 150ms ease;
+}
+
+.done {
+  opacity: 0;
+  width: 100%;
+  transition:
+    width 200ms ease,
+    opacity 250ms ease 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading {
+    width: 80%;
+    transition: opacity 150ms ease;
+  }
+
+  .done {
+    width: 100%;
+    transition: opacity 150ms ease;
+  }
+}

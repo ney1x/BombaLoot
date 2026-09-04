@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash, timingSafeEqual } from "node:crypto";
+
 /**
  * Autenticación de los endpoints `/api/cron/*` (fase 8) — pensados para que
  * un scheduler externo gratuito (cron-job.org, EasyCron, GitHub Actions
@@ -18,13 +20,19 @@ import "server-only";
  *   2. Query param `?secret=<CRON_SECRET>` (fallback para el scheduler que
  *      solo permite configurar una URL).
  */
+/**
+ * Compara vía sha256 en vez de char por char (hallazgo de la auditoría de
+ * seguridad, 2026-09-04): el chequeo de longitud previo (`a.length !==
+ * b.length`) no era en sí mismo constant-time, así que en teoría filtraba
+ * cuánto mide el secreto antes de comparar su valor. Hasheando los dos
+ * lados primero, el resultado siempre mide 32 bytes — `timingSafeEqual`
+ * nunca ve una diferencia de longitud que comparar. Mismo patrón que
+ * `tokenMatches` en `auth/tokens.ts`.
+ */
 function timingSafeStringEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
+  const hashA = createHash("sha256").update(a).digest();
+  const hashB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(hashA, hashB);
 }
 
 export function isAuthorizedCronRequest(request: Request): boolean {

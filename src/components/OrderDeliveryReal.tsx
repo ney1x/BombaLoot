@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import styles from "@/app/(storefront)/pedido/[id]/pedido.module.css";
 import { CodeReveal } from "./CodeReveal";
@@ -52,6 +52,8 @@ function gameIdFor(productId: string): GameId | undefined {
 
 export function OrderDeliveryReal({ id }: { id: string }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [order, setOrder] = useState<RealOrder | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [confirmedEmail, setConfirmedEmail] = useState<string | null>(null);
@@ -67,21 +69,24 @@ export function OrderDeliveryReal({ id }: { id: string }) {
   const [codes, setCodes] = useState<Record<string, string[]> | null>(null);
 
   const session = typeof window !== "undefined" ? loadRealCheckoutSession() : null;
-  // El accessToken de sesión solo vale para EL PEDIDO que lo generó — sin
-  // el `session.orderId === id`, visitar /pedido/<otro-id> con una sesión
+  // `session.orderId === id` (no solo que exista una sesión de checkout
+  // cualquiera): sin este chequeo, visitar /pedido/<otro-id> con una sesión
   // de checkout reciente todavía en sessionStorage ignoraba el id de la
   // URL y mostraba (y entregaba los códigos de) el pedido de la sesión,
   // no el pedido pedido. En una compu compartida eso filtra códigos de
   // un comprador a quien visita el link de otro.
   const warmSession = session?.orderId === id ? session : null;
   const tokenFromUrl = searchParams.get("accessToken");
-  const accessToken = tokenFromUrl ?? warmSession?.accessToken ?? undefined;
   /*
-   * "En frío": el token llegó por la URL (recuperado del historial, no del
-   * flujo recién pagado) y no hay sesión de checkout viva que lo respalde.
-   * Justo después de pagar, `warmSession` sigue existiendo aunque el link
-   * ya lleve el token — ahí no se pide nada, cero fricción extra. Solo
-   * quien vuelve con el link solo (pestaña cerrada, historial) pasa por acá.
+   * "En frío": el token llegó por la URL (un link/bookmark viejo, de antes
+   * de este cambio, o compartido manualmente) y no hay sesión de checkout
+   * viva que lo respalde. Justo después de pagar, ya no hace falta ningún
+   * token en la URL — la cookie httpOnly plantada al crear el pedido
+   * (`loadout_order_<id>`) alcanza sola, así que `/api/orders/${id}` ya
+   * resuelve el acceso del lado del servidor sin que este componente sepa
+   * nada del token. Este gate queda solo para quien de verdad llega con un
+   * link que todavía trae `?accessToken=` (auditoría de seguridad,
+   * 2026-09-04 — ya no se genera ningún link nuevo así).
    */
   const coldRecovery = Boolean(tokenFromUrl) && !warmSession;
 
@@ -90,15 +95,15 @@ export function OrderDeliveryReal({ id }: { id: string }) {
     // email queda confirmado — nunca antes, así no se filtra nada del
     // pedido (ni siquiera el email real para comparar) antes del gate.
     if (coldRecovery) return;
+    // Ya lo tenemos — evita un refetch redundante justo después de que la
+    // recuperación en frío lo resuelva y limpie la URL (ver handleEmailSubmit).
+    if (order?.orderId === id) return;
 
     let cancelled = false;
 
     (async () => {
       try {
-        const url = accessToken
-          ? `/api/orders/token/${encodeURIComponent(accessToken)}`
-          : `/api/orders/${encodeURIComponent(id)}`;
-        const response = await fetch(url);
+        const response = await fetch(`/api/orders/${encodeURIComponent(id)}`);
         if (cancelled) return;
         if (!response.ok) {
           setNotFound(true);
@@ -114,16 +119,16 @@ export function OrderDeliveryReal({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, accessToken, coldRecovery]);
+  }, [id, coldRecovery, order?.orderId]);
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!accessToken) return;
+    if (!tokenFromUrl) return;
     setCheckingEmail(true);
     setEmailError(null);
     try {
       const response = await fetch(
-        `/api/orders/token/${encodeURIComponent(accessToken)}?email=${encodeURIComponent(emailInput.trim())}`,
+        `/api/orders/token/${encodeURIComponent(tokenFromUrl)}?email=${encodeURIComponent(emailInput.trim())}`,
       );
       if (response.status === 403) {
         setEmailError("Ese email no coincide con el de la compra.");
@@ -136,6 +141,10 @@ export function OrderDeliveryReal({ id }: { id: string }) {
       const body = await response.json();
       setOrder(body.order as RealOrder);
       setConfirmedEmail(emailInput.trim());
+      // La ruta ya plantó la cookie de acceso para este pedido — el token
+      // deja de tener trabajo en la URL, así que se limpia acá para que no
+      // siga quedando visible/guardable en la barra de direcciones.
+      router.replace(pathname, { scroll: false });
     } catch {
       setEmailError("No pudimos verificar el email. Probá de nuevo.");
     } finally {
@@ -151,8 +160,7 @@ export function OrderDeliveryReal({ id }: { id: string }) {
     let cancelled = false;
     (async () => {
       try {
-        const qs = accessToken ? `?accessToken=${encodeURIComponent(accessToken)}` : "";
-        const response = await fetch(`/api/orders/${order.orderId}/codes${qs}`);
+        const response = await fetch(`/api/orders/${order.orderId}/codes`);
         if (!response.ok || cancelled) return;
         const body = await response.json();
         const map: Record<string, string[]> = {};

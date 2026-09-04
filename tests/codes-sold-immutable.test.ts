@@ -83,26 +83,41 @@ function resolveWompiPath(obj: Record<string, unknown>, path: string): unknown {
   }, obj);
 }
 
+/**
+ * Además de armar el payload firmado, deja preparado el mock de `fetch`
+ * para el GET a `/transactions/:id` que `processWompiWebhook` hace ahora
+ * contra la API real de Wompi (hallazgo de la auditoría: la firma no cubre
+ * `reference`, el handler vuelve a pedir la transacción por su id, que sí
+ * está firmado). Sin este mock, todo test que llame a `processWompiWebhook`
+ * fallaría acá, no por la firma.
+ */
 function wompiEvent(params: { reference: string; transactionId: string; status: string; amountInCents: number }): string {
   const timestamp = Math.floor(Date.now() / 1000);
-  const data = {
-    transaction: {
-      id: params.transactionId,
-      reference: params.reference,
-      status: params.status,
-      amount_in_cents: params.amountInCents,
-      currency: "COP",
-      customer_email: "buyer@test.local",
-      payment_method_type: "NEQUI",
-      created_at: new Date().toISOString(),
-    },
+  const transaction = {
+    id: params.transactionId,
+    reference: params.reference,
+    status: params.status,
+    amount_in_cents: params.amountInCents,
+    currency: "COP",
+    customer_email: "buyer@test.local",
+    payment_method_type: "NEQUI",
+    created_at: new Date().toISOString(),
   };
+  const data = { transaction };
   const properties = ["transaction.id", "transaction.status", "transaction.amount_in_cents"];
   const concatenated =
     properties.map((p) => String(resolveWompiPath(data, p) ?? "")).join("") +
     String(timestamp) +
     process.env.WOMPI_EVENTS_SECRET;
   const checksum = createHash("sha256").update(concatenated).digest("hex");
+
+  fetchImpl = async (url) => {
+    if (url.includes(`/transactions/${params.transactionId}`)) {
+      return jsonResponse({ data: transaction });
+    }
+    return jsonResponse({ error: "unexpected", url }, 404);
+  };
+
   return JSON.stringify({ event: "transaction.updated", data, signature: { checksum, properties }, timestamp });
 }
 
@@ -527,5 +542,29 @@ describe("H — intento explícito de liberar un código vendido es rechazado", 
 
     const after = await codeSnapshot(codeRows[0].id);
     expect(after.status).toBe("PAID");
+  });
+
+  it("regresión (auditoría de seguridad): un DELETE directo sobre un código vendido también se rechaza", async () => {
+    const { codeRows } = await payOrder(1, 1);
+
+    await expect(pool.query("DELETE FROM codes WHERE id = $1", [codeRows[0].id])).rejects.toThrow(
+      /ya está vendido.*no se puede borrar/,
+    );
+
+    const after = await codeSnapshot(codeRows[0].id);
+    expect(after.status).toBe("PAID"); // sigue ahí, no se borró
+  });
+
+  it("un código todavía no vendido (AVAILABLE/RESERVED) sí se puede borrar — el trigger no se pasa de la raya", async () => {
+    await seedProduct(pool, { codeCount: 1, productId: "borrable-999" });
+    const { rows } = await pool.query<{ id: string }>(
+      "SELECT id FROM codes WHERE product_id = $1",
+      ["borrable-999"],
+    );
+
+    await expect(pool.query("DELETE FROM codes WHERE id = $1", [rows[0].id])).resolves.not.toThrow();
+
+    const { rows: after } = await pool.query("SELECT id FROM codes WHERE id = $1", [rows[0].id]);
+    expect(after).toHaveLength(0);
   });
 });

@@ -15,6 +15,14 @@ export interface AuthLimits {
   /** Recuperación de contraseña: solicitudes permitidas por email+IP. */
   resetRequestMaxPerWindow: number;
   resetRequestWindowSeconds: number;
+  /**
+   * Cambio de contraseña (logueado): intentos permitidos por usuario en la
+   * ventana. A diferencia del resto, key por `userId` y no por IP+algo —
+   * quien lo intenta ya tiene una sesión válida (robada o no), así que
+   * limitar por cuenta importa más que por origen de red.
+   */
+  changePasswordMaxPerWindow: number;
+  changePasswordWindowSeconds: number;
 }
 
 function envInt(name: string, fallback: number): number {
@@ -31,4 +39,6 @@ export const AUTH_LIMITS: AuthLimits = {
   registerWindowSeconds: envInt("AUTH_REGISTER_WINDOW_SECONDS", 3600),
   resetRequestMaxPerWindow: envInt("AUTH_RESET_MAX_PER_WINDOW", 5),
   resetRequestWindowSeconds: envInt("AUTH_RESET_WINDOW_SECONDS", 3600),
+  changePasswordMaxPerWindow: envInt("AUTH_CHANGE_PASSWORD_MAX_PER_WINDOW", 8),
+  changePasswordWindowSeconds: envInt("AUTH_CHANGE_PASSWORD_WINDOW_SECONDS", 300),
 };

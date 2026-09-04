@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getOrCreateGuestKey } from "@/server/auth/guest";
 import { getCurrentSession } from "@/server/auth/guards";
+import { setOrderAccessCookie } from "@/server/auth/cookies";
 import { getPool } from "@/server/db/client";
 import { requestMeta } from "@/server/http/request-meta";
 import { apiErrorToResponse } from "@/server/http/respond";
@@ -56,7 +57,17 @@ export async function POST(request: NextRequest) {
       userAgent: meta.userAgent,
     });
 
-    return NextResponse.json({ order: result });
+    const response = NextResponse.json({ order: result });
+
+    // Cookie httpOnly de acceso, solo para invitados — un usuario logueado
+    // ya tiene acceso vía su propia sesión, sumarle esta sería puro ruido.
+    // Reemplaza al `accessToken` viajando por URL/sessionStorage en el resto
+    // del flujo (hallazgo de la auditoría de seguridad, 2026-09-04).
+    if (!session && result.accessToken) {
+      setOrderAccessCookie(response.cookies, result.orderId, result.accessToken);
+    }
+
+    return response;
   } catch (error) {
     return apiErrorToResponse(error);
   }

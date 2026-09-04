@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdminOrSupportApi } from "@/server/auth/guards";
 import { getDb } from "@/server/db/client";
+import { requestMeta } from "@/server/http/request-meta";
 import { apiErrorToResponse } from "@/server/http/respond";
 import {
   SupportTicketNotFoundError,
@@ -25,11 +26,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 /** Cambiar estado y/o reasignar. Cualquiera de los dos roles puede — ninguno es ADMIN-only acá. */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminOrSupportApi();
+    const actor = await requireAdminOrSupportApi();
     const { id } = await params;
     const patch = supportTicketUpdateSchema.parse(await request.json());
 
-    const ticket = await updateTicketAdmin(getDb(), id, patch);
+    const ticket = await updateTicketAdmin(getDb(), id, patch, actor, requestMeta(request));
     return NextResponse.json({ ticket });
   } catch (error) {
     return apiErrorToResponse(error);

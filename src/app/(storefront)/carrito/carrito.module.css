@@ -39,27 +39,50 @@
   min-width: 0;
 }
 
+/*
+ * Segunda vuelta sobre este fix (el primer intento seguía siendo casi
+ * invisible, confirmado en vivo): el problema real no era solo el
+ * degradado que pasaba por blanco — es que el fondo real de la página acá
+ * es un crema (`rgb(243,241,236)` en la práctica), y `--surface-2`
+ * (`#e8e5dd`) queda a ~12 unidades de eso por canal, prácticamente el
+ * mismo tono. Una línea de carrito REAL nunca se apoya directo sobre el
+ * fondo de la página — vive en una card blanca con borde (`.line` en
+ * `CartLineItem.module.css`: `background: var(--surface); border: 1px
+ * solid var(--border)`). El skeleton ahora calca esa misma card (visible
+ * de entrada, sin depender de la animación) y el pulso queda como un
+ * bloque `--surface-2` ADENTRO, contra blanco — ahí sí hay contraste real.
+ */
 .lineSkeleton {
   height: 106px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%);
-  background-size: 200% 100%;
-  animation: cart-skeleton-sweep 1.3s ease-in-out infinite;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes cart-skeleton-sweep {
-  0% {
-    background-position: 200% 0;
-  }
+.lineSkeleton::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  animation: cart-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cart-skeleton-pulse {
+  0%,
   100% {
-    background-position: -200% 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lineSkeleton {
+  .lineSkeleton::after {
     animation: none;
-    background: var(--surface-2);
   }
 }
 

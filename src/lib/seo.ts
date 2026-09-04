@@ -65,6 +65,31 @@ export interface BreadcrumbItem {
 }
 
 /**
+ * Serializa datos para insertar en un
+ * `<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ... }} />`.
+ * `JSON.stringify` por sí solo NO escapa `<`/`>`/`&` — un valor que
+ * contenga `</script>` (ej. `denomination`/`unit` de un producto, texto
+ * libre que carga un admin) cierra el script real ahí mismo y deja correr
+ * lo que sigue como HTML/JS nuevo, para cualquier visitante público del
+ * catálogo (hallazgo de la auditoría de seguridad, 2026-09-04 — XSS
+ * almacenado). Todos los builders de JSON-LD de este archivo pasan por
+ * acá, sin excepción, en vez de decidir caso por caso si su fuente de
+ * datos "hoy" es fija o viene de la base — la próxima función que se
+ * agregue queda cubierta gratis.
+ *
+ * Los `\uXXXX` de abajo son escapes JSON válidos: cualquier parser de
+ * JSON (incluido el de Google) los decodifica de vuelta al carácter
+ * original, así que el dato en sí no cambia — solo cómo queda embebido
+ * en el HTML alrededor.
+ */
+function jsonLdScript(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
+/**
  * JSON-LD `BreadcrumbList` (schema.org) — la forma explícita, legible por
  * máquina, de decirle a Google la jerarquía Home → Catálogo → Juego que
  * pide la Fase 5. Los links reales (`<Link>`) ya alcanzan para que Google
@@ -72,15 +97,10 @@ export interface BreadcrumbItem {
  * inferirla del layout visual. A diferencia de `pageMetadata`, acá SÍ hace
  * falta la URL absoluta — es el formato que exige schema.org, no algo que
  * Next resuelva por `metadataBase`.
- *
- * Devuelve el string ya serializado, listo para
- * `<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ... }} />`
- * — no hay input de usuario acá adentro (nombres de juego y paths fijos),
- * así que no es el mismo riesgo que serializar HTML arbitrario.
  */
 export function breadcrumbJsonLd(items: BreadcrumbItem[]): string {
   const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  return JSON.stringify({
+  return jsonLdScript({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: items.map((item, index) => ({
@@ -114,7 +134,7 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]): string {
  */
 export function organizationJsonLd(): string {
   const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  return JSON.stringify({
+  return jsonLdScript({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: SITE_NAME,
@@ -129,7 +149,7 @@ export function organizationJsonLd(): string {
 
 export function websiteJsonLd(): string {
   const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  return JSON.stringify({
+  return jsonLdScript({
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
@@ -184,7 +204,7 @@ export function toJsonLdProduct(product: Product): JsonLdProduct {
  */
 export function productsJsonLd(products: JsonLdProduct[]): string {
   const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  return JSON.stringify(
+  return jsonLdScript(
     products.map((p) => {
       const product: Record<string, unknown> = {
         "@context": "https://schema.org",
@@ -231,7 +251,7 @@ export interface JsonLdFaqItem {
  * snippet en Google.
  */
 export function faqPageJsonLd(items: JsonLdFaqItem[]): string {
-  return JSON.stringify({
+  return jsonLdScript({
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: items.map((item) => ({

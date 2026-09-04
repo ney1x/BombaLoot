@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const { user, session } = await loginUser(
       getPool(),
-      { email: body.email, password: body.password },
+      { email: body.email, password: body.password, remember: body.remember },
       meta,
       rateLimitKey,
     );

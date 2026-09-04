@@ -251,6 +251,42 @@ describe("login", () => {
     );
     expect(result.user.email).toBe(normalizeEmail(NEW_USER.email));
   });
+
+  it("regresión (auditoría de seguridad): sin 'recordarme', la sesión real dura ~12h, no 30 días", async () => {
+    const result = await loginUser(
+      pool,
+      { email: NEW_USER.email, password: NEW_USER.password, remember: false },
+      {},
+    );
+
+    const { rows } = await pool.query<{ expires_at: string }>(
+      "SELECT expires_at FROM sessions WHERE id = $1",
+      [result.session.sessionId],
+    );
+    const secondsLeft = (new Date(rows[0].expires_at).getTime() - Date.now()) / 1000;
+
+    // Ventana ancha para no ser flaky por el tiempo que tarda el test en
+    // correr, pero suficiente para distinguir 12h de 30 días sin ambigüedad.
+    expect(secondsLeft).toBeGreaterThan(11 * 3600);
+    expect(secondsLeft).toBeLessThan(13 * 3600);
+  });
+
+  it("con 'recordarme', la sesión real dura 30 días — comportamiento previo intacto", async () => {
+    const result = await loginUser(
+      pool,
+      { email: NEW_USER.email, password: NEW_USER.password, remember: true },
+      {},
+    );
+
+    const { rows } = await pool.query<{ expires_at: string }>(
+      "SELECT expires_at FROM sessions WHERE id = $1",
+      [result.session.sessionId],
+    );
+    const daysLeft = (new Date(rows[0].expires_at).getTime() - Date.now()) / (1000 * 3600 * 24);
+
+    expect(daysLeft).toBeGreaterThan(29);
+    expect(daysLeft).toBeLessThan(31);
+  });
 });
 
 /* ═══════════════════════════ Logout ═══════════════════════════ */
@@ -425,6 +461,26 @@ describe("cambio de contraseña (logueado)", () => {
       {},
     );
     expect(relogin.user.email).toBe(normalizeEmail(NEW_USER.email));
+  });
+
+  it("regresión (auditoría de seguridad): rate limit por cuenta — no se puede probar currentPassword sin límite", async () => {
+    const { user, session } = await registerUser(pool, NEW_USER, {});
+
+    for (let i = 0; i < AUTH_LIMITS.changePasswordMaxPerWindow; i += 1) {
+      await changePassword(pool, user.id, session.sessionId, "clave-incorrecta", "nueva-clave-larga").catch(
+        () => {},
+      );
+    }
+
+    await expect(
+      changePassword(pool, user.id, session.sessionId, "clave-incorrecta", "nueva-clave-larga"),
+    ).rejects.toBeInstanceOf(RateLimitExceededError);
+
+    // Incluso con la contraseña ACTUAL correcta, una vez agotado el límite
+    // se rechaza igual — el límite corta antes de verificar nada.
+    await expect(
+      changePassword(pool, user.id, session.sessionId, NEW_USER.password, "nueva-clave-larga"),
+    ).rejects.toBeInstanceOf(RateLimitExceededError);
   });
 });
 

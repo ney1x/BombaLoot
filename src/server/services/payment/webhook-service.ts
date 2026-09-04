@@ -6,9 +6,11 @@ import { createDb, withTransaction, type Db, type TxDb } from "../../db/client";
 import { writeAudit } from "../audit";
 import {
   extractWompiTransaction,
+  getWompiTransaction,
   getWompiTransactionByReference,
   verifyWompiWebhookSignature,
   type WompiEventPayload,
+  type WompiTransactionData,
 } from "./wompi-client";
 import {
   getPaypalOrder,
@@ -395,8 +397,8 @@ export async function processWompiWebhook(pool: Pool, rawBody: string): Promise<
     return { status: 400, body: { error: "JSON inválido" } };
   }
 
-  const tx = extractWompiTransaction(event);
-  const eventId = tx?.id ?? `unsigned-${event.timestamp ?? Date.now()}`;
+  const signedTx = extractWompiTransaction(event);
+  const eventId = signedTx?.id ?? `unsigned-${event.timestamp ?? Date.now()}`;
 
   let signatureValid = false;
   try {
@@ -416,7 +418,7 @@ export async function processWompiWebhook(pool: Pool, rawBody: string): Promise<
     return { status: 401, body: { error: "Firma inválida" } };
   }
 
-  if (!tx) {
+  if (!signedTx) {
     await recordWebhookEvent(pool, {
       provider: "WOMPI",
       eventId,
@@ -429,13 +431,36 @@ export async function processWompiWebhook(pool: Pool, rawBody: string): Promise<
 
   const recorded = await recordWebhookEvent(pool, {
     provider: "WOMPI",
-    eventId: tx.id,
+    eventId: signedTx.id,
     eventType: event.event ?? "unknown",
     signatureValid: true,
     payload: event,
   });
   if (!recorded.inserted) {
     return { status: 200, body: { duplicate: true } };
+  }
+
+  // La firma de Wompi cubre transaction.id/status/amount_in_cents, pero NO
+  // transaction.reference — justo el campo que decide qué pedido se
+  // acredita (hallazgo de la auditoría de seguridad, 2026-09-04). En vez de
+  // confiar en el reference/monto/estado del body del webhook, se vuelve a
+  // pedir la transacción por su id (que SÍ está firmado, `signedTx.id`)
+  // directo a la API de Wompi con la private key — de acá en más se usa
+  // SOLO lo que Wompi tiene guardado para ese id, nunca lo que vino en el
+  // POST. Un atacante no puede hacer que la API de Wompi devuelva un
+  // reference falso para una transacción real que no controla.
+  let tx: WompiTransactionData;
+  try {
+    const response = await getWompiTransaction(signedTx.id);
+    tx = response.data;
+  } catch (error) {
+    await markEventStatus(
+      pool,
+      recorded.id,
+      "ERROR",
+      `no se pudo confirmar la transacción contra Wompi: ${(error as Error).message}`,
+    );
+    return { status: 502, body: { error: "No se pudo confirmar la transacción con Wompi" } };
   }
 
   const intent = await findIntentByReference(pool, tx.reference, "WOMPI");

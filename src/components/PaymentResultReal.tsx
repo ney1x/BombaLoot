@@ -52,21 +52,20 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   const pollCountRef = useRef(0);
 
   const session = typeof window !== "undefined" ? loadRealCheckoutSession() : null;
-  const accessToken = session?.accessToken ?? undefined;
   const paypalToken = searchParams.get("token"); // PayPal reenvía `?token=<paypalOrderId>` en el return_url
   const [retryTick, setRetryTick] = useState(0);
 
   /*
-   * El token va en la URL a propósito: si el comprador cierra la pestaña
-   * (Ctrl+W) justo acá, `sessionStorage` se pierde con ella y "Ver mi
-   * pedido" sería la única forma de volver a entrar sin cuenta. Con el
-   * token en el link, ese link sigue funcionando desde el historial del
-   * navegador — la página de destino (`/pedido/[id]`) pide confirmar el
-   * email de la compra antes de mostrar nada cuando llega así, "en frío"
-   * (sin la sesión de checkout todavía viva).
+   * Ya no lleva el token (auditoría de seguridad, 2026-09-04): la cookie
+   * httpOnly plantada al crear el pedido (`loadout_order_<id>`, ver
+   * `server/auth/cookies.ts`) sobrevive cerrar la pestaña — a diferencia de
+   * `sessionStorage`, que es justo lo que motivaba llevar el token acá antes.
+   * Si la cookie no llegó a plantarse por algún motivo, `/pedido/[id]` sigue
+   * teniendo su propio camino de recuperación en frío (pedir el email de la
+   * compra) para quien llegue con un link viejo que sí lo tenía.
    */
   function orderHref(orderId: string): string {
-    return accessToken ? `/pedido/${orderId}?accessToken=${encodeURIComponent(accessToken)}` : `/pedido/${orderId}`;
+    return `/pedido/${orderId}`;
   }
 
   useEffect(() => {
@@ -81,7 +80,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
         await fetch("/api/payments/paypal/capture", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentIntentId, accessToken }),
+          body: JSON.stringify({ paymentIntentId }),
         });
       } catch {
         // Si la captura falla acá, el poll de abajo igual va a reflejar el
@@ -92,8 +91,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
     async function poll() {
       await captureIfNeeded();
       try {
-        const qs = accessToken ? `?accessToken=${encodeURIComponent(accessToken)}` : "";
-        const response = await fetch(`/api/result/${paymentIntentId}${qs}`);
+        const response = await fetch(`/api/result/${paymentIntentId}`);
         const body = await response.json();
         if (cancelled) return;
 

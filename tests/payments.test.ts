@@ -116,27 +116,56 @@ function resolveWompiPath(obj: Record<string, unknown>, path: string): unknown {
   }, obj);
 }
 
-function wompiEvent(params: { reference: string; transactionId: string; status: string; amountInCents: number }): string {
+/**
+ * Además de armar el payload firmado, deja preparado el mock de `fetch`
+ * para el GET a `/transactions/:id` que `processWompiWebhook` hace ahora
+ * contra la API real de Wompi (hallazgo de la auditoría: la firma no cubre
+ * `reference`, así que el handler ya no confía en el body del webhook —
+ * vuelve a pedir la transacción por su id, que sí está firmado, y usa esa
+ * respuesta). Sin este mock, cualquier test que llame a
+ * `processWompiWebhook` fallaría acá, no por la firma. Devuelve también
+ * `transaction` por si un test necesita simular que la API responde algo
+ * DISTINTO al body del webhook (para probar justo el hallazgo cerrado).
+ */
+function wompiEvent(params: { reference: string; transactionId: string; status: string; amountInCents: number }): {
+  payload: string;
+  transaction: Record<string, unknown>;
+} {
   const timestamp = Math.floor(Date.now() / 1000);
-  const data = {
-    transaction: {
-      id: params.transactionId,
-      reference: params.reference,
-      status: params.status,
-      amount_in_cents: params.amountInCents,
-      currency: "COP",
-      customer_email: "buyer@test.local",
-      payment_method_type: "NEQUI",
-      created_at: new Date().toISOString(),
-    },
+  const transaction = {
+    id: params.transactionId,
+    reference: params.reference,
+    status: params.status,
+    amount_in_cents: params.amountInCents,
+    currency: "COP",
+    customer_email: "buyer@test.local",
+    payment_method_type: "NEQUI",
+    created_at: new Date().toISOString(),
   };
+  const data = { transaction };
   const properties = ["transaction.id", "transaction.status", "transaction.amount_in_cents"];
   const concatenated =
     properties.map((p) => String(resolveWompiPath(data, p) ?? "")).join("") +
     String(timestamp) +
     process.env.WOMPI_EVENTS_SECRET;
   const checksum = createHash("sha256").update(concatenated).digest("hex");
-  return JSON.stringify({ event: "transaction.updated", data, signature: { checksum, properties }, timestamp });
+
+  fetchImpl = async (url) => {
+    if (url.includes(`/transactions/${params.transactionId}`)) {
+      return jsonResponse({ data: transaction });
+    }
+    return jsonResponse({ error: "unexpected", url }, 404);
+  };
+
+  return {
+    payload: JSON.stringify({ event: "transaction.updated", data, signature: { checksum, properties }, timestamp }),
+    transaction,
+  };
+}
+
+/** Atajo para el caso común: la mayoría de los tests solo necesitan el payload. */
+function wompiPayload(params: { reference: string; transactionId: string; status: string; amountInCents: number }): string {
+  return wompiEvent(params).payload;
 }
 
 async function initPaypal(order: { orderId: string; accessToken: string | null }) {
@@ -216,7 +245,7 @@ describe("Caso A — webhook Wompi aprueba un pago con código disponible", () =
     });
     expect(init.checkoutUrl).toContain("checkout.wompi.co");
 
-    const payload = wompiEvent({
+    const payload = wompiPayload({
       reference: init.paymentIntentId,
       transactionId: "wompi-tx-caso-a",
       status: "APPROVED",
@@ -244,7 +273,7 @@ describe("Caso D — webhook duplicado", () => {
       accessToken: order.accessToken!,
       redirectBaseUrl: "http://localhost:3000",
     });
-    const payload = wompiEvent({
+    const payload = wompiPayload({
       reference: init.paymentIntentId,
       transactionId: "wompi-tx-dup",
       status: "APPROVED",
@@ -276,7 +305,7 @@ describe("webhook con firma inválida", () => {
       redirectBaseUrl: "http://localhost:3000",
     });
     const payload = JSON.parse(
-      wompiEvent({
+      wompiPayload({
         reference: init.paymentIntentId,
         transactionId: "wompi-tx-bad-sig",
         status: "APPROVED",
@@ -303,7 +332,7 @@ describe("webhook con monto manipulado", () => {
       accessToken: order.accessToken!,
       redirectBaseUrl: "http://localhost:3000",
     });
-    const payload = wompiEvent({
+    const payload = wompiPayload({
       reference: init.paymentIntentId,
       transactionId: "wompi-tx-amt",
       status: "APPROVED",
@@ -311,6 +340,92 @@ describe("webhook con monto manipulado", () => {
     });
 
     await expect(processWompiWebhook(pool, payload)).rejects.toThrow();
+
+    const fresh = await getOrderByAccessToken(pool, order.accessToken!);
+    expect(fresh!.paymentStatus).toBe("PENDING");
+  });
+});
+
+/* ════════════════════════════ webhook: reference manipulado (auditoría de seguridad) ════════════════════════════ */
+
+describe("webhook con reference manipulado — la firma de Wompi no cubre 'reference'", () => {
+  it("acredita el pedido que Wompi confirma por API, nunca el que dice el body del webhook", async () => {
+    const victim = await createPendingOrder(2, 1); // el pedido que en verdad se pagó
+    const decoy = await createPendingOrder(2, 1); // un pedido ajeno cualquiera
+
+    const victimInit = await initWompiPayment(pool, {
+      orderId: victim.orderId,
+      accessToken: victim.accessToken!,
+      redirectBaseUrl: "http://localhost:3000",
+    });
+    const decoyInit = await initWompiPayment(pool, {
+      orderId: decoy.orderId,
+      accessToken: decoy.accessToken!,
+      redirectBaseUrl: "http://localhost:3000",
+    });
+
+    // El body del webhook AFIRMA que el reference es el del pedido señuelo.
+    // Ese campo no está firmado (solo id/status/amount_in_cents lo están),
+    // así que la firma sigue siendo válida aunque esto sea mentira — es
+    // justo el hallazgo que este test cierra.
+    const { payload } = wompiEvent({
+      reference: decoyInit.paymentIntentId,
+      transactionId: "wompi-tx-ref-attack",
+      status: "APPROVED",
+      amountInCents: victim.totalCop * 100,
+    });
+
+    // Lo que la API de Wompi tiene guardado DE VERDAD para esa transacción
+    // (buscada por su id, que sí está firmado) es el reference real: el
+    // pedido que efectivamente se pagó.
+    fetchImpl = async (url) => {
+      if (url.includes("/transactions/wompi-tx-ref-attack")) {
+        return jsonResponse({
+          data: {
+            id: "wompi-tx-ref-attack",
+            reference: victimInit.paymentIntentId,
+            status: "APPROVED",
+            amount_in_cents: victim.totalCop * 100,
+            currency: "COP",
+            customer_email: "buyer@test.local",
+            payment_method_type: "NEQUI",
+            created_at: new Date().toISOString(),
+          },
+        });
+      }
+      return jsonResponse({ error: "unexpected", url }, 404);
+    };
+
+    const result = await processWompiWebhook(pool, payload);
+    expect(result.status).toBe(200);
+
+    const freshVictim = await getOrderByAccessToken(pool, victim.accessToken!);
+    const freshDecoy = await getOrderByAccessToken(pool, decoy.accessToken!);
+    expect(freshVictim!.paymentStatus).toBe("PAID"); // el real, según Wompi
+    expect(freshDecoy!.paymentStatus).toBe("PENDING"); // el que decía el body, intacto
+  });
+});
+
+/* ════════════════════════════ webhook: Wompi no responde al reconsultar ════════════════════════════ */
+
+describe("webhook: Wompi no responde al reconsultar la transacción", () => {
+  it("falla seguro — no aplica ningún pago si no se puede confirmar contra la API", async () => {
+    const order = await createPendingOrder(2, 1);
+    const init = await initWompiPayment(pool, {
+      orderId: order.orderId,
+      accessToken: order.accessToken!,
+      redirectBaseUrl: "http://localhost:3000",
+    });
+    const { payload } = wompiEvent({
+      reference: init.paymentIntentId,
+      transactionId: "wompi-tx-api-down",
+      status: "APPROVED",
+      amountInCents: order.totalCop * 100,
+    });
+    fetchImpl = async () => jsonResponse({ error: "wompi caído" }, 500);
+
+    const result = await processWompiWebhook(pool, payload);
+    expect(result.status).toBe(502);
 
     const fresh = await getOrderByAccessToken(pool, order.accessToken!);
     expect(fresh!.paymentStatus).toBe("PENDING");
@@ -330,7 +445,7 @@ describe("Caso E — webhook fuera de orden", () => {
 
     await processWompiWebhook(
       pool,
-      wompiEvent({
+      wompiPayload({
         reference: init.paymentIntentId,
         transactionId: "wompi-tx-e1",
         status: "APPROVED",
@@ -340,7 +455,7 @@ describe("Caso E — webhook fuera de orden", () => {
 
     const second = await processWompiWebhook(
       pool,
-      wompiEvent({
+      wompiPayload({
         reference: init.paymentIntentId,
         transactionId: "wompi-tx-e2",
         status: "DECLINED",
@@ -435,7 +550,7 @@ describe("Caso C — Wompi: sincronización manual cuando el webhook nunca lleg�
 
     await processWompiWebhook(
       pool,
-      wompiEvent({
+      wompiPayload({
         reference: init.paymentIntentId,
         transactionId: "wompi-tx-already-approved",
         status: "APPROVED",
@@ -468,7 +583,7 @@ describe("Caso B/G — pago confirmado sin código disponible", () => {
     ]);
     await sweepExpiredPendingOrders(pool);
 
-    const payload = wompiEvent({
+    const payload = wompiPayload({
       reference: init.paymentIntentId,
       transactionId: "wompi-tx-late",
       status: "APPROVED",
@@ -607,7 +722,7 @@ describe("Nequi directo — crea la transacción acá mismo, sin redirect", () =
 
     await processWompiWebhook(
       pool,
-      wompiEvent({
+      wompiPayload({
         reference: init.paymentIntentId,
         transactionId: "WOMPI-NEQUI-TX-3",
         status: "APPROVED",

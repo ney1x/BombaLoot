@@ -6,11 +6,18 @@ import { z } from "zod";
 import { createDb, withTransaction, type Db } from "../db/client";
 import { InvalidTicketTokenError } from "../auth/errors";
 import { createOpaqueToken, generateTicketNumber, hashToken } from "../auth/tokens";
+import type { ValidatedSession } from "../auth/session";
 import { SUPPORT_CATEGORIES, isOrderRequired } from "@/lib/support";
 import { SUPPORT_LIMITS } from "./support-limits";
-import { OrderTooOldForSupportError, SupportOrderNotFoundError, SupportTicketNotFoundError } from "./errors";
+import {
+  InvalidAssigneeError,
+  OrderTooOldForSupportError,
+  SupportOrderNotFoundError,
+  SupportTicketNotFoundError,
+} from "./errors";
 import { checkRateLimit } from "./rate-limit";
 import { assertIpNotBlocked } from "./security-service";
+import { writeAudit } from "./audit";
 
 /**
  * Tickets de soporte e hilo de mensajes cliente↔admin/SUPPORT.
@@ -234,6 +241,30 @@ export async function getTicketForUser(pool: Pool, userId: string, ticketId: str
   return rows[0] ? toTicketView(rows[0]) : null;
 }
 
+/**
+ * Mismo rol que `loadOwnedOrder` (`order-access.ts`) para tickets: intenta
+ * sesión primero, después el token — y si resuelve por token, cruza que el
+ * ticket devuelto sea efectivamente el pedido (perdón, el ticket) que se
+ * pidió, no cualquiera que ese token abra. Único punto que las rutas
+ * cookie-aware (`/api/support/tickets/[id]`, `.../typing`) necesitan tocar
+ * — `getTicketForUser`/`getTicketByAccessToken` de arriba no cambian.
+ */
+export async function loadOwnedTicket(
+  pool: Pool,
+  params: { ticketId: string; accessToken?: string; userId?: string },
+): Promise<SupportTicketView> {
+  let ticket: SupportTicketView | null = null;
+  if (params.userId) {
+    ticket = await getTicketForUser(pool, params.userId, params.ticketId);
+  }
+  if (!ticket && params.accessToken) {
+    const byToken = await getTicketByAccessToken(pool, params.accessToken);
+    if (byToken && byToken.id === params.ticketId) ticket = byToken;
+  }
+  if (!ticket) throw new SupportTicketNotFoundError(params.ticketId);
+  return ticket;
+}
+
 export async function listTicketsForUser(pool: Pool, userId: string): Promise<SupportTicketView[]> {
   const db = createDb(pool);
   const { rows } = (await db.execute(
@@ -366,6 +397,8 @@ export async function updateTicketAdmin(
   db: Db,
   ticketId: string,
   patch: { status?: string; assignedTo?: string | null },
+  actor: ValidatedSession,
+  context: { ip?: string | null; userAgent?: string | null } = {},
 ): Promise<SupportTicketView> {
   const { rows: existing } = (await db.execute(sql`SELECT id FROM support_tickets WHERE id = ${ticketId}::uuid`)) as unknown as {
     rows: { id: string }[];
@@ -378,9 +411,35 @@ export async function updateTicketAdmin(
     `);
   }
   if (patch.assignedTo !== undefined) {
+    // El id tiene que ser un miembro real del equipo — sin esto, cualquier
+    // UUID pasaba (hallazgo de la auditoría de seguridad, 2026-09-04). No
+    // da acceso nuevo a nadie (la ruta ya es ADMIN/SUPPORT-only), pero un
+    // ticket "asignado" a un id que no es staff es un dato roto.
+    if (patch.assignedTo !== null) {
+      const { rows: assignee } = (await db.execute(sql`
+        SELECT 1 FROM users WHERE id = ${patch.assignedTo}::uuid AND role IN ('ADMIN', 'SUPPORT', 'SUPERADMIN')
+      `)) as unknown as { rows: unknown[] };
+      if (assignee.length === 0) throw new InvalidAssigneeError();
+    }
     await db.execute(sql`
       UPDATE support_tickets SET assigned_to = ${patch.assignedTo}::uuid, updated_at = now() WHERE id = ${ticketId}::uuid
     `);
+  }
+
+  if (patch.status !== undefined || patch.assignedTo !== undefined) {
+    await writeAudit(db, {
+      actorType: actor.role,
+      actorId: actor.userId,
+      action: "support.ticket_updated",
+      entityType: "support_ticket",
+      entityId: ticketId,
+      metadata: {
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.assignedTo !== undefined ? { assignedTo: patch.assignedTo } : {}),
+      },
+      ip: context.ip,
+      userAgent: context.userAgent,
+    });
   }
 
   const { rows } = (await db.execute(sql`${TICKET_SELECT} WHERE t.id = ${ticketId}::uuid`)) as unknown as {

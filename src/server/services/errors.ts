@@ -352,6 +352,15 @@ export class SupportTicketNotFoundError extends Error {
   }
 }
 
+/** `assignedTo` de un ticket tiene que ser un ADMIN/SUPPORT/SUPERADMIN real — nunca un id cualquiera (hallazgo de la auditoría de seguridad, 2026-09-04). */
+export class InvalidAssigneeError extends Error {
+  readonly code = "INVALID_ASSIGNEE";
+  constructor() {
+    super("Ese usuario no es un miembro del equipo válido para asignarle el ticket.");
+    this.name = "InvalidAssigneeError";
+  }
+}
+
 /** El motivo elegido exige un pedido real, y el número que mandó el cliente no matchea ninguno. */
 export class SupportOrderNotFoundError extends Error {
   readonly code = "SUPPORT_ORDER_NOT_FOUND";

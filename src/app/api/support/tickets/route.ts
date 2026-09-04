@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentSession } from "@/server/auth/guards";
+import { setTicketAccessCookie } from "@/server/auth/cookies";
 import { getPool } from "@/server/db/client";
 import { requestMeta } from "@/server/http/request-meta";
 import { apiErrorToResponse } from "@/server/http/respond";
@@ -8,8 +9,13 @@ import { createSupportTicket, createTicketSchema } from "@/server/services/suppo
 /**
  * Crea un ticket de soporte. Público — funciona logueado o como invitado,
  * igual que el checkout. El invitado recibe el `accessToken` una sola vez
- * en la respuesta; es su única forma de volver a la conversación sin
- * cuenta, así que el cliente lo guarda de inmediato (URL + localStorage).
+ * en la respuesta — `saveTicketRef` (client) lo sigue guardando en
+ * localStorage para el atajo "volver a tu conversación" de `/ayuda` (eso no
+ * cambia, ya documentado en la Política de Cookies). Lo que sí cambia
+ * (auditoría de seguridad, 2026-09-04): de acá en más el acceso real de la
+ * conversación lo lleva una cookie httpOnly plantada acá mismo, así que el
+ * link a `/ayuda/ticket/[id]` deja de necesitar el token en la URL en el
+ * uso normal.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,10 +28,16 @@ export async function POST(request: NextRequest) {
       userId: session?.userId ?? null,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ticket: { id: ticket.id, ticketNumber: ticket.ticketNumber, status: ticket.status },
       accessToken,
     });
+
+    if (!session && accessToken) {
+      setTicketAccessCookie(response.cookies, ticket.id, accessToken);
+    }
+
+    return response;
   } catch (error) {
     return apiErrorToResponse(error);
   }

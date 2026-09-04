@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./SupportConversation.module.css";
 import { ArrowLeftIcon } from "./icons";
@@ -37,11 +37,25 @@ const TYPING_PING_THROTTLE_MS = 3000;
 
 /**
  * Hilo de conversación reutilizado por `/ayuda/ticket/[id]` (invitado, con
- * `?token=` en la URL) y `/cuenta/soporte/[id]` (logueado, sin token). El
- * modo se decide solo por si hay `accessToken` disponible.
+ * `?token=` en la URL cuando llega desde un link viejo/guardado — ver
+ * abajo) y `/cuenta/soporte/[id]` (logueado, sin token). El modo se decide
+ * por si hay `accessToken` disponible en la URL.
+ *
+ * Desde la creación del ticket, `/api/support/tickets` ya planta una
+ * cookie httpOnly de acceso (`loadout_ticket_<id>`) — así que un invitado
+ * que llega SIN `?token=` en la URL igual tiene acceso vía esa cookie por
+ * las rutas de sesión/`[id]`, que ahora también la aceptan (auditoría de
+ * seguridad, 2026-09-04). El camino por token acá abajo sigue existiendo
+ * para links guardados de antes de este cambio, o el atajo "volver a tu
+ * conversación" de `/ayuda` (`lib/support-session.ts`, deliberado, no se
+ * toca) — al resolver por ese camino, la propia ruta ya plantó la cookie
+ * del lado del servidor, así que apenas carga se limpia la URL para que el
+ * token deje de repetirse en cada fetch/poll de acá en más.
  */
 export function SupportConversation({ ticketId }: { ticketId: string }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const accessToken = searchParams.get("token") ?? undefined;
 
   const [ticket, setTicket] = useState<TicketView | null>(null);
@@ -97,6 +111,12 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
         const body = await response.json();
         setTicket(body.ticket);
         setMessages(body.messages);
+        if (accessToken) {
+          // La ruta por token ya plantó la cookie de acceso del lado del
+          // servidor — de acá en más alcanza sola, así que se limpia la URL
+          // para que el token deje de quedar visible/repetirse en cada poll.
+          router.replace(pathname, { scroll: false });
+        }
       } catch {
         if (!silent) {
           markGone();
@@ -106,7 +126,7 @@ export function SupportConversation({ ticketId }: { ticketId: string }) {
         if (silentFailuresRef.current >= MAX_SILENT_FAILURES) markGone();
       }
     },
-    [fetchUrl, markGone],
+    [fetchUrl, markGone, accessToken, router, pathname],
   );
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Big_Shoulders, Public_Sans, Roboto_Mono } from "next/font/google";
 import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -6,6 +7,7 @@ import "../globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AssistantLauncher } from "@/components/AssistantLauncher";
+import { NavigationProgress } from "@/components/NavigationProgress";
 import { CartProvider } from "@/lib/cart-context";
 import { SessionProvider } from "@/lib/session-context";
 import { pageMetadata } from "@/lib/seo";
@@ -71,6 +73,10 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">
           {THEME_INIT_SCRIPT}
         </Script>
+        {/* `useSearchParams()` adentro exige un boundary propio — si no, de-optimiza a client-side rendering el árbol entero hasta acá (ver docs de `useSearchParams`). El fallback es `null`: el estado inicial de la barra ya es invisible (width:0/opacity:0), así que no hay nada que mostrar antes de hidratar. */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <SessionProvider>
           <CartProvider>
             <Header />
