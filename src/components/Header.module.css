@@ -237,27 +237,6 @@
   gap: 6px;
 }
 
-.themeToggleWrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Iguala el footprint de 44px del resto de los controles — el switch
-     mide 52×30 por diseño propio (componente compartido con el admin,
-     no se toca acá), pero necesita el mismo alto de caja para no romper
-     el ritmo vertical de la fila. */
-  height: 44px;
-  padding: 0 4px;
-  border-radius: 10px;
-  transition: background 0.15s ease;
-}
-
-/* Mismo lenguaje de hover que el resto de los controles (iconBtn) — sin
-   esto el toggle es el único elemento de la fila que no responde al
-   pasar el mouse, y se siente aislado del sistema. */
-.themeToggleWrap:hover {
-  background: var(--nav-surface-2);
-}
-
 .iconBtn {
   position: relative;
   width: 44px;
@@ -335,20 +314,6 @@
   }
 }
 
-/* Punto de sesión activa — mismo lenguaje que el contador del carrito
-   (badge circular, misma esquina) pero sin número: solo señala "tenés
-   una cuenta conectada", visible de un vistazo. */
-.accountDot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #4fd68c;
-  border: 2px solid var(--nav-bg);
-}
-
 .mobileOnly {
   display: none;
 }
@@ -371,7 +336,7 @@
   }
 
   .searchMode .brandGroup,
-  .searchMode .themeToggleWrap,
+  .searchMode .hideOnMobileSearch,
   .searchMode a.iconBtn {
     display: none;
   }

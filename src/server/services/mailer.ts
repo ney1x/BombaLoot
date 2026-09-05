@@ -16,7 +16,7 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
-  /** Versión HTML — opcional a propósito: `sendMail` sigue funcionando con solo `text` (ver `adminInviteEmail`/`passwordResetEmail`, sin rediseñar todavía). */
+  /** Versión HTML — opcional para que `sendMail` siga funcionando con solo `text` en un llamador que no la mande (hoy los 6 builders de abajo ya devuelven las dos). */
   html?: string;
 }
 

@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
 import { BombLootMark } from "./BombLootMark";
-import { CartIcon, CloseIcon, GridIcon, LogOutIcon, SearchIcon, ShieldCheckIcon, UserIcon } from "./icons";
-import { ThemeToggle } from "./ThemeToggle";
+import { CartIcon, CloseIcon, GridIcon, SearchIcon, ShieldCheckIcon } from "./icons";
+import { CountryPicker } from "./CountryPicker";
+import { ProfileMenu } from "./ProfileMenu";
 import { useCart } from "@/lib/cart-context";
-import { useSession } from "@/lib/session-context";
 import { GAMES, GAME_COLORS } from "@/lib/products";
 
 /**
@@ -66,7 +65,6 @@ function GamesDropdown({
 }
 
 export function Header() {
-  const router = useRouter();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [gamesOpen, setGamesOpen] = useState(false);
   const [mobileGamesOpen, setMobileGamesOpen] = useState(false);
@@ -77,7 +75,6 @@ export function Header() {
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const suppressGamesReopenRef = useRef(false);
   const { count } = useCart();
-  const { user, setUser } = useSession();
   const prevCountRef = useRef(count);
 
   function focusInputAfterEscape(inputRef: React.RefObject<HTMLInputElement | null>) {
@@ -96,13 +93,6 @@ export function Header() {
     }
     prevCountRef.current = count;
   }, [count]);
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    router.push("/");
-    router.refresh();
-  }
 
   useEffect(() => {
     if (mobileSearchOpen) mobileInputRef.current?.focus();
@@ -201,12 +191,12 @@ export function Header() {
           >
             {mobileSearchOpen ? <CloseIcon /> : <SearchIcon />}
           </button>
+          <span className={styles.hideOnMobileSearch}>
+            <CountryPicker />
+          </span>
           <Link href="/catalogo" className={styles.iconBtn} title="Catálogo completo" aria-label="Ver catálogo completo">
             <GridIcon />
           </Link>
-          <span className={styles.themeToggleWrap}>
-            <ThemeToggle />
-          </span>
           <div className={styles.sessionGroup}>
             <Link
               href="/carrito"
@@ -220,25 +210,9 @@ export function Header() {
                 </span>
               )}
             </Link>
-            <Link
-              href={user ? "/cuenta" : "/cuenta/login"}
-              className={styles.iconBtn}
-              title={user ? "Mi cuenta" : "Iniciar sesión"}
-              aria-label={user ? `Mi cuenta — ${user.name?.trim() || user.email}` : "Iniciar sesión"}
-            >
-              <UserIcon />
-              {user && <span className={styles.accountDot} aria-hidden="true" />}
-            </Link>
-            {user && (
-              <button
-                type="button"
-                className={styles.iconBtn}
-                aria-label="Cerrar sesión"
-                onClick={handleLogout}
-              >
-                <LogOutIcon />
-              </button>
-            )}
+            <span className={styles.hideOnMobileSearch}>
+              <ProfileMenu />
+            </span>
           </div>
         </div>
       </div>

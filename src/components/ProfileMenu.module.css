@@ -1,0 +1,110 @@
+.wrap {
+  position: relative;
+}
+
+.trigger {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--nav-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trigger svg {
+  width: 23px;
+  height: 23px;
+}
+
+.trigger:hover {
+  background: var(--nav-surface-2);
+  border-color: var(--nav-border);
+}
+
+.trigger:active {
+  transform: scale(0.94);
+}
+
+.accountDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #4fd68c;
+  border: 2px solid var(--nav-bg);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  min-width: 220px;
+  border-radius: 12px;
+  border: 1px solid var(--nav-border);
+  background: var(--nav-surface-2);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+  z-index: 40;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 10px;
+}
+
+.userName {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--nav-ink);
+}
+
+.userEmail {
+  font-size: 12px;
+  color: var(--nav-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link,
+.linkButton {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--nav-ink);
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.link:hover,
+.linkButton:hover {
+  background: var(--nav-bg);
+}
+
+.divider {
+  height: 1px;
+  margin: 6px 2px;
+  background: var(--nav-border);
+}
+
+.themeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px 6px;
+  font-size: 13.5px;
+  color: var(--nav-ink);
+}
