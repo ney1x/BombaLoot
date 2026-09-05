@@ -69,12 +69,13 @@ export function GamePurchase({
               sizeHint="680×680"
               sizes="(max-width: 860px) 320px, 340px"
               priority
-              imageUrl={selected?.imageUrl}
+              /* Con todas las denominaciones agotadas, `selected` es null —
+                 sin este fallback, la imagen (propia o el fallback de juego
+                 en `game_visuals`, placement "catalog") de cualquier otra
+                 denominación se ignoraba entera y quedaba el placeholder
+                 aunque sí hubiera una imagen cargada para el juego. */
+              imageUrl={selected?.imageUrl ?? products.find((p) => p.imageUrl)?.imageUrl}
             />
-          </div>
-          <div className={styles.calloutCard}>
-            <p className={styles.calloutTitle}>Entrega automática</p>
-            <p>Apenas confirmamos el pago con el proveedor, el código queda disponible en tu pedido.</p>
           </div>
         </div>
 

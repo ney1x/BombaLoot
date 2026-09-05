@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import styles from "./page.module.css";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { GamePurchase } from "@/components/GamePurchase";
 import { GameInfoSection, RelatedGamesSection } from "@/components/GameInfoSection";
@@ -8,6 +9,7 @@ import { toStoreProduct } from "@/lib/catalog-mapper";
 import { pageMetadata, productsJsonLd, toJsonLdProduct } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
+import { getActiveGameVisualMap } from "@/server/services/game-visuals";
 
 function isGameId(value: string): value is GameId {
   return GAMES.some((game) => game.id === value);
@@ -47,8 +49,16 @@ export default async function GamePage({
   if (!isGameId(gameParam)) notFound();
 
   const game = GAMES.find((g) => g.id === gameParam)!;
-  const catalogProducts = await listCatalogProducts(getDb());
-  const products = catalogProducts.filter((p) => p.gameId === gameParam).map(toStoreProduct);
+  const db = getDb();
+  const [catalogProducts, catalogFallbackMap] = await Promise.all([
+    listCatalogProducts(db),
+    getActiveGameVisualMap(db, "catalog"),
+  ]);
+  const catalogFallback = catalogFallbackMap.get(gameParam) ?? null;
+  const products = catalogProducts
+    .filter((p) => p.gameId === gameParam)
+    .map(toStoreProduct)
+    .map((p) => ({ ...p, imageUrl: p.imageUrl ?? catalogFallback }));
   if (products.length === 0) notFound();
 
   const { select } = await searchParams;
@@ -59,13 +69,16 @@ export default async function GamePage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: productsJsonLd(products.map(toJsonLdProduct)) }}
       />
-      <Breadcrumb
-        items={[
-          { name: "Home", path: "" },
-          { name: "Catálogo", path: "/catalogo" },
-          { name: game.label, path: `/catalogo/${gameParam}` },
-        ]}
-      />
+      <div className={styles.crumbWrap}>
+        <Breadcrumb
+          items={[
+            { name: "Home", path: "" },
+            { name: "Catálogo", path: "/catalogo" },
+            { name: game.label, path: `/catalogo/${gameParam}` },
+          ]}
+          gameId={gameParam}
+        />
+      </div>
       <GamePurchase game={game} products={products} initialSelectId={select} />
       <GameInfoSection game={game} />
       <RelatedGamesSection game={game} />

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import styles from "./HeroRotator.module.css";
 import { GameImageSlot } from "./GameImageSlot";
 import { LightningIcon, ShieldCheckIcon, UserIcon } from "./icons";
 import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useCart } from "@/lib/cart-context";
 import { formatCop, type Product } from "@/lib/products";
 
 const BENEFITS = [
@@ -31,6 +33,8 @@ export function HeroRotator({
   const touchStartX = useRef<number | null>(null);
   const touchDeltaX = useRef(0);
   const reducedMotion = useReducedMotion();
+  const router = useRouter();
+  const { addItem } = useCart();
 
   useEffect(() => {
     if (reducedMotion || products.length <= 1) return;
@@ -160,10 +164,17 @@ export function HeroRotator({
             <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
           </div>
 
-          <Link href={`/catalogo/${product.gameId}?select=${product.id}`} className={styles.cta}>
+          <button
+            type="button"
+            className={styles.cta}
+            onClick={() => {
+              addItem(product.id);
+              router.push("/carrito");
+            }}
+          >
             Comprar ahora
             <ChevronRight />
-          </Link>
+          </button>
 
           <div className={styles.footer}>
             <div className={styles.dots} role="tablist" aria-label="Elegir producto destacado">

@@ -1,13 +1,70 @@
 .crumb {
-  font-size: 13px;
-  color: var(--ink-soft);
   margin-bottom: 22px;
 }
 
-.crumb a {
-  color: inherit;
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
 }
 
-.crumb a:hover {
+.item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.separator {
+  width: 13px;
+  height: 13px;
+  color: var(--border);
+  flex-shrink: 0;
+}
+
+.link {
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.link:hover {
   color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/*
+ * Página actual — nunca es link. Sin `gameId` (todas las páginas que no
+ * son de un juego puntual) queda neutra, solo con más peso que los links
+ * de atrás; con `gameId`, `Breadcrumb.tsx` le pasa `background`/`color`
+ * inline con el tono de ESE juego (`GAME_COLORS`) — mismo criterio que ya
+ * usa `GamePurchase.tsx` para su chip de denominación activa
+ * (`${color.base}14`, ~8% de opacidad, nunca un color sólido que compita
+ * con el resto de la página).
+ */
+.current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Solo se agrega cuando hay `gameId` — ver Breadcrumb.tsx. Sin esto, la
+   forma de "chip" (padding + radio) no tiene sentido sin un fondo de color
+   que la justifique. */
+.currentAccent {
+  padding: 2px 9px 2px 6px;
+  border-radius: 999px;
+}
+
+.mark {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }

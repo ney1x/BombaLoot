@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import styles from "./GameInfoSection.module.css";
+import { ChevronDownIcon } from "./icons";
 import { GAMES, type GameId } from "@/lib/products";
 import { faqPageJsonLd } from "@/lib/seo";
 
@@ -106,12 +107,15 @@ export function GameInfoSection({ game }: { game: { id: GameId; label: string } 
         }}
       />
       <h2 className={styles.heading}>Preguntas sobre tu recarga de {game.label}</h2>
-      <div className={styles.grid}>
-        {items.map((item) => (
-          <div className={styles.item} key={item.question}>
-            <h3>{item.question}</h3>
-            <p>{item.answerNode ?? item.answer}</p>
-          </div>
+      <div className={styles.accordion}>
+        {items.map((item, index) => (
+          <details className={styles.item} key={item.question} open={index === 0}>
+            <summary className={styles.itemSummary}>
+              <h3>{item.question}</h3>
+              <ChevronDownIcon className={styles.itemChevron} aria-hidden="true" />
+            </summary>
+            <p className={styles.itemAnswer}>{item.answerNode ?? item.answer}</p>
+          </details>
         ))}
       </div>
       <p className={styles.more}>

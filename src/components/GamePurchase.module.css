@@ -1,7 +1,15 @@
 .main {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 32px 24px 80px;
+  /*
+   * `padding-top` bajo a propósito: este `.main` siempre va justo después
+   * del `<Breadcrumb>` en `catalogo/[game]/page.tsx` (único lugar donde se
+   * usa este componente), que ya trae su propio `margin-bottom: 22px`. Con
+   * los 32px originales, el hueco real entre el breadcrumb y la imagen del
+   * juego sumaba 54px — demasiado separados para lo relacionados que están
+   * ahora que el breadcrumb toma el color del juego.
+   */
+  padding: 8px 24px 80px;
 }
 
 .grid {
@@ -25,29 +33,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
-}
-
-.calloutCard {
-  margin-top: 16px;
-  padding: 16px 18px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-}
-
-.calloutCard p {
-  font-size: 13px;
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
-
-.calloutCard .calloutTitle {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 4px;
 }
 
 /* Info column */
@@ -367,9 +352,31 @@
     gap: 28px;
   }
 
+  /*
+   * Centrado a propósito: en una sola columna, el título/meta/badges de
+   * abajo ya quedan centrados (ver reglas de este mismo breakpoint) — la
+   * imagen sin `margin: 0 auto` quedaba pegada a la izquierda mientras el
+   * texto se leía centrado debajo, dos alineaciones distintas en la misma
+   * columna.
+   *
+   * `width` explícito, no `max-width`: `.visualPanel` es `aspect-ratio:1/1`
+   * con los hijos en `position:absolute` (no aportan tamaño intrínseco), así
+   * que con solo `max-width` + `margin:auto` el grid resuelve `.visual` como
+   * fit-content — sin contenido en flujo del que tomar ese tamaño, colapsa a
+   * 0 y la imagen entera desaparece. `width` fija un tamaño definido y evita
+   * el colapso.
+   */
   .visual {
     position: static;
-    max-width: 320px;
+    width: min(320px, 100%);
+    margin: 0 auto;
+  }
+
+  .title,
+  .meta,
+  .badgeRow {
+    justify-content: center;
+    text-align: center;
   }
 
   .pickerGrid {
@@ -383,7 +390,7 @@
   }
 
   .visual {
-    max-width: 220px;
+    width: min(220px, 100%);
   }
 }
 

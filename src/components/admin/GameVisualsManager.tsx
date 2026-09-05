@@ -37,7 +37,7 @@ function readImageDimensions(file: File): Promise<{ width: number; height: numbe
   });
 }
 
-export type GameVisualPlacement = "hero" | "showcase";
+export type GameVisualPlacement = "hero" | "showcase" | "catalog";
 
 export interface AdminGameVisual {
   id: string;
@@ -58,12 +58,14 @@ export interface GameProductOption {
 const PLACEMENT_LABEL: Record<GameVisualPlacement, string> = {
   hero: "Hero de Home (1200×1440)",
   showcase: "Elegí tu juego (600×800)",
+  catalog: "Catálogo del juego (680×680, fallback)",
 };
 
 /** Ancho/alto de referencia por lugar — de acá sale la relación de aspecto esperada y el thumbnail. */
 const PLACEMENT_DIMENSIONS: Record<GameVisualPlacement, { width: number; height: number }> = {
   hero: { width: 1200, height: 1440 },
   showcase: { width: 600, height: 800 },
+  catalog: { width: 680, height: 680 },
 };
 
 /**
@@ -93,6 +95,7 @@ function aspectRatioWarning(
 const THUMBNAIL_SIZE: Record<GameVisualPlacement, { width: number; height: number }> = {
   hero: { width: 34, height: 41 },
   showcase: { width: 45, height: 60 },
+  catalog: { width: 48, height: 48 },
 };
 
 function VisualRow({
@@ -298,6 +301,7 @@ export function GameVisualsManager({
           >
             <option value="hero">{PLACEMENT_LABEL.hero}</option>
             <option value="showcase">{PLACEMENT_LABEL.showcase}</option>
+            <option value="catalog">{PLACEMENT_LABEL.catalog}</option>
           </select>
         </div>
         {supportsProductTarget(placement) && (
@@ -358,7 +362,7 @@ export function GameVisualsManager({
         </div>
       </details>
 
-      {(["hero", "showcase"] as const).map((p) => {
+      {(["hero", "showcase", "catalog"] as const).map((p) => {
         const rows = visuals.filter((v) => v.placement === p);
         return (
           <div key={p} style={{ display: "flex", flexDirection: "column", gap: 8 }}>

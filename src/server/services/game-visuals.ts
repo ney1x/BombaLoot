@@ -10,21 +10,25 @@ import { imageUrlSchema } from "./admin-images";
 import { writeAudit } from "./audit";
 
 /**
- * Banners por juego (`game_visuals`, migración 0007) — la misma imagen se
- * reutiliza en el hero grande de Home (1200×1440) y en "Elegí tu juego"
- * (600×800, recortada distinto vía `object-fit: cover`). A diferencia de
- * `product_images` no hay noción de "principal": el que se muestra es el
- * activo, dentro de su ventana de vigencia si tiene una, con el
- * `sort_order` más bajo — el primero de la cola.
+ * Banners por juego (`game_visuals`, migración 0007) — hero grande de Home
+ * (1200×1440), "Elegí tu juego" (600×800, recortado vía `object-fit: cover`)
+ * y, desde la migración 0025, el fallback de la imagen cuadrada (680×680)
+ * de `/catalogo/[game]` cuando la denominación elegida no tiene su propia
+ * imagen en `product_images`. A diferencia de `product_images` no hay
+ * noción de "principal": el que se muestra es el activo, dentro de su
+ * ventana de vigencia si tiene una, con el `sort_order` más bajo — el
+ * primero de la cola.
  *
  * `productId` (migración 0018) es opcional: NULL sigue siendo el banner
  * genérico del juego (fallback de siempre); una fila con `productId`
  * apunta a UNA denominación puntual — solo tiene efecto en `placement:
- * "hero"` (el rotator de Home es lo único que rota por producto; el panel
- * "Elegí tu juego" siempre fue uno por juego, no por denominación).
+ * "hero"` (el rotator de Home es lo único que rota por producto; "Elegí tu
+ * juego" y el fallback de catálogo siempre fueron uno por juego, no por
+ * denominación — el catálogo ya tiene su propio mecanismo por producto vía
+ * `product_images`, no hace falta duplicarlo acá).
  */
 
-export const GAME_VISUAL_PLACEMENTS = ["hero", "showcase"] as const;
+export const GAME_VISUAL_PLACEMENTS = ["hero", "showcase", "catalog"] as const;
 export type GameVisualPlacement = (typeof GAME_VISUAL_PLACEMENTS)[number];
 
 export const addGameVisualSchema = z.object({

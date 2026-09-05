@@ -64,8 +64,8 @@ export const GAME_SEO: Record<GameId, { title: string; description: string }> = 
  */
 export const GAME_COLORS: Record<GameId, { deep: string; base: string; tint: string }> = {
   valorant: { deep: "#5C1420", base: "#9B2438", tint: "#C85368" },
-  roblox: { deep: "#5C3115", base: "#A85A2A", tint: "#D0854E" },
-  league: { deep: "#0F3E3B", base: "#1D6D68", tint: "#4A9994" },
+  roblox: { deep: "#1F4318", base: "#3E7D3A", tint: "#6FAE68" },
+  league: { deep: "#4A330A", base: "#96690E", tint: "#C99A3A" },
   overwatch: { deep: "#16324A", base: "#2C5A83", tint: "#5A87AE" },
 };
 

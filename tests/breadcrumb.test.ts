@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { GAME_COLORS } from "@/lib/products";
 
 /**
  * Fase 7 — un solo componente arma el breadcrumb visible y el JSON-LD a la
@@ -50,5 +51,17 @@ describe("Breadcrumb", () => {
     // separamos ambos para no confundir "aparece 2 veces en total" con "se repite".
     const [, visible] = html.split(/<\/script>/);
     expect((visible.match(/Home/g) ?? []).length).toBe(1);
+  });
+
+  it("con gameId, el item actual toma el color de ESE juego (no un genérico)", () => {
+    const html = renderToStaticMarkup(createElement(Breadcrumb, { items: ITEMS, gameId: "valorant" }));
+    // Importa el color real en vez de hardcodear el hex acá — si
+    // GAME_COLORS.valorant cambia, este test tiene que seguir siendo válido.
+    expect(html).toContain(GAME_COLORS.valorant.base);
+  });
+
+  it("sin gameId, el item actual no lleva ningún color inline (queda neutro)", () => {
+    const html = renderToStaticMarkup(createElement(Breadcrumb, { items: ITEMS }));
+    expect(html).not.toContain("style=");
   });
 });

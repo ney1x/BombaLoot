@@ -9,45 +9,86 @@
   margin-bottom: 20px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 760px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+/*
+ * Antes eran 5 `<div>` con su propio fondo + borde + radio cada uno — un
+ * muro de rectángulos idénticos que competía visualmente con las cards de
+ * precio/denominación de arriba, aunque esto es contenido de apoyo, no la
+ * tarea principal de la página. Un solo contenedor con filas separadas por
+ * un hairline (no 5 bordes) baja el peso visual sin perder nada de texto:
+ * `<details>/<summary>` mantiene la respuesta completa en el DOM siempre
+ * (mismo HTML que lee un crawler), solo la pliega visualmente.
+ */
+.accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .item {
-  padding: 18px 20px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
-.item h3 {
+.item:last-child {
+  border-bottom: none;
+}
+
+.itemSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.itemSummary h3 {
   font-family: var(--font-body);
   font-size: 15px;
   font-weight: 700;
-  margin-bottom: 6px;
 }
 
-.item p {
+@media (prefers-reduced-motion: reduce) {
+  .itemChevron {
+    transition: none;
+  }
+}
+
+.itemSummary::-webkit-details-marker {
+  display: none;
+}
+
+.itemSummary:hover {
+  background: var(--surface-2);
+}
+
+.itemChevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+
+.item[open] .itemChevron {
+  transform: rotate(180deg);
+}
+
+.itemAnswer {
+  padding: 0 20px 18px;
   font-size: 14px;
   color: var(--ink-soft);
   line-height: 1.55;
 }
 
-.item p a {
+.itemAnswer a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.item p a:hover {
+.itemAnswer a:hover {
   color: var(--ink);
 }
 
