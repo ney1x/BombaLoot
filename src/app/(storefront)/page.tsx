@@ -6,7 +6,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { ProductTile } from "@/components/ProductTile";
 import { TrustStrip } from "@/components/TrustStrip";
 import { toStoreProduct } from "@/lib/catalog-mapper";
-import { sortForHero } from "@/lib/products";
+import { GAMES, sortForHero, type GameId } from "@/lib/products";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
@@ -25,6 +25,16 @@ export default async function Home() {
   const products = catalogProducts.map(toStoreProduct);
   const catalogPreview = products.slice(0, 4);
   const heroProducts = sortForHero(products);
+
+  // Precio real desde el catálogo de la base, no el set estático de
+  // `lib/products.ts` (ese es semilla/tipos — se desincroniza apenas el
+  // admin cambia un precio real).
+  const startingPriceByGame = Object.fromEntries(
+    GAMES.map((game) => {
+      const prices = products.filter((p) => p.gameId === game.id).map((p) => p.priceCop);
+      return [game.id, prices.length > 0 ? Math.min(...prices) : null];
+    }),
+  ) as Record<GameId, number | null>;
 
   return (
     <div className={styles.shell}>
@@ -45,7 +55,12 @@ export default async function Home() {
               <h2>Elegí tu juego</h2>
             </div>
           </div>
-          <GameShowcase gameImages={Object.fromEntries(showcaseMap)} prefetch={false} />
+          <GameShowcase
+            gameImages={Object.fromEntries(showcaseMap)}
+            startingPriceByGame={startingPriceByGame}
+            priceEstimate={priceEstimate}
+            prefetch={false}
+          />
         </section>
 
         <section className={styles.section}>

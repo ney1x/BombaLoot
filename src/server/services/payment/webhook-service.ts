@@ -307,6 +307,20 @@ export async function applyApprovedPayment(pool: Pool, details: ApprovedPaymentD
          WHERE id = ${intent.order_id}::uuid
       `,
     );
+    // Cuenta la compra para fidelización — no-op para invitados (subquery
+    // devuelve NULL, `WHERE id = NULL` no matchea nada). A propósito solo
+    // acá, en la rama donde el código SÍ quedó asignado — un pedido que
+    // termina en `paid_unavailable`/reembolso no debería sumar hacia el
+    // próximo nivel. `ensureLoyaltyCoupons`/`resolveLoyaltyTier` leen este
+    // contador después, nunca lo escriben.
+    await run(
+      tx,
+      sql`
+        UPDATE users SET purchases_count = purchases_count + 1, updated_at = now()
+         WHERE id = (SELECT user_id FROM orders WHERE id = ${intent.order_id}::uuid)
+      `,
+    );
+
     await writeAudit(tx, {
       actorType: "SYSTEM",
       action: "order.paid",
@@ -335,7 +349,7 @@ export async function applyApprovedPayment(pool: Pool, details: ApprovedPaymentD
       await sendMail({
         to: order.email,
         subject: "Sobre tu pedido — BombaLoot",
-        text: paymentUnavailableEmail(order.orderNumber),
+        ...paymentUnavailableEmail(order.orderNumber),
       });
     }
   }

@@ -287,7 +287,7 @@ export async function inviteAdmin(
   });
 
   const acceptUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/invitacion-admin/${token}`;
-  await sendMail({ to: normalized, subject: "Te invitaron a administrar BombaLoot", text: adminInviteEmail(acceptUrl) });
+  await sendMail({ to: normalized, subject: "Te invitaron a administrar BombaLoot", ...adminInviteEmail(acceptUrl) });
 }
 
 /**
@@ -331,7 +331,7 @@ export async function resendAdminInvite(
   });
 
   const acceptUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/invitacion-admin/${value}`;
-  await sendMail({ to: email, subject: "Te invitaron a administrar BombaLoot", text: adminInviteEmail(acceptUrl) });
+  await sendMail({ to: email, subject: "Te invitaron a administrar BombaLoot", ...adminInviteEmail(acceptUrl) });
 }
 
 export async function revokeAdminInvite(

@@ -198,7 +198,7 @@ export async function executeManualRefund(
     await sendMail({
       to: orderInfo.email,
       subject: "Reembolso procesado — BombaLoot",
-      text: refundCompletedEmail(orderInfo.order_number),
+      ...refundCompletedEmail(orderInfo.order_number),
     });
   }
 }

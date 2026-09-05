@@ -136,7 +136,7 @@ async function runDelivery(
     await sendMail({
       to: order.email,
       subject: `Tu código — pedido #${result.value.orderNumber}`,
-      text: codesDeliveredEmail(result.value.orderNumber, result.value.codes),
+      ...codesDeliveredEmail(result.value.orderNumber, result.value.codes),
     });
   }
 
@@ -256,7 +256,7 @@ export async function resendDeliveredCodesEmail(
   await sendMail({
     to: order.email,
     subject: `Tu código — pedido #${order.order_number}`,
-    text: codesDeliveredEmail(order.order_number, codes),
+    ...codesDeliveredEmail(order.order_number, codes),
   });
 
   await writeAudit(db, {

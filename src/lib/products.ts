@@ -164,11 +164,6 @@ export function sortForHero<T extends { heroSortOrder?: number | null }>(product
     .map(({ product }) => product);
 }
 
-export function startingPrice(gameId: GameId): number {
-  const prices = PRODUCTS.filter((p) => p.gameId === gameId).map((p) => p.priceCop);
-  return Math.min(...prices);
-}
-
 export function formatCop(amount: number): string {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",

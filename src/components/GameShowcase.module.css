@@ -66,6 +66,13 @@
   color: rgba(255, 255, 255, 0.92);
 }
 
+.fromEstimate {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 1px;
+}
+
 .cta {
   position: relative;
   display: inline-flex;

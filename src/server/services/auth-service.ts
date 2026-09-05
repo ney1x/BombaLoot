@@ -492,7 +492,7 @@ export async function requestPasswordReset(
   await sendMail({
     to: normalized,
     subject: "Recuperá tu contraseña de BombaLoot",
-    text: passwordResetEmail(resetUrl),
+    ...passwordResetEmail(resetUrl),
   });
 }
 
