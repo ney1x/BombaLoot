@@ -13,6 +13,7 @@ import {
   type GameId,
   type Product,
 } from "@/lib/products";
+import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
 import { useCart } from "@/lib/cart-context";
 
 const PAYMENT_METHODS = ["Nequi", "PSE", "Tarjetas", "PayPal"];
@@ -21,10 +22,13 @@ export function GamePurchase({
   game,
   products,
   initialSelectId,
+  priceEstimate,
 }: {
   game: { id: GameId; label: string };
   products: Product[];
   initialSelectId?: string;
+  /** Conversión de referencia según el país del visitante — `null` si no aplica (ver `@/server/services/geo-price`). */
+  priceEstimate?: PriceEstimateContext | null;
 }) {
   const firstAvailable = products.find((p) => p.stock !== "out") ?? null;
   const initialProduct =
@@ -124,6 +128,11 @@ export function GamePurchase({
                   <span className={`${styles.pickPrice} num-display`}>
                     {isOut ? "Agotado" : formatCop(product.priceCop)}
                   </span>
+                  {!isOut && priceEstimate && (
+                    <span className={`${styles.pickPriceEstimate} num-display`}>
+                      {formatEstimate(product.priceCop, priceEstimate)}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -139,6 +148,12 @@ export function GamePurchase({
                 </span>
                 <span className={styles.priceNote}>Precio final, impuestos incluidos</span>
               </div>
+              {priceEstimate && (
+                <p className={styles.priceEstimateNote}>
+                  {formatEstimate(selected.priceCop * quantity, priceEstimate)} · el cobro es en pesos
+                  colombianos (COP)
+                </p>
+              )}
               <div className={styles.priceSelected}>
                 {selected.denomination} {selected.unit}
               </div>

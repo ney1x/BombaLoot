@@ -8,6 +8,7 @@ import { toStoreProduct } from "@/lib/catalog-mapper";
 import { pageMetadata, productsJsonLd, toJsonLdProduct } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
+import { getPriceEstimateContext } from "@/server/services/geo-price";
 
 export const metadata: Metadata = pageMetadata({
   title: "Recargas y códigos digitales en Colombia | BombaLoot",
@@ -28,7 +29,10 @@ export default async function CatalogoPage({
 }) {
   const params = await searchParams;
   const initialGame = parseGame(params.game);
-  const catalogProducts = await listCatalogProducts(getDb());
+  const [catalogProducts, priceEstimate] = await Promise.all([
+    listCatalogProducts(getDb()),
+    getPriceEstimateContext(),
+  ]);
   const products = catalogProducts.map(toStoreProduct);
 
   return (
@@ -62,7 +66,7 @@ export default async function CatalogoPage({
         </nav>
       </div>
 
-      <CatalogGrid initialGame={initialGame} products={products} />
+      <CatalogGrid initialGame={initialGame} products={products} priceEstimate={priceEstimate} />
     </main>
   );
 }

@@ -4,10 +4,12 @@ import { GameImageSlot } from "./GameImageSlot";
 import { StockBadge } from "./StockBadge";
 import { GAME_MARKS } from "./icons";
 import { formatCop, productImageLabel, type Product } from "@/lib/products";
+import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
 
 export function CatalogProductCard({
   product,
   prefetch,
+  priceEstimate,
 }: {
   product: Product;
   /**
@@ -19,6 +21,8 @@ export function CatalogProductCard({
    * `ProductTile`/`GameShowcase` en la home.
    */
   prefetch?: boolean;
+  /** Conversión de referencia según el país del visitante — `null` si no aplica (ver `@/server/services/geo-price`). */
+  priceEstimate?: PriceEstimateContext | null;
 }) {
   const isOut = product.stock === "out";
   const Mark = GAME_MARKS[product.gameId];
@@ -54,7 +58,14 @@ export function CatalogProductCard({
         <span className={styles.unit}>{product.unit}</span>
       </div>
       <div className={styles.footer}>
-        <span className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</span>
+        <span className={styles.priceColumn}>
+          <span className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</span>
+          {!isOut && priceEstimate && (
+            <span className={`${styles.priceEstimate} num-display`}>
+              {formatEstimate(product.priceCop, priceEstimate)}
+            </span>
+          )}
+        </span>
         {!isOut && <span className={styles.cta}>Ver →</span>}
       </div>
     </div>

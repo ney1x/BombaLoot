@@ -6,6 +6,7 @@ import styles from "./ProductTile.module.css";
 import { StockBadge } from "./StockBadge";
 import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAME_COLORS, formatCop, type Product } from "@/lib/products";
+import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
 
 const SPRING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const MAX_TILT = 10;
@@ -14,12 +15,15 @@ export function ProductTile({
   product,
   prefetch,
   index = 0,
+  priceEstimate,
 }: {
   product: Product;
   /** Ver el mismo comentario en `GameShowcase` — la home pasa `false`. */
   prefetch?: boolean;
   /** Posición en la grilla — solo controla el delay del stagger de entrada. */
   index?: number;
+  /** Conversión de referencia según el país del visitante — `null` si no aplica (ver `@/server/services/geo-price`). */
+  priceEstimate?: PriceEstimateContext | null;
 }) {
   const isOut = product.stock === "out";
   const color = GAME_COLORS[product.gameId];
@@ -98,6 +102,11 @@ export function ProductTile({
         <span className={styles.unit}>{product.unit}</span>
       </div>
       <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
+      {!isOut && priceEstimate && (
+        <div className={`${styles.priceEstimate} num-display`}>
+          {formatEstimate(product.priceCop, priceEstimate)}
+        </div>
+      )}
       {!isOut && (
         <span className={styles.cta}>
           Ver producto

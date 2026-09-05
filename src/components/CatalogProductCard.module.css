@@ -120,10 +120,22 @@
   margin-top: 8px;
 }
 
+.priceColumn {
+  display: flex;
+  flex-direction: column;
+}
+
 .price {
   font-family: var(--font-mono);
   font-size: 14px;
   color: var(--ink);
+}
+
+.priceEstimate {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  margin-top: 1px;
 }
 
 .cta {

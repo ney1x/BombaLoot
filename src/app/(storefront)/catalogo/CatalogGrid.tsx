@@ -3,15 +3,19 @@
 import { useMemo, useState } from "react";
 import styles from "./catalogo.module.css";
 import { GAME_COLORS, GAMES, type GameId, type Product } from "@/lib/products";
+import { type PriceEstimateContext } from "@/lib/currency";
 import { CatalogProductCard } from "@/components/CatalogProductCard";
 import { SearchIcon } from "@/components/icons";
 
 export function CatalogGrid({
   initialGame,
   products,
+  priceEstimate,
 }: {
   initialGame: GameId | null;
   products: Product[];
+  /** Conversión de referencia según el país del visitante — `null` si no aplica (ver `@/server/services/geo-price`). */
+  priceEstimate?: PriceEstimateContext | null;
 }) {
   const [activeGame, setActiveGame] = useState<GameId | null>(initialGame);
   const [query, setQuery] = useState("");
@@ -75,7 +79,12 @@ export function CatalogGrid({
       {filtered.length > 0 ? (
         <div className={styles.grid}>
           {filtered.map((product) => (
-            <CatalogProductCard product={product} prefetch={false} key={product.id} />
+            <CatalogProductCard
+              product={product}
+              prefetch={false}
+              priceEstimate={priceEstimate}
+              key={product.id}
+            />
           ))}
         </div>
       ) : (

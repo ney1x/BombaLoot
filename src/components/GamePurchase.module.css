@@ -152,6 +152,14 @@
   margin-top: 3px;
 }
 
+.pickPriceEstimate {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  margin-top: 1px;
+}
+
 .pickCheck {
   position: absolute;
   top: 8px;
@@ -221,6 +229,12 @@
 .priceNote {
   font-size: 12.5px;
   color: var(--ink-faint);
+}
+
+.priceEstimateNote {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-bottom: 12px;
 }
 
 .priceSelected {

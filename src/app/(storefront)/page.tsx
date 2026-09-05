@@ -11,14 +11,16 @@ import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
 import { getActiveGameVisualMap, getActiveProductVisualMap } from "@/server/services/game-visuals";
+import { getPriceEstimateContext } from "@/server/services/geo-price";
 
 export default async function Home() {
   const db = getDb();
-  const [catalogProducts, heroMap, heroProductMap, showcaseMap] = await Promise.all([
+  const [catalogProducts, heroMap, heroProductMap, showcaseMap, priceEstimate] = await Promise.all([
     listCatalogProducts(db),
     getActiveGameVisualMap(db, "hero"),
     getActiveProductVisualMap(db, "hero"),
     getActiveGameVisualMap(db, "showcase"),
+    getPriceEstimateContext(),
   ]);
   const products = catalogProducts.map(toStoreProduct);
   const catalogPreview = products.slice(0, 4);
@@ -58,7 +60,13 @@ export default async function Home() {
           </div>
           <div className={styles.productGrid}>
             {catalogPreview.map((product, index) => (
-              <ProductTile product={product} prefetch={false} index={index} key={product.id} />
+              <ProductTile
+                product={product}
+                prefetch={false}
+                index={index}
+                priceEstimate={priceEstimate}
+                key={product.id}
+              />
             ))}
           </div>
         </section>

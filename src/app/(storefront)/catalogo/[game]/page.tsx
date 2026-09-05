@@ -10,6 +10,7 @@ import { pageMetadata, productsJsonLd, toJsonLdProduct } from "@/lib/seo";
 import { getDb } from "@/server/db/client";
 import { listCatalogProducts } from "@/server/services/catalog";
 import { getActiveGameVisualMap } from "@/server/services/game-visuals";
+import { getPriceEstimateContext } from "@/server/services/geo-price";
 
 function isGameId(value: string): value is GameId {
   return GAMES.some((game) => game.id === value);
@@ -50,9 +51,10 @@ export default async function GamePage({
 
   const game = GAMES.find((g) => g.id === gameParam)!;
   const db = getDb();
-  const [catalogProducts, catalogFallbackMap] = await Promise.all([
+  const [catalogProducts, catalogFallbackMap, priceEstimate] = await Promise.all([
     listCatalogProducts(db),
     getActiveGameVisualMap(db, "catalog"),
+    getPriceEstimateContext(),
   ]);
   const catalogFallback = catalogFallbackMap.get(gameParam) ?? null;
   const products = catalogProducts
@@ -79,7 +81,7 @@ export default async function GamePage({
           gameId={gameParam}
         />
       </div>
-      <GamePurchase game={game} products={products} initialSelectId={select} />
+      <GamePurchase game={game} products={products} initialSelectId={select} priceEstimate={priceEstimate} />
       <GameInfoSection game={game} />
       <RelatedGamesSection game={game} />
     </main>
