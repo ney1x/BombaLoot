@@ -70,15 +70,16 @@ export function countryFlagEmoji(code: string): string {
  * imagen no depende de la fuente del sistema operativo: se ve igual en
  * Windows, Mac, Linux, Android e iOS.
  *
- * El nombre del asset de Twemoji para una bandera es el par de puntos de
- * código Unicode de sus dos "regional indicator symbols", en hex y
- * separados por guion (ej. Argentina = U+1F1E6 U+1F1F7 → "1f1e6-1f1f7").
+ * Servidas desde `/public/flags` (mismo origen) en vez de un CDN externo:
+ * la CSP del sitio (`next.config.ts`, `img-src`) solo permite 'self' + el
+ * blob storage de Vercel — cualquier CDN externo (jsDelivr incluido) queda
+ * bloqueado en producción (confirmado en vivo: la consola tiraba el error
+ * de CSP y las banderas no cargaban nada, aunque sí en local sin HTTPS/CSP
+ * estricta). Los 19 SVG son los mismos assets de Twemoji 14.0.2, bajados
+ * una sola vez — no dependen de que jsDelivr esté arriba en cada visita.
  */
 export function countryFlagUrl(code: string): string {
-  const codePoints = [...code.toUpperCase()].map((char) => (127397 + char.charCodeAt(0)).toString(16));
-  // El paquete publicado en npm no incluye /assets en jsDelivr (404) — el mismo
-  // tag del repo de GitHub sí lo sirve, y jsDelivr lo cachea igual de bien.
-  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codePoints.join("-")}.svg`;
+  return `/flags/${code.toLowerCase()}.svg`;
 }
 
 /**
