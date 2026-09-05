@@ -41,9 +41,11 @@
 }
 
 /*
- * Theme is explicit-only: the site always starts light regardless of OS
- * preference. [data-theme="dark"] is set by ThemeToggle (localStorage +
- * a blocking inline script in layout.tsx to avoid a flash on load).
+ * Theme is explicit-only, not OS-driven: a first-time visitor (no stored
+ * preference yet) starts DARK — the site's default — regardless of their
+ * OS setting. [data-theme="light"] is the one that requires an explicit
+ * opt-out (ThemeToggle writes it to localStorage), same blocking inline
+ * script in layout.tsx to avoid a flash on load either way.
  */
 :root[data-theme="dark"] {
   --paper: #101216;

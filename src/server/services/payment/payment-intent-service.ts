@@ -30,7 +30,7 @@ import { applyApprovedPayment, applyFailedPayment } from "./webhook-service";
  */
 const USD_COP_EXCHANGE_RATE_FALLBACK = 4000;
 
-function usdExchangeRate(): number {
+export function usdExchangeRate(): number {
   const raw = process.env.USD_COP_EXCHANGE_RATE;
   const rate = raw ? Number(raw) : USD_COP_EXCHANGE_RATE_FALLBACK;
   if (!Number.isFinite(rate) || rate <= 0) throw new Error("USD_COP_EXCHANGE_RATE inválida");
@@ -382,12 +382,15 @@ export async function capturePaypalPayment(
   const capture = captureResponse.purchase_units?.[0]?.payments?.captures?.[0];
 
   if (captureResponse.status === "COMPLETED" && capture?.status === "COMPLETED") {
+    const feeValue = capture.seller_receivable_breakdown?.paypal_fee?.value;
     await applyApprovedPayment(pool, {
       paymentIntentId: intent.id,
       providerRef: capture.id,
       amountReceived: Number(capture.amount?.value ?? 0),
       currency: "USD",
       rawPayload: captureResponse,
+      feeUsd: feeValue !== undefined ? Number(feeValue) : undefined,
+      feeIsEstimated: false,
     });
     return { status: "APPROVED" };
   }

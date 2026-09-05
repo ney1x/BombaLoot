@@ -6,11 +6,12 @@ import styles from "./NequiPendingStatus.module.css";
 import { CheckIcon, SmartphoneIcon } from "./icons";
 
 /**
- * Espejo de `MAX_POLLS * POLL_MS` en `PaymentResultReal` (20 × 3s) — el
- * anillo tiene que agotarse exactamente cuando el polling real deja de
- * consultar, no antes ni después.
+ * Espejo de `MAX_POLL_WINDOW_MS` en `PaymentResultReal` (9 min, la misma
+ * ventana que Nequi le da a la persona para aprobar en su app) — el anillo
+ * tiene que agotarse exactamente cuando el polling real deja de consultar,
+ * no antes ni después.
  */
-const MAX_SECONDS = 60;
+const MAX_SECONDS = 9 * 60;
 
 const RADIUS = 31;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;

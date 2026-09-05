@@ -101,6 +101,12 @@ export interface PaypalCapture {
   id: string;
   status: string;
   amount?: { currency_code: string; value: string };
+  /** Comisión que PayPal ya descontó de esta captura — la manda exacta, no hay que estimarla (a diferencia de Wompi). */
+  seller_receivable_breakdown?: {
+    gross_amount?: { currency_code: string; value: string };
+    paypal_fee?: { currency_code: string; value: string };
+    net_amount?: { currency_code: string; value: string };
+  };
 }
 
 export interface PaypalOrderResponse {

@@ -34,8 +34,21 @@ interface ResultResponse {
   order: ResultOrder;
 }
 
-const POLL_MS = 3000;
-const MAX_POLLS = 20; // ~1 minuto
+const POLL_MS_FAST = 3000;
+const POLL_FAST_WINDOW_MS = 60_000; // primer minuto: cada 3s, mismo ritmo de siempre
+const POLL_MS_SLOW = 15_000;
+/**
+ * Nequi le da a la persona hasta ~9 minutos para aprobar en su app (lo dice
+ * la propia notificación push) — antes esto cortaba a los 60s (`MAX_POLLS
+ * * POLL_MS` = 20×3s), así que cualquiera que tardara más de un minuto en
+ * cambiar de app y confirmar se quedaba mirando "esperando confirmación"
+ * congelado para siempre, aunque el pago se aprobara segundos después.
+ * Pasado el primer minuto se espacía a cada 15s (no cada 3s) porque desde
+ * ahí cada poll dispara una consulta real al proveedor (`result-service.ts`,
+ * intent con más de 60s "stale") — cada 3s sería ~180 consultas a Wompi en
+ * los 9 minutos, cada 15s son ~32.
+ */
+const MAX_POLL_WINDOW_MS = 9 * 60 * 1000;
 
 /**
  * Nunca confía en el redirect del navegador: siempre lee el estado real vía
@@ -48,8 +61,9 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   const searchParams = useSearchParams();
   const [result, setResult] = useState<ResultResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const capturedRef = useRef(false);
-  const pollCountRef = useRef(0);
+  const elapsedRef = useRef(0);
 
   const session = typeof window !== "undefined" ? loadRealCheckoutSession() : null;
   const paypalToken = searchParams.get("token"); // PayPal reenvía `?token=<paypalOrderId>` en el return_url
@@ -71,7 +85,7 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    pollCountRef.current = 0;
+    elapsedRef.current = 0;
 
     async function captureIfNeeded() {
       if (capturedRef.current || !paypalToken) return;
@@ -101,12 +115,16 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
         }
 
         setError(null);
+        setTimedOut(false);
         setResult(body as ResultResponse);
 
         const stillGoing = body.paymentIntentStatus === "PENDING" || body.paymentIntentStatus === "INITIATED";
-        pollCountRef.current += 1;
-        if (stillGoing && pollCountRef.current < MAX_POLLS) {
-          timer = setTimeout(poll, POLL_MS);
+        if (stillGoing && elapsedRef.current < MAX_POLL_WINDOW_MS) {
+          const interval = elapsedRef.current < POLL_FAST_WINDOW_MS ? POLL_MS_FAST : POLL_MS_SLOW;
+          elapsedRef.current += interval;
+          timer = setTimeout(poll, interval);
+        } else if (stillGoing) {
+          setTimedOut(true);
         }
       } catch {
         if (!cancelled) setError("No pudimos consultar el estado de tu pago.");
@@ -251,6 +269,35 @@ export function PaymentResultReal({ paymentIntentId }: { paymentIntentId: string
           </Link>
           <Link href="/carrito" className="btn btnSecondary">
             Revisar mi carrito
+          </Link>
+        </div>
+      </PaymentStatusLayout>
+    );
+  }
+
+  // Se agotó la ventana de polling (9 min) y seguimos sin confirmación —
+  // nunca quedarse mudo pidiendo "no recargues": ahí es cuando SÍ hay que
+  // ofrecer volver a consultar.
+  if (timedOut) {
+    return (
+      <PaymentStatusLayout tone="neutral" icon={<HourglassIcon />} title="Todavía no confirmamos tu pago">
+        <p>
+          {session?.methodId === "nequi"
+            ? "Si ya aprobaste en la app de Nequi, puede que la confirmación esté por llegar. Volvé a consultar."
+            : "Puede que esté por llegar. Volvé a consultar en unos segundos."}
+        </p>
+        {session && <p className={styles.reference}>Pedido #{session.orderNumber}</p>}
+        <div className={styles.ctaRow}>
+          <button type="button" className="btn btnPrimary" onClick={() => setRetryTick((t) => t + 1)}>
+            Volver a consultar
+          </button>
+          {session && (
+            <Link href={orderHref(session.orderId)} className="btn btnSecondary">
+              Ver mi pedido
+            </Link>
+          )}
+          <Link href="/ayuda" className="btn btnSecondary">
+            Contactar soporte
           </Link>
         </div>
       </PaymentStatusLayout>

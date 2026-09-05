@@ -22,6 +22,29 @@ import {
 import { WebhookAmountMismatchError, WebhookCurrencyMismatchError } from "./errors";
 import { createRefundRequest } from "./refund-service";
 import { paymentUnavailableEmail, sendMail } from "../mailer";
+import { estimateWompiFeeCop, getPaymentFeeSettings } from "../payment-fee-settings";
+
+/**
+ * Comisión ESTIMADA de Wompi para esta transacción — con la tarifa vigente
+ * ahora mismo (`payment_fee_settings`), nunca la que haya en el momento en
+ * que alguien mire el dashboard después. `undefined` si la consulta falla:
+ * nunca bloquea la aprobación del pago por esto, el neto simplemente queda
+ * sin dato para esa venta.
+ */
+async function estimateWompiFee(pool: Pool, amountCop: number): Promise<number | undefined> {
+  try {
+    const settings = await getPaymentFeeSettings(createDb(pool));
+    return estimateWompiFeeCop(amountCop, settings);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Comisión exacta que PayPal ya descontó — `undefined` si la captura no la trae (no debería pasar, pero nunca bloquea la aprobación). */
+function extractPaypalFeeUsd(capture: PaypalCapture | undefined): number | undefined {
+  const fee = capture?.seller_receivable_breakdown?.paypal_fee?.value;
+  return fee !== undefined ? Number(fee) : undefined;
+}
 
 /**
  * El estado del mundo de pagos, en un solo lugar: acá se decide qué
@@ -162,6 +185,16 @@ export interface ApprovedPaymentDetails {
   paymentMethod?: string;
   payerEmail?: string;
   rawPayload: unknown;
+  /**
+   * Comisión del proveedor, en la MISMA moneda que `currency` — nunca las
+   * dos a la vez. PayPal la manda exacta; Wompi se estima con
+   * `estimateWompiFeeCop` al momento de llamar acá (ver comentario de
+   * `payment_fee_settings.ts`). `undefined` = no se pudo calcular/extraer
+   * (no bloquea la aprobación del pago, el neto simplemente queda sin dato).
+   */
+  feeCop?: number;
+  feeUsd?: number;
+  feeIsEstimated?: boolean;
 }
 
 export interface ApplyPaymentResult {
@@ -212,7 +245,9 @@ export async function applyApprovedPayment(pool: Pool, details: ApprovedPaymentD
       sql`
         UPDATE payment_intents
            SET status = 'APPROVED', provider_ref = ${details.providerRef},
-               raw_payload = ${JSON.stringify(details.rawPayload)}::jsonb, updated_at = now()
+               raw_payload = ${JSON.stringify(details.rawPayload)}::jsonb,
+               fee_cop = ${details.feeCop ?? null}, fee_usd = ${details.feeUsd ?? null},
+               fee_is_estimated = ${details.feeIsEstimated ?? false}, updated_at = now()
          WHERE id = ${intent.id}::uuid
       `,
     );
@@ -471,14 +506,17 @@ export async function processWompiWebhook(pool: Pool, rawBody: string): Promise<
 
   try {
     if (tx.status === "APPROVED") {
+      const amountReceived = tx.amount_in_cents / 100;
       await applyApprovedPayment(pool, {
         paymentIntentId: intent.id,
         providerRef: tx.id,
-        amountReceived: tx.amount_in_cents / 100,
+        amountReceived,
         currency: "COP",
         paymentMethod: tx.payment_method_type,
         payerEmail: tx.customer_email,
         rawPayload: event,
+        feeCop: await estimateWompiFee(pool, amountReceived),
+        feeIsEstimated: true,
       });
     } else if (tx.status === "DECLINED" || tx.status === "VOIDED" || tx.status === "ERROR") {
       await applyFailedPayment(pool, intent.id, tx.status);
@@ -560,6 +598,8 @@ export async function processPaypalWebhook(
         amountReceived: Number(capture?.amount?.value ?? event.resource.purchase_units?.[0]?.amount?.value ?? 0),
         currency: "USD",
         rawPayload: event,
+        feeUsd: extractPaypalFeeUsd(capture),
+        feeIsEstimated: false,
       });
     } else if (event.event_type === "PAYMENT.CAPTURE.DENIED" || event.event_type === "CHECKOUT.ORDER.VOIDED") {
       await applyFailedPayment(pool, intent.id, event.event_type);
@@ -615,14 +655,17 @@ export async function syncPaymentIntentWithProvider(
     const remote = await getWompiTransactionByReference(intent.id).catch(() => undefined);
     if (!remote) return { synced: false };
     if (remote.status === "APPROVED") {
+      const amountReceived = remote.amount_in_cents / 100;
       await applyApprovedPayment(pool, {
         paymentIntentId: intent.id,
         providerRef: remote.id,
-        amountReceived: remote.amount_in_cents / 100,
+        amountReceived,
         currency: "COP",
         paymentMethod: remote.payment_method_type,
         payerEmail: remote.customer_email,
         rawPayload: { manualSync: true, remote },
+        feeCop: await estimateWompiFee(pool, amountReceived),
+        feeIsEstimated: true,
       });
       return { synced: true };
     }
@@ -644,6 +687,8 @@ export async function syncPaymentIntentWithProvider(
       amountReceived: Number(capture?.amount?.value ?? remoteOrder.purchase_units?.[0]?.amount?.value ?? 0),
       currency: "USD",
       rawPayload: { manualSync: true, remoteOrder },
+      feeUsd: extractPaypalFeeUsd(capture),
+      feeIsEstimated: false,
     });
     return { synced: true };
   }

@@ -546,6 +546,21 @@ export const codeLifecycleSettings = pgTable("code_lifecycle_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Tarifa de Wompi para estimar su comisión (no expuesta por su API) — fila
+ * única, mismo patrón que `codeLifecycleSettings`. Default = Plan Avanzado
+ * publicado por Wompi: 2.65% + $700 COP + IVA (19%) sobre la comisión. Ver
+ * 0026_payment_fees.sql.
+ */
+export const paymentFeeSettings = pgTable("payment_fee_settings", {
+  id: boolean("id").primaryKey().default(true),
+  wompiPercentageBp: integer("wompi_percentage_bp").notNull().default(265),
+  wompiFixedCop: integer("wompi_fixed_cop").notNull().default(700),
+  wompiIvaBp: integer("wompi_iva_bp").notNull().default(1900),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ─────────────────────────── pagos y descuentos ─────────────────────────── */
 
 export const paymentIntents = pgTable(
@@ -564,6 +579,17 @@ export const paymentIntents = pgTable(
     amountUsd: numeric("amount_usd", { precision: 10, scale: 2 }),
     currency: text("currency").notNull().default("COP"),
     rawPayload: jsonb("raw_payload"),
+    /**
+     * Comisión del proveedor sobre esta transacción — en la moneda nativa
+     * del pago (COP para Wompi, USD para PayPal), nunca las dos a la vez.
+     * PayPal la devuelve exacta (`seller_receivable_breakdown.paypal_fee`);
+     * Wompi no la expone por API, así que la de Wompi es una ESTIMACIÓN
+     * calculada con `payment_fee_settings` al momento de aprobar el pago
+     * (`feeIsEstimated = true`). Ver 0026_payment_fees.sql.
+     */
+    feeCop: numeric("fee_cop"),
+    feeUsd: numeric("fee_usd"),
+    feeIsEstimated: boolean("fee_is_estimated").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -801,6 +827,7 @@ export const schema = {
   codeBatches,
   codes,
   codeLifecycleSettings,
+  paymentFeeSettings,
   paymentIntents,
   paymentEvents,
   refundRequests,

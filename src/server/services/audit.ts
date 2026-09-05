@@ -60,6 +60,7 @@ export type AuditAction =
   | "admin.role_removed"
   | "admin.role_restored"
   | "code_lifecycle_settings.updated"
+  | "payment_fee_settings.updated"
   | "product.created"
   | "product.updated"
   | "product.toggled_active"

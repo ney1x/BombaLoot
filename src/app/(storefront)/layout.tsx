@@ -15,7 +15,8 @@ import { pageMetadata } from "@/lib/seo";
 const THEME_INIT_SCRIPT = `
   try {
     var t = localStorage.getItem('loadout-theme');
-    if (t === 'dark') document.documentElement.dataset.theme = 'dark';
+    if (t === 'light') document.documentElement.dataset.theme = 'light';
+    else document.documentElement.dataset.theme = 'dark';
   } catch (e) {}
 `;
 
