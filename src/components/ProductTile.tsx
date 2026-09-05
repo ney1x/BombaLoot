@@ -6,7 +6,7 @@ import styles from "./ProductTile.module.css";
 import { StockBadge } from "./StockBadge";
 import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAME_COLORS, formatCop, type Product } from "@/lib/products";
-import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
+import { formatConverted, type PriceEstimateContext } from "@/lib/currency";
 
 const SPRING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const MAX_TILT = 10;
@@ -101,11 +101,11 @@ export function ProductTile({
         <span className={`${styles.denom} num-display`}>{product.denomination}</span>
         <span className={styles.unit}>{product.unit}</span>
       </div>
-      <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
+      <div className={`${styles.price} num-display`}>
+        {priceEstimate ? formatConverted(product.priceCop, priceEstimate) : formatCop(product.priceCop)}
+      </div>
       {!isOut && priceEstimate && (
-        <div className={`${styles.priceEstimate} num-display`}>
-          {formatEstimate(product.priceCop, priceEstimate)}
-        </div>
+        <div className={`${styles.priceEstimate} num-display`}>{formatCop(product.priceCop)}</div>
       )}
       {!isOut && (
         <span className={styles.cta}>

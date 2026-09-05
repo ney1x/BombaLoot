@@ -4,7 +4,7 @@ import styles from "./GameShowcase.module.css";
 import { GameImageSlot } from "./GameImageSlot";
 import { GAME_MARKS, ChevronRightIcon } from "./icons";
 import { GAMES, GAME_COLORS, formatCop, type GameId } from "@/lib/products";
-import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
+import { formatConverted, type PriceEstimateContext } from "@/lib/currency";
 
 export function GameShowcase({
   gameImages,
@@ -54,11 +54,14 @@ export function GameShowcase({
             <span className={styles.title}>{game.label}</span>
             {startingPriceByGame[game.id] != null && (
               <span className={styles.from}>
-                Desde <b>{formatCop(startingPriceByGame[game.id]!)}</b>
+                Desde{" "}
+                <b>
+                  {priceEstimate
+                    ? formatConverted(startingPriceByGame[game.id]!, priceEstimate)
+                    : formatCop(startingPriceByGame[game.id]!)}
+                </b>
                 {priceEstimate && (
-                  <span className={styles.fromEstimate}>
-                    {formatEstimate(startingPriceByGame[game.id]!, priceEstimate)}
-                  </span>
+                  <span className={styles.fromEstimate}>{formatCop(startingPriceByGame[game.id]!)}</span>
                 )}
               </span>
             )}

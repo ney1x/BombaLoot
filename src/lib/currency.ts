@@ -61,17 +61,46 @@ export function countryFlagEmoji(code: string): string {
   return String.fromCodePoint(...[...code.toUpperCase()].map((char) => 127397 + char.charCodeAt(0)));
 }
 
-export function formatEstimate(priceCop: number, ctx: PriceEstimateContext | null): string | null {
-  if (!ctx) return null;
+/**
+ * URL de la bandera como imagen (Twemoji), no como emoji de fuente del
+ * sistema. Windows no dibuja los "regional indicator symbols" como bandera
+ * — Microsoft los reemplaza a propósito por el código de dos letras en
+ * texto plano en sus fuentes (Segoe UI Emoji), así que `countryFlagEmoji`
+ * se ve como "AR" en vez de 🇦🇷 en cualquier navegador sobre Windows. Una
+ * imagen no depende de la fuente del sistema operativo: se ve igual en
+ * Windows, Mac, Linux, Android e iOS.
+ *
+ * El nombre del asset de Twemoji para una bandera es el par de puntos de
+ * código Unicode de sus dos "regional indicator symbols", en hex y
+ * separados por guion (ej. Argentina = U+1F1E6 U+1F1F7 → "1f1e6-1f1f7").
+ */
+export function countryFlagUrl(code: string): string {
+  const codePoints = [...code.toUpperCase()].map((char) => (127397 + char.charCodeAt(0)).toString(16));
+  // El paquete publicado en npm no incluye /assets en jsDelivr (404) — el mismo
+  // tag del repo de GitHub sí lo sirve, y jsDelivr lo cachea igual de bien.
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${codePoints.join("-")}.svg`;
+}
+
+/**
+ * El monto convertido, formateado — SIN el símbolo "≈": cuando hay un país
+ * elegido (auto por IP o manual desde el navbar), este es el precio que se
+ * muestra GRANDE, como precio principal — no una nota chica al costado. El
+ * de COP pasa a ser la línea secundaria (`formatCop`, sin cambios), no al
+ * revés: sigue siendo lo único que de verdad se cobra (Wompi/PayPal
+ * resuelven en COP o USD, nunca en la moneda que se elija acá), así que
+ * conviene que quede visible igual, solo que ya no como protagonista.
+ *
+ * El código ISO va siempre, aunque `formatted` ya incluya un símbolo:
+ * varias monedas de la región (MXN, ARS, CLP...) usan el mismo glifo "$"
+ * que COP — sin el código, "$86" al lado de "$16.000" se lee como la misma
+ * moneda en vez de una conversión.
+ */
+export function formatConverted(priceCop: number, ctx: PriceEstimateContext): string {
   const amount = priceCop * ctx.rate;
   const formatted = new Intl.NumberFormat(ctx.locale, {
     style: "currency",
     currency: ctx.currency,
     maximumFractionDigits: 0,
   }).format(amount);
-  // El código ISO va siempre, aunque `formatted` ya incluya un símbolo: varias
-  // monedas de la región (MXN, ARS, CLP...) usan el mismo glifo "$" que COP.
-  // Sin el código, "≈ $86" al lado de "$16.000" se lee como la misma moneda
-  // en vez de una conversión — justo la confusión que esto existe para evitar.
-  return `≈ ${formatted} ${ctx.currency}`;
+  return `${formatted} ${ctx.currency}`;
 }

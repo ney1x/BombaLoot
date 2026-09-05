@@ -16,6 +16,16 @@ export function LightningIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CoinIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.2v9.6" />
+      <path d="M14.6 9.4c0-1.1-1.2-2-2.6-2s-2.6.7-2.6 1.8c0 2.6 5.2 1.2 5.2 3.7 0 1.1-1.2 1.9-2.6 1.9s-2.6-.9-2.6-2" />
+    </svg>
+  );
+}
+
 export function ShieldCheckIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" stroke="currentColor" {...base} {...props}>

@@ -9,6 +9,7 @@ import { LightningIcon, ShieldCheckIcon, UserIcon } from "./icons";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useCart } from "@/lib/cart-context";
 import { formatCop, type Product } from "@/lib/products";
+import { formatConverted, type PriceEstimateContext } from "@/lib/currency";
 
 const BENEFITS = [
   { icon: LightningIcon, title: "Entrega instantánea", body: "Recibí tu código al instante" },
@@ -22,11 +23,14 @@ export function HeroRotator({
   products,
   gameImages,
   productImages,
+  priceEstimate,
 }: {
   products: Product[];
   gameImages: Record<string, string>;
   /** Banner de `game_visuals` específico de una denominación — gana sobre `gameImages` cuando existe. */
   productImages: Record<string, string>;
+  /** Conversión de referencia según el país del visitante — `null` si no aplica (ver `@/server/services/geo-price`). */
+  priceEstimate?: PriceEstimateContext | null;
 }) {
   const [index, setIndex] = useState(0);
   const pausedRef = useRef(false);
@@ -161,7 +165,14 @@ export function HeroRotator({
               <span className={`${styles.denom} num-display`}>{product.denomination}</span>
               <span className={styles.unit}>{product.unit}</span>
             </div>
-            <div className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</div>
+            <div className={styles.priceBlock}>
+              <div className={`${styles.price} num-display`}>
+                {priceEstimate ? formatConverted(product.priceCop, priceEstimate) : formatCop(product.priceCop)}
+              </div>
+              {priceEstimate && (
+                <div className={`${styles.priceEstimate} num-display`}>{formatCop(product.priceCop)}</div>
+              )}
+            </div>
           </div>
 
           <button

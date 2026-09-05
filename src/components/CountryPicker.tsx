@@ -3,14 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./CountryPicker.module.css";
-import { ChevronDownIcon } from "./icons";
-import { COUNTRY_COOKIE_NAME, SUPPORTED_COUNTRIES, countryFlagEmoji } from "@/lib/currency";
+import { CheckIcon, ChevronDownIcon, CoinIcon } from "./icons";
+import { COUNTRY_COOKIE_NAME, SUPPORTED_COUNTRIES, countryFlagUrl } from "@/lib/currency";
 
 const DEFAULT_CODE = "CO";
 const DEFAULT_LABEL = "Colombia";
+const DEFAULT_CURRENCY = "COP";
 
 /** Un año — mismo criterio que la cookie de tema (`loadout-theme`), es una preferencia de UI, no una sesión. */
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
+/** Cuánto dura el pulso verde de confirmación en el recuadro. */
+const SUCCESS_FLASH_MS = 1600;
+
+/** Bandera como imagen (Twemoji) — ver el comentario en `countryFlagUrl` sobre por qué no es un emoji de texto. */
+function Flag({ code }: { code: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- ícono chico de un CDN externo, no una imagen de contenido del sitio.
+  return <img src={countryFlagUrl(code)} alt="" width={16} height={12} className={styles.flag} />;
+}
 
 function readCountryCookie(): string {
   const match = document.cookie.match(new RegExp(`(?:^|; )${COUNTRY_COOKIE_NAME}=([^;]*)`));
@@ -39,7 +49,9 @@ export function CountryPicker() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState(DEFAULT_CODE);
+  const [justChanged, setJustChanged] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -54,31 +66,51 @@ export function CountryPicker() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
+  // Limpia el timeout del flash de éxito si el componente se desmonta a mitad de camino.
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
   function choose(nextCode: string) {
+    const changed = nextCode !== code;
     document.cookie = `${COUNTRY_COOKIE_NAME}=${nextCode}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
     setCode(nextCode);
     setOpen(false);
     router.refresh();
+
+    if (changed) {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+      setJustChanged(true);
+      successTimeoutRef.current = setTimeout(() => setJustChanged(false), SUCCESS_FLASH_MS);
+    }
   }
 
   const currentLabel =
     code === DEFAULT_CODE ? DEFAULT_LABEL : (SUPPORTED_COUNTRIES.find((c) => c.code === code)?.label ?? DEFAULT_LABEL);
-  const currentFlag = countryFlagEmoji(code);
+  const currentCurrency =
+    code === DEFAULT_CODE ? DEFAULT_CURRENCY : (SUPPORTED_COUNTRIES.find((c) => c.code === code)?.currency ?? DEFAULT_CURRENCY);
 
   return (
     <div className={styles.wrap} ref={wrapRef}>
       <button
         type="button"
-        className={styles.trigger}
+        className={`${styles.trigger} ${justChanged ? styles.triggerSuccess : ""}`}
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`País: ${currentLabel}. Cambiar país para ver precios convertidos`}
-        title="Cambiar país"
+        aria-label={`Moneda: ${currentCurrency}, país: ${currentLabel}. Cambiar país para ver precios convertidos a tu moneda`}
+        title="Cambiar país y moneda"
       >
-        <span aria-hidden="true">{currentFlag}</span>
-        <span className={styles.code}>{code}</span>
+        <Flag code={code} />
+        <span className={styles.code}>{currentCurrency}</span>
         <ChevronDownIcon className={styles.chevron} aria-hidden="true" />
+        {justChanged ? (
+          <CheckIcon key="check" className={`${styles.coinBadge} ${styles.checkBadge}`} aria-hidden="true" />
+        ) : (
+          <CoinIcon key="coin" className={styles.coinBadge} aria-hidden="true" />
+        )}
       </button>
       {open && (
         <div className={styles.dropdown} role="listbox" aria-label="Elegir país">
@@ -89,7 +121,7 @@ export function CountryPicker() {
             className={`${styles.option} ${code === DEFAULT_CODE ? styles.optionActive : ""}`}
             onClick={() => choose(DEFAULT_CODE)}
           >
-            <span aria-hidden="true">{countryFlagEmoji(DEFAULT_CODE)}</span>
+            <Flag code={DEFAULT_CODE} />
             {DEFAULT_LABEL} <span className={styles.optionCurrency}>COP</span>
           </button>
           <div className={styles.divider} />
@@ -102,7 +134,7 @@ export function CountryPicker() {
               className={`${styles.option} ${code === c.code ? styles.optionActive : ""}`}
               onClick={() => choose(c.code)}
             >
-              <span aria-hidden="true">{countryFlagEmoji(c.code)}</span>
+              <Flag code={c.code} />
               {c.label} <span className={styles.optionCurrency}>{c.currency}</span>
             </button>
           ))}

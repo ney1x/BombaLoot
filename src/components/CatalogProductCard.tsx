@@ -4,7 +4,7 @@ import { GameImageSlot } from "./GameImageSlot";
 import { StockBadge } from "./StockBadge";
 import { GAME_MARKS } from "./icons";
 import { formatCop, productImageLabel, type Product } from "@/lib/products";
-import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
+import { formatConverted, type PriceEstimateContext } from "@/lib/currency";
 
 export function CatalogProductCard({
   product,
@@ -59,11 +59,11 @@ export function CatalogProductCard({
       </div>
       <div className={styles.footer}>
         <span className={styles.priceColumn}>
-          <span className={`${styles.price} num-display`}>{formatCop(product.priceCop)}</span>
+          <span className={`${styles.price} num-display`}>
+            {priceEstimate ? formatConverted(product.priceCop, priceEstimate) : formatCop(product.priceCop)}
+          </span>
           {!isOut && priceEstimate && (
-            <span className={`${styles.priceEstimate} num-display`}>
-              {formatEstimate(product.priceCop, priceEstimate)}
-            </span>
+            <span className={`${styles.priceEstimate} num-display`}>{formatCop(product.priceCop)}</span>
           )}
         </span>
         {!isOut && <span className={styles.cta}>Ver →</span>}

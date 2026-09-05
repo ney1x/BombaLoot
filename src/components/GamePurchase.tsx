@@ -13,7 +13,7 @@ import {
   type GameId,
   type Product,
 } from "@/lib/products";
-import { formatEstimate, type PriceEstimateContext } from "@/lib/currency";
+import { formatConverted, type PriceEstimateContext } from "@/lib/currency";
 import { useCart } from "@/lib/cart-context";
 
 const PAYMENT_METHODS = ["Nequi", "PSE", "Tarjetas", "PayPal"];
@@ -126,12 +126,14 @@ export function GamePurchase({
                   <span className={`${styles.pickDenom} num-display`}>{product.denomination}</span>
                   <span className={styles.pickUnit}>{product.unit}</span>
                   <span className={`${styles.pickPrice} num-display`}>
-                    {isOut ? "Agotado" : formatCop(product.priceCop)}
+                    {isOut
+                      ? "Agotado"
+                      : priceEstimate
+                        ? formatConverted(product.priceCop, priceEstimate)
+                        : formatCop(product.priceCop)}
                   </span>
                   {!isOut && priceEstimate && (
-                    <span className={`${styles.pickPriceEstimate} num-display`}>
-                      {formatEstimate(product.priceCop, priceEstimate)}
-                    </span>
+                    <span className={`${styles.pickPriceEstimate} num-display`}>{formatCop(product.priceCop)}</span>
                   )}
                 </button>
               );
@@ -144,14 +146,15 @@ export function GamePurchase({
               <div className={styles.priceLabel}>Precio</div>
               <div className={styles.priceRow}>
                 <span className={`${styles.priceValue} num-display`}>
-                  {formatCop(selected.priceCop * quantity)}
+                  {priceEstimate
+                    ? formatConverted(selected.priceCop * quantity, priceEstimate)
+                    : formatCop(selected.priceCop * quantity)}
                 </span>
                 <span className={styles.priceNote}>Precio final, impuestos incluidos</span>
               </div>
               {priceEstimate && (
                 <p className={styles.priceEstimateNote}>
-                  {formatEstimate(selected.priceCop * quantity, priceEstimate)} · el cobro es en pesos
-                  colombianos (COP)
+                  {formatCop(selected.priceCop * quantity)} · el cobro es en pesos colombianos (COP)
                 </p>
               )}
               <div className={styles.priceSelected}>

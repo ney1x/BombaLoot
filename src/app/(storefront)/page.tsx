@@ -46,6 +46,7 @@ export default async function Home() {
           products={heroProducts}
           gameImages={Object.fromEntries(heroMap)}
           productImages={Object.fromEntries(heroProductMap)}
+          priceEstimate={priceEstimate}
         />
 
         <section className={styles.section}>

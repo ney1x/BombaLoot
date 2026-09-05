@@ -2,7 +2,14 @@
   position: relative;
 }
 
+/*
+ * El recuadro va igual que cualquier otro ícono de la barra (`.iconBtn` en
+ * Header.module.css: transparente, mismo hover) — ya no lleva tinte dorado
+ * propio. Lo que marca que este control es distinto es solo la monedita
+ * (`.coinBadge`, siempre naranja/dorada), no el recuadro entero.
+ */
 .trigger {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -15,6 +22,7 @@
   font-size: 13px;
   font-weight: 600;
   font-family: var(--font-mono);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .trigger:hover {
@@ -24,6 +32,142 @@
 
 .trigger:active {
   transform: scale(0.97);
+}
+
+/*
+ * La monedita queda siempre puesta (no es un hint de "primera vez" — ya se
+ * probó esa variante y quedaba invisible en visitas repetidas por el gate
+ * de localStorage). En vez de repetir el giro completo sin parar — que
+ * cansaría la vista en una barra que está siempre presente — hace un giro
+ * de moneda al entrar (una vez, al montar el header) y después queda en un
+ * balanceo lento y sutil, la señal mínima de "esto es interactivo/dinero"
+ * sin ser una distracción permanente.
+ */
+.coinBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 15px;
+  height: 15px;
+  padding: 1.5px;
+  border-radius: 999px;
+  background: var(--brand-gold);
+  color: var(--nav-bg);
+  box-shadow: 0 0 0 2px var(--nav-bg);
+  animation:
+    coinDropSpin 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.4s 1 both,
+    coinIdleSway 3.2s ease-in-out 1.3s infinite;
+}
+
+@keyframes coinDropSpin {
+  0% {
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes coinIdleSway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coinBadge {
+    animation: coinFadeIn 0.4s ease 0.2s both;
+  }
+}
+
+@keyframes coinFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * Confirmación de "el cambio se aplicó": el recuadro pulsa en verde y
+ * vuelve solo al mismo transparente de siempre (nunca al tinte dorado —
+ * ese ya no existe). La monedita SÍ se reemplaza un momento por un check
+ * verde (mismo lenguaje que "Agregado ✓" en GamePurchase) y después vuelve
+ * sola a la moneda naranja/dorada de siempre.
+ */
+.triggerSuccess {
+  animation: countrySuccessRing 1.6s ease-out;
+}
+
+@keyframes countrySuccessRing {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 55%, transparent);
+    border-color: color-mix(in srgb, #22c55e 55%, transparent);
+    background: color-mix(in srgb, #22c55e 12%, transparent);
+  }
+  30% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 0%, transparent);
+    border-color: color-mix(in srgb, #22c55e 55%, transparent);
+    background: color-mix(in srgb, #22c55e 12%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .triggerSuccess {
+    animation: none;
+    border-color: color-mix(in srgb, #22c55e 55%, transparent);
+  }
+}
+
+.checkBadge {
+  background: #22c55e;
+  color: #06240f;
+  animation: checkPop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkBadge {
+    animation: coinFadeIn 0.2s ease both;
+  }
+}
+
+.flag {
+  display: block;
+  width: 16px;
+  height: 12px;
+  border-radius: 2px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .code {
