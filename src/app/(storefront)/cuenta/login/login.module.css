@@ -1,0 +1,29 @@
+/*
+ * Botón "Iniciar sesión" — SecureAuthShell pisa cualquier
+ * <button type="submit"> dentro de .card con su propio degradé
+ * accent→accent-2 + glow (especificidad 0,2,1: clase + atributo + tag),
+ * más específico que cualquier selector de una sola clase. `!important`
+ * acá porque no hay forma de superar esa especificidad sin depender del
+ * orden de bundling de CSS modules (con la misma especificidad, empate
+ * inestable) — alcance ya acotado a esta única clase, no toca ninguna de
+ * las dos reglas compartidas (.btnPrimary global, .card button de
+ * SecureAuthShell).
+ */
+.submitButton {
+  background: linear-gradient(100deg, #c2410c 0%, #b23c0e 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 32px -14px rgba(178, 60, 14, 0.65) !important;
+}
+
+/*
+ * Modo oscuro: el mismo degradé oscuro leía "muy oscuro" sobre --paper
+ * oscuro — acá un naranja más claro (brillo leve, no tan pálido como
+ * --accent-2 original #fdba74). Más claro exige texto oscuro para AA
+ * (blanco cae a ~2.8:1); mismo #2b1204 que ya usa --accent-ink en modo
+ * oscuro en el resto del sitio.
+ */
+:root[data-theme="dark"] .submitButton {
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%) !important;
+  color: #2b1204 !important;
+  box-shadow: 0 16px 32px -14px rgba(242, 118, 15, 0.55) !important;
+}

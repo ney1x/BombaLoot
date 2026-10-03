@@ -1,0 +1,95 @@
+/*
+ * Home sigue el mismo toggle claro/oscuro que catálogo/carrito/admin — no
+ * es un mundo fijo aparte. `.shell` solo pinta el fondo full-bleed;
+ * en claro hereda los tokens globales de :root tal cual, y en oscuro los
+ * reemplaza por la paleta navy. El navbar (Header) es la única pieza que
+ * queda fija en su propio dark independientemente del toggle — a
+ * propósito, no toca estos tokens.
+ *
+ * El fondo full-bleed vive en .shell (bloque normal, ancho 100% real) en
+ * vez del truco 100vw + translateX(-50%) en un pseudo-elemento: ese truco
+ * combinado con el header sticky dejaba el fondo sin repintar durante el
+ * scroll en algunos motores de composición (se veía la página en blanco
+ * al scrollear). Un div de bloque normal no tiene ese problema.
+ */
+.shell {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .shell {
+  background:
+    radial-gradient(1100px 560px at 82% -6%, rgba(91, 124, 250, 0.16), transparent 60%),
+    linear-gradient(180deg, #07101d 0%, #050a14 46%, #070d17 100%);
+}
+
+.main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Sections */
+
+.section {
+  padding: 56px 0;
+}
+
+.stepsSection {
+  /* Más ajustado que el ritmo de entrada de 46px del resto (deliberado:
+     TrustStrip y "Cómo funciona" son las dos secciones de confianza,
+     van agrupadas) pero ya no el 16px accidental de antes. */
+  padding-top: 32px;
+  padding-bottom: 64px;
+  border-top: 1px solid var(--border);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sectionHead h2 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.sectionLink {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .productGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding: 0 16px;
+  }
+}

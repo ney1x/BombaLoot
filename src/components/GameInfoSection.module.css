@@ -1,0 +1,126 @@
+.section {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 8px 24px 80px;
+}
+
+.heading {
+  font-size: clamp(22px, 2.4vw, 28px);
+  margin-bottom: 20px;
+}
+
+/*
+ * Antes eran 5 `<div>` con su propio fondo + borde + radio cada uno — un
+ * muro de rectángulos idénticos que competía visualmente con las cards de
+ * precio/denominación de arriba, aunque esto es contenido de apoyo, no la
+ * tarea principal de la página. Un solo contenedor con filas separadas por
+ * un hairline (no 5 bordes) baja el peso visual sin perder nada de texto:
+ * `<details>/<summary>` mantiene la respuesta completa en el DOM siempre
+ * (mismo HTML que lee un crawler), solo la pliega visualmente.
+ */
+.accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.item {
+  border-bottom: 1px solid var(--border);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.itemSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.itemSummary h3 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .itemChevron {
+    transition: none;
+  }
+}
+
+.itemSummary::-webkit-details-marker {
+  display: none;
+}
+
+.itemSummary:hover {
+  background: var(--surface-2);
+}
+
+.itemChevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ink-faint);
+  transition: transform 0.2s ease;
+}
+
+.item[open] .itemChevron {
+  transform: rotate(180deg);
+}
+
+.itemAnswer {
+  padding: 0 20px 18px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.itemAnswer a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.itemAnswer a:hover {
+  color: var(--ink);
+}
+
+.more {
+  margin-top: 16px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+.more a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.otherGames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+
+.otherGames a {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.otherGames a:hover {
+  border-color: var(--ink-soft);
+}

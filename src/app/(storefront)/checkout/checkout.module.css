@@ -1,0 +1,259 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 44px 24px 90px;
+}
+
+.head {
+  margin-bottom: 30px;
+}
+
+.head h1 {
+  font-size: clamp(28px, 3.4vw, 38px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  align-items: start;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.timerRow {
+  display: flex;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+
+.sectionTitle {
+  font-size: 17px;
+  margin-bottom: 16px;
+}
+
+/* Expired reservation */
+
+.expiredCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 44px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.expiredIcon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--warn-soft);
+  color: var(--warn);
+  margin-bottom: 10px;
+}
+
+.expiredIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.expiredCard h2 {
+  font-size: 20px;
+}
+
+.expiredCard p {
+  max-width: 46ch;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  margin-bottom: 14px;
+}
+
+/* Aside / confirmation */
+
+.aside {
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px 22px;
+}
+
+.asideTitle {
+  font-size: 17px;
+  margin-bottom: 16px;
+}
+
+.asideRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.asideValue {
+  color: var(--ink);
+  font-weight: 600;
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asideRow.discount {
+  color: var(--confirm);
+}
+
+.asideDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0 14px;
+}
+
+.asideTotalRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 6px 0 20px;
+}
+
+.asideTotalLabel {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.asideTotalValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+}
+
+.aside .btn {
+  width: 100%;
+}
+
+.terms {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.terms a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+
+.trustList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.trustItem svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--ink-faint);
+}
+
+/* Mobile sticky bar */
+
+.mobileBar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aside {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 30px 16px 110px;
+  }
+
+  .aside {
+    display: none;
+  }
+
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobileBarTotal {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .mobileBarLabel {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  .mobileBarValue {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+  }
+
+  .mobileBar .btn {
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,144 @@
+.shell {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: calc(100vh - 65px);
+}
+
+.panel {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  padding: 56px;
+  background: linear-gradient(155deg, var(--accent), #1c2f8f);
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .panel {
+  background: linear-gradient(155deg, #2a3e9e, #10173f);
+}
+
+.panelPattern {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+}
+
+.panelContent {
+  max-width: 420px;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: #fff;
+  margin-bottom: 40px;
+}
+
+.wordmark span {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.panelContent h1 {
+  color: #fff;
+  font-size: clamp(26px, 2.6vw, 32px);
+  line-height: 1.15;
+  margin-bottom: 22px;
+}
+
+.benefits {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.benefits li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14.5px;
+}
+
+.benefitIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.benefitIcon svg {
+  width: 11px;
+  height: 11px;
+  color: #fff;
+}
+
+.guestHint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-top: 18px;
+}
+
+.formSide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 380px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .panel {
+    padding: 32px 24px;
+  }
+
+  .panelContent {
+    max-width: none;
+  }
+
+  .wordmark {
+    margin-bottom: 20px;
+  }
+
+  .panelContent h1 {
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .benefits {
+    gap: 9px;
+    margin-bottom: 18px;
+  }
+
+  .benefits li {
+    font-size: 13.5px;
+  }
+
+  .guestHint {
+    padding-top: 14px;
+  }
+
+  .formSide {
+    padding: 36px 20px 56px;
+  }
+}

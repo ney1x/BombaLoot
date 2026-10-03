@@ -1,0 +1,393 @@
+/* Hero: dos columnas — copy a la izquierda, producto destacado a la
+   derecha. En mobile colapsa a una sola columna, el producto debajo. */
+.hero {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 56px;
+  padding: 44px 0 60px;
+}
+
+.intro {
+  max-width: 560px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  margin-bottom: 20px;
+}
+
+.intro h1 {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(36px, 4.6vw, 54px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+}
+
+.headLine {
+  color: var(--ink);
+}
+
+.headAccent {
+  color: var(--accent);
+}
+
+.lede {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 50ch;
+  margin-bottom: 30px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: 12px;
+  /* Fijo, no --accent/--accent-2: esos tokens en modo oscuro se aclaran
+     de más (fb923c/fdba74, "pálido") — acá cada tema tiene su propio
+     degradé chico, sutil, calibrado a mano en vez de heredar el token. */
+  background: linear-gradient(100deg, #c2410c 0%, #b23c0e 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  box-shadow: 0 16px 32px -14px rgba(178, 60, 14, 0.65);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+/*
+ * Modo oscuro: el mismo degradé oscuro leía "muy oscuro" sobre --paper
+ * oscuro — acá un naranja más claro, brillo leve, sin llegar al pálido
+ * original. Más claro exige texto oscuro para AA (blanco cae a ~2.8:1
+ * contra este naranja); mismo #2b1204 que usa --accent-ink en modo
+ * oscuro en el resto del sitio.
+ */
+:root[data-theme="dark"] .ctaPrimary {
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%);
+  color: #2b1204;
+  box-shadow: 0 16px 32px -14px rgba(242, 118, 15, 0.55);
+}
+
+.ctaPrimary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ctaPrimary svg {
+  transition: transform 0.2s ease-out;
+}
+
+.ctaPrimary:hover svg {
+  transform: translateX(3px);
+}
+
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 15px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ctaSecondary:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--ink);
+}
+
+/* Beneficios */
+
+.benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 32px;
+  list-style: none;
+  margin: 0;
+  padding: 24px 0 0;
+  border-top: 1px dashed var(--border);
+}
+
+.benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 150px;
+}
+
+.benefitIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.benefitTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 1px;
+}
+
+.benefitBody {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* Banner / tarjeta de producto destacado */
+
+.banner {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 5 / 6;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: var(--shadow-md), 0 0 60px -24px color-mix(in srgb, var(--accent) 45%, transparent);
+  /* Deja el scroll vertical de la página intacto; solo el gesto horizontal
+     (el swipe entre productos) lo captura el JS, nunca el navegador. */
+  touch-action: pan-y;
+}
+
+/*
+ * Antes esto era un solo layer remontado (`key={product.id}`) por cada
+ * rotación — nada de la imagen 2 en adelante empezaba a pedirse hasta que
+ * le tocaba el turno, así que en mobile con red lenta cada rotación abría
+ * una descarga en frío y se notaba como "unos segundos cargando". Ahora
+ * los 6 productos están apilados desde el montaje inicial (opacity 0/1,
+ * nunca display:none — así el navegador sí las pide) y cada uno arranca su
+ * descarga en cuanto la página carga, en paralelo y en segundo plano
+ * (`loading="lazy"` en las que no son la primera no compite con el LCP).
+ * Para cuando la rotación llega a esa denominación, la imagen ya suele
+ * estar en caché — el crossfade por opacity es puro bonus, la ganancia real
+ * es no arrancar la descarga recién en ese momento.
+ */
+.bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.bgActive {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(3, 6, 14, 0.92) 0%, rgba(3, 6, 14, 0.35) 46%, rgba(3, 6, 14, 0.08) 70%),
+    linear-gradient(100deg, rgba(3, 6, 14, 0.35) 0%, transparent 45%);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 30px 30px;
+}
+
+.info {
+  animation: fadeSlideIn 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  margin-bottom: 22px;
+  max-width: 420px;
+}
+
+.game {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  margin-bottom: 6px;
+}
+
+.denomRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.denom {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(40px, 5vw, 60px);
+  line-height: 0.95;
+  color: #fff;
+}
+
+.unit {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.priceBlock {
+  margin-bottom: 18px;
+}
+
+.price {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.priceEstimate {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Antes vivía dentro de .info (max-width: 420px, anclado a la izquierda
+     por el stretch del overlay) — heredaba ese ancho pero no el centrado.
+     Ahora es hijo directo de .overlay: mismo ancho máximo que el bloque
+     de texto de arriba, pero centrado contra el overlay completo. */
+  width: 100%;
+  max-width: 420px;
+  align-self: center;
+  margin-bottom: 22px;
+  /* Mismo tratamiento que .ctaPrimary y el botón de login: fijo por tema,
+     no --accent/--accent-2 (esos se aclaran de más en modo oscuro). */
+  background: linear-gradient(100deg, #c2410c 0%, #b23c0e 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  height: 50px;
+  border-radius: 11px;
+  box-shadow: 0 14px 28px -12px rgba(178, 60, 14, 0.6);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+/* Modo oscuro: mismo naranja claro con brillo leve que .ctaPrimary y el
+   botón de login, texto oscuro para mantener el contraste AA. */
+:root[data-theme="dark"] .cta {
+  background: linear-gradient(100deg, #f2760f 0%, #fb9a3c 100%);
+  color: #2b1204;
+  box-shadow: 0 14px 28px -12px rgba(242, 118, 15, 0.5);
+}
+
+.cta:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 26px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transform: scaleX(0.7);
+  transform-origin: left center;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dotActive {
+  transform: scaleX(1);
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 32px 0 48px;
+  }
+
+  .intro {
+    max-width: none;
+  }
+
+  .banner {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+@media (max-width: 520px) {
+  .banner {
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
+  }
+
+  .info {
+    max-width: none;
+  }
+
+  .cta {
+    max-width: none;
+  }
+
+  .actions {
+    gap: 12px;
+  }
+
+  .ctaPrimary,
+  .ctaSecondary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .benefits {
+    gap: 18px 24px;
+  }
+}

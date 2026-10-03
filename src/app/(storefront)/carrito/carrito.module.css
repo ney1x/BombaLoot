@@ -1,0 +1,235 @@
+.main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 44px 24px 90px;
+}
+
+.head {
+  margin-bottom: 30px;
+}
+
+.head h1 {
+  font-size: clamp(28px, 3.4vw, 38px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  align-items: start;
+}
+
+/*
+ * `1fr` en un grid item sigue siendo `minmax(auto, 1fr)` — el mínimo
+ * implícito ("auto") es el min-content del contenido, no 0. Si una línea
+ * del carrito pide más ancho del que hay (targets táctiles + precio en
+ * mobile), la COLUMNA entera crece para no recortarlo, y eso empuja todo
+ * el layout más ancho que el viewport (barra fija de pago incluida, fuera
+ * de pantalla). min-width:0 fuerza a esta celda a respetar el ancho real
+ * de la columna y dejar que .line/.right envuelvan como corresponde.
+ */
+.column {
+  min-width: 0;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/*
+ * Segunda vuelta sobre este fix (el primer intento seguía siendo casi
+ * invisible, confirmado en vivo): el problema real no era solo el
+ * degradado que pasaba por blanco — es que el fondo real de la página acá
+ * es un crema (`rgb(243,241,236)` en la práctica), y `--surface-2`
+ * (`#e8e5dd`) queda a ~12 unidades de eso por canal, prácticamente el
+ * mismo tono. Una línea de carrito REAL nunca se apoya directo sobre el
+ * fondo de la página — vive en una card blanca con borde (`.line` en
+ * `CartLineItem.module.css`: `background: var(--surface); border: 1px
+ * solid var(--border)`). El skeleton ahora calca esa misma card (visible
+ * de entrada, sin depender de la animación) y el pulso queda como un
+ * bloque `--surface-2` ADENTRO, contra blanco — ahí sí hay contraste real.
+ */
+.lineSkeleton {
+  height: 106px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.lineSkeleton::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  animation: cart-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cart-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lineSkeleton::after {
+    animation: none;
+  }
+}
+
+.continueLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 18px;
+}
+
+.continueLink svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Summary */
+
+.summary {
+  position: sticky;
+  top: 90px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 24px 22px;
+}
+
+.summary h2 {
+  font-size: 17px;
+  margin-bottom: 18px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.summaryRow.discount {
+  color: var(--confirm);
+}
+
+.summaryRow .value {
+  font-family: var(--font-mono);
+}
+
+.summaryDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0;
+}
+
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.totalLabel {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.totalValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+}
+
+.summary :global(.btn) {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.guestNote {
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Mobile sticky bar */
+
+.mobileBar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: 30px 16px 110px;
+  }
+
+  .summary {
+    display: none;
+  }
+
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobileBarTotal {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .mobileBarLabel {
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  .mobileBarValue {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 20px;
+  }
+
+  .mobileBar :global(.btn) {
+    flex-shrink: 0;
+  }
+}

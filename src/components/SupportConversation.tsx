@@ -1,0 +1,322 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import styles from "./SupportConversation.module.css";
+import { ArrowLeftIcon } from "./icons";
+import { StatusPill } from "./StatusPill";
+import { SUPPORT_CATEGORY_LABEL, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE, type SupportCategory } from "@/lib/support";
+import { removeTicketRef } from "@/lib/support-session";
+
+interface TicketView {
+  id: string;
+  ticketNumber: string;
+  status: string;
+  category: string;
+  orderNumber: string | null;
+}
+
+interface MessageView {
+  id: string;
+  senderType: "CUSTOMER" | "ADMIN";
+  body: string;
+  createdAt: string;
+}
+
+/** Sondeo simple cada 8s mientras la pestaña está abierta y visible — alcanza para que la respuesta de soporte aparezca sin recargar, sin meter WebSockets a un sitio que no los tiene en ningún otro lado. */
+const POLL_MS = 8000;
+/** Tras esta cantidad de fallos seguidos en el sondeo silencioso, se corta — no tiene sentido seguir pegándole a un ticket que dejó de responder. */
+const MAX_SILENT_FAILURES = 3;
+/** "Escribiendo…" necesita sentirse en vivo — sondeo propio, mucho más
+    seguido que el de mensajes, y liviano (un solo booleano). */
+const TYPING_POLL_MS = 2500;
+/** No un ping por tecla — a lo sumo uno cada 3s mientras se sigue
+    escribiendo, igual que el umbral de 6s del servidor le da margen de sobra. */
+const TYPING_PING_THROTTLE_MS = 3000;
+
+/**
+ * Hilo de conversación reutilizado por `/ayuda/ticket/[id]` (invitado, con
+ * `?token=` en la URL cuando llega desde un link viejo/guardado — ver
+ * abajo) y `/cuenta/soporte/[id]` (logueado, sin token). El modo se decide
+ * por si hay `accessToken` disponible en la URL.
+ *
+ * Desde la creación del ticket, `/api/support/tickets` ya planta una
+ * cookie httpOnly de acceso (`loadout_ticket_<id>`) — así que un invitado
+ * que llega SIN `?token=` en la URL igual tiene acceso vía esa cookie por
+ * las rutas de sesión/`[id]`, que ahora también la aceptan (auditoría de
+ * seguridad, 2026-09-04). El camino por token acá abajo sigue existiendo
+ * para links guardados de antes de este cambio, o el atajo "volver a tu
+ * conversación" de `/ayuda` (`lib/support-session.ts`, deliberado, no se
+ * toca) — al resolver por ese camino, la propia ruta ya plantó la cookie
+ * del lado del servidor, así que apenas carga se limpia la URL para que el
+ * token deje de repetirse en cada fetch/poll de acá en más.
+ */
+export function SupportConversation({ ticketId }: { ticketId: string }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const accessToken = searchParams.get("token") ?? undefined;
+
+  const [ticket, setTicket] = useState<TicketView | null>(null);
+  const [messages, setMessages] = useState<MessageView[]>([]);
+  const [notFound, setNotFound] = useState(false);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [adminTyping, setAdminTyping] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silentFailuresRef = useRef(0);
+  const lastTypingPingRef = useRef(0);
+
+  const fetchUrl = accessToken
+    ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}`
+    : `/api/support/tickets/${encodeURIComponent(ticketId)}`;
+  const replyUrl = accessToken
+    ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}/messages`
+    : `/api/support/tickets/${encodeURIComponent(ticketId)}`;
+  const typingUrl = accessToken
+    ? `/api/support/tickets/token/${encodeURIComponent(accessToken)}/typing`
+    : `/api/support/tickets/${encodeURIComponent(ticketId)}/typing`;
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  /** Falla definitiva (llegue del sondeo o de la carga inicial): el ticket ya no resuelve — no tiene sentido seguir insistiendo, y un link de invitado guardado que apunta acá ya no sirve. */
+  const markGone = useCallback(() => {
+    setNotFound(true);
+    stopPolling();
+    if (accessToken) removeTicketRef(ticketId);
+  }, [accessToken, stopPolling, ticketId]);
+
+  const load = useCallback(
+    async (silent = false) => {
+      try {
+        const response = await fetch(fetchUrl, { cache: "no-store" });
+        if (!response.ok) {
+          if (!silent) {
+            markGone();
+            return;
+          }
+          silentFailuresRef.current += 1;
+          if (silentFailuresRef.current >= MAX_SILENT_FAILURES) markGone();
+          return;
+        }
+        silentFailuresRef.current = 0;
+        const body = await response.json();
+        setTicket(body.ticket);
+        setMessages(body.messages);
+        if (accessToken) {
+          // La ruta por token ya plantó la cookie de acceso del lado del
+          // servidor — de acá en más alcanza sola, así que se limpia la URL
+          // para que el token deje de quedar visible/repetirse en cada poll.
+          router.replace(pathname, { scroll: false });
+        }
+      } catch {
+        if (!silent) {
+          markGone();
+          return;
+        }
+        silentFailuresRef.current += 1;
+        if (silentFailuresRef.current >= MAX_SILENT_FAILURES) markGone();
+      }
+    },
+    [fetchUrl, markGone, accessToken, router, pathname],
+  );
+
+  useEffect(() => {
+    void load();
+    pollTimerRef.current = setInterval(() => {
+      // Pestaña en segundo plano: no gastar conexión ni cómputo de DB en un
+      // sondeo que nadie está mirando — se retoma solo al volver a foco.
+      if (document.hidden) return;
+      void load(true);
+    }, POLL_MS);
+    return stopPolling;
+  }, [load, stopPolling]);
+
+  useEffect(() => {
+    function handleVisibility() {
+      if (!document.hidden) void load(true);
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [load]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [messages.length]);
+
+  // Sondeo propio de "¿está escribiendo soporte?" — no depende de `ticket`
+  // (no hace falta esperar a la carga inicial del hilo) y no toca
+  // `silentFailuresRef`: un fallo acá no significa que el ticket dejó de
+  // existir, solo que no sabemos si están escribiendo ahora mismo.
+  useEffect(() => {
+    let cancelled = false;
+    async function pollTyping() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(typingUrl, { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const body = await res.json();
+        if (!cancelled) setAdminTyping(Boolean(body.typing));
+      } catch {
+        // sondeo silencioso — no es crítico perder un tick
+      }
+    }
+    void pollTyping();
+    const interval = setInterval(pollTyping, TYPING_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [typingUrl]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [adminTyping]);
+
+  /** Throttleado — no un POST por tecla, a lo sumo uno cada `TYPING_PING_THROTTLE_MS`. */
+  function pingTyping() {
+    const now = Date.now();
+    if (now - lastTypingPingRef.current < TYPING_PING_THROTTLE_MS) return;
+    lastTypingPingRef.current = now;
+    void fetch(typingUrl, { method: "POST" }).catch(() => {
+      // best-effort — que no se vea el "escribiendo…" del otro lado no es fatal
+    });
+  }
+
+  async function handleReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reply.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const response = await fetch(replyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: reply }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "No pudimos enviar tu mensaje.");
+        return;
+      }
+      setTicket(data.ticket);
+      setMessages(data.messages);
+      setReply("");
+    } catch {
+      setError("No pudimos enviar tu mensaje.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (notFound) {
+    return (
+      <main className={styles.main}>
+        <div className={styles.notFound}>
+          <h1>No encontramos esta conversación</h1>
+          <p>Puede que el enlace sea incorrecto o esté en otro navegador.</p>
+          <Link href="/ayuda" className="btn btnPrimary">
+            Volver a Ayuda
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <main className={styles.main}>
+        <Link href="/ayuda" className={styles.crumb}>
+          <ArrowLeftIcon /> Volver a Ayuda
+        </Link>
+        <div className={styles.skeletonHead}>
+          <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonPill}`} />
+        </div>
+        <div className={`${styles.skeleton} ${styles.skeletonSub}`} />
+        <div className={styles.thread}>
+          <div className={`${styles.skeleton} ${styles.skeletonBubble} ${styles.skeletonRight}`} />
+          <div className={`${styles.skeleton} ${styles.skeletonBubble} ${styles.skeletonLeft}`} />
+        </div>
+      </main>
+    );
+  }
+
+  const closed = ticket.status === "CLOSED";
+
+  return (
+    <main className={styles.main}>
+      <Link href="/ayuda" className={styles.crumb}>
+        <ArrowLeftIcon /> Volver a Ayuda
+      </Link>
+
+      <div className={styles.head}>
+        <h1>{SUPPORT_CATEGORY_LABEL[ticket.category as SupportCategory] ?? "Tu conversación"}</h1>
+        <StatusPill tone={SUPPORT_STATUS_TONE[ticket.status] ?? "neutral"}>
+          {SUPPORT_STATUS_LABEL[ticket.status] ?? ticket.status}
+        </StatusPill>
+      </div>
+      <p className={styles.sub}>
+        Ticket #{ticket.ticketNumber}
+        {ticket.orderNumber ? ` · Pedido #${ticket.orderNumber}` : ""}
+      </p>
+
+      <div className={styles.thread}>
+        {messages.map((m) => (
+          <div key={m.id} className={`${styles.message} ${m.senderType === "CUSTOMER" ? styles.customer : styles.admin}`}>
+            {m.body}
+            <span className={styles.messageMeta}>
+              {m.senderType === "ADMIN" ? "Soporte" : "Vos"} ·{" "}
+              {new Date(m.createdAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+            </span>
+          </div>
+        ))}
+        {adminTyping && (
+          <div
+            className={`${styles.message} ${styles.admin}`}
+            data-motion="essential"
+            aria-live="polite"
+            aria-label="Soporte está escribiendo"
+          >
+            <span className={styles.typingDots}>
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+            </span>
+          </div>
+        )}
+        <div ref={threadEndRef} />
+      </div>
+
+      {closed ? (
+        <p className={styles.closedNote}>Esta conversación está cerrada. Si necesitás algo más, creá una nueva desde Ayuda.</p>
+      ) : (
+        <form className={styles.replyForm} onSubmit={handleReply}>
+          <textarea
+            className={styles.textarea}
+            placeholder="Escribí tu respuesta…"
+            value={reply}
+            onChange={(e) => {
+              setReply(e.target.value);
+              pingTyping();
+            }}
+          />
+          {error && <p className={styles.error}>{error}</p>}
+          <div className={styles.replyRow}>
+            <button type="submit" className="btn btnPrimary" disabled={sending || !reply.trim()}>
+              {sending ? "Enviando…" : "Enviar"}
+            </button>
+          </div>
+        </form>
+      )}
+    </main>
+  );
+}

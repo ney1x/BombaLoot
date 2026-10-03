@@ -1,0 +1,31 @@
+# Postgres local para desarrollo y para la prueba de concurrencia.
+#
+# La prueba de inventario NO puede correr contra un motor embebido de una sola
+# conexión (PGlite): necesita transacciones simultáneas reales para que
+# FOR UPDATE SKIP LOCKED signifique algo. Por eso el proyecto trae su propio
+# Postgres, con la misma versión mayor que Neon en producción.
+#
+#   docker compose up -d
+#   npm run db:migrate && npm run db:seed
+#   npm test
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: loadout-db
+    environment:
+      POSTGRES_USER: loadout
+      POSTGRES_PASSWORD: loadout
+      POSTGRES_DB: loadout
+    ports:
+      - "5433:5432"
+    volumes:
+      - loadout-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loadout -d loadout"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  loadout-pgdata:

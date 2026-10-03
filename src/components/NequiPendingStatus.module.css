@@ -1,0 +1,192 @@
+.card {
+  /* Acento de marca Nequi — vive solo acá, la única pantalla del checkout
+     que de verdad "es" Nequi (el comprador está afuera, en su app). El
+     resto del flujo de pago se queda con --accent del sitio. */
+  --nequi: #e10a6e;
+  --nequi-soft: color-mix(in srgb, var(--nequi) 12%, var(--surface));
+}
+
+.ringBadge {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  margin-bottom: 22px;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Arranca en las 12, no a las 3 (default de SVG) — un anillo de progreso
+     que crece hacia la derecha desde arriba lee como reloj, el orden que
+     todo el mundo ya espera de un contador de tiempo. */
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 4;
+}
+
+.ringProgress {
+  fill: none;
+  stroke: var(--nequi);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.9s linear;
+}
+
+.iconInner {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--nequi-soft);
+  color: var(--nequi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconInner svg {
+  width: 28px;
+  height: 28px;
+}
+
+.pingDot {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--nequi);
+  border: 2px solid var(--surface);
+}
+
+.pingDot::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--nequi);
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.steps {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  list-style: none;
+  margin: 26px 0 4px;
+  padding: 0;
+  counter-reset: step;
+}
+
+.steps li {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* Línea conectora entre los círculos — un solo trazo detrás, no un borde
+   por ítem: así no se corta en los bordes de cada `li` de flex. */
+.steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: calc(50% + 18px);
+  right: calc(-50% + 18px);
+  height: 2px;
+  background: var(--border);
+}
+
+.steps li.stepDone:not(:last-child)::after {
+  background: var(--nequi);
+}
+
+.stepDot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  z-index: 1;
+}
+
+.stepDot svg {
+  width: 12px;
+  height: 12px;
+}
+
+.stepDone {
+  color: var(--ink-soft);
+}
+
+.stepDone .stepDot {
+  background: var(--nequi);
+  border-color: var(--nequi);
+  color: #fff;
+}
+
+.stepActive {
+  color: var(--nequi);
+}
+
+.stepActive .stepDot {
+  border-color: var(--nequi);
+  background: var(--nequi-soft);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--nequi) 35%, transparent);
+  animation: step-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes step-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--nequi) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--nequi) 0%, transparent);
+  }
+}
+
+.pollLine {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  margin-top: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pingDot::after,
+  .stepActive .stepDot {
+    animation: none;
+  }
+}

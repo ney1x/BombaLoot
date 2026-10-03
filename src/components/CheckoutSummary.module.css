@@ -1,0 +1,210 @@
+.wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 14px;
+}
+
+.head h2 {
+  font-size: 17px;
+}
+
+.editLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.editLink:hover {
+  text-decoration: underline;
+}
+
+.toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.toggleRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.chevron {
+  width: 15px;
+  height: 15px;
+  color: var(--ink-faint);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.content {
+  display: block;
+}
+
+/* Line items */
+
+.lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.line {
+  display: flex;
+  gap: 14px;
+  padding: 12px 20px;
+}
+
+.line + .line {
+  border-top: 1px solid var(--border);
+}
+
+.lineFlagged {
+  background: color-mix(in srgb, var(--alert) 4%, transparent);
+}
+
+.imageWrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lineBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.game {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mark {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.denomRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.denom {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.lineMeta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.flagWrap {
+  margin-top: 4px;
+}
+
+.linePrice {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Totals */
+
+.totals {
+  padding: 12px 20px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  padding: 6px 0;
+}
+
+.totalRow.discount {
+  color: var(--confirm);
+}
+
+.totalRow.final {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .toggle {
+    display: flex;
+  }
+
+  .content {
+    display: none;
+  }
+
+  .content.contentOpen {
+    display: block;
+  }
+
+  .head {
+    padding: 16px 16px 0;
+  }
+
+  .line,
+  .totals {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

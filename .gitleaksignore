@@ -1,0 +1,2 @@
+# Falso positivo: código de juego ficticio usado como fixture en tests
+5e3812e16c4947ddf024ccd0a0caa06d54463754:tests/inventory.invariants.test.ts:generic-api-key:180

@@ -1,0 +1,58 @@
+.banner {
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+}
+
+.banner h3 {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.body :global(a) {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.bad {
+  background: var(--alert-soft);
+  color: var(--alert);
+}
+
+.good {
+  background: var(--confirm-soft);
+  color: var(--confirm);
+}
+
+.neutral {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+.neutral h3 {
+  color: var(--ink);
+}

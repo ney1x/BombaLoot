@@ -1,0 +1,159 @@
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.categoryButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.categoryButton:hover {
+  border-color: var(--accent);
+}
+
+.categoryButton svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-faint);
+}
+
+/* Mismo rol de "volver" que `.crumb` en SupportConversation — mismo tamaño
+   (13.5px) para que las dos pantallas del flujo de soporte compartan una
+   sola escala, no dos valores casi iguales por separado. `display: flex`
+   (no `inline-flex`): tiene que ocupar su propia línea siempre — como
+   hermano inline de `.selectedCategory` competían por el mismo renglón en
+   viewports angostos y partían el texto en varias líneas. */
+.back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 18px;
+}
+
+.back svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
+
+.selectedCategory {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  display: inline-block;
+  max-width: 100%;
+  margin-bottom: 18px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.required {
+  font-weight: 400;
+  color: var(--alert);
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14.5px;
+  font-family: inherit;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--danger, #e5484d);
+}
+
+/* Mismo lenguaje que `.legal` en SecureAuthShell (el aviso del login) —
+   acá sin centrar: este formulario es de flujo vertical normal, no la
+   tarjeta angosta y centrada del login. */
+.legal {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.legal a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.submitRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
